@@ -1,0 +1,82 @@
+/*
+ * BookHero design tokens — derived from the logo:
+ *   ink black outline  → text + structure (sidebar, scanner)
+ *   lightning yellow   → primary accent ("hero" / warehouse label yellow)
+ *   hashtag red        → signal accent (unread dots, live alerts) — used sparingly
+ * Foundation is a warm paper neutral so the yellow reads as an accent, not a theme.
+ */
+:root {
+  --font-display: 'Bricolage Grotesque', 'Instrument Sans', system-ui, sans-serif;
+  --font-ui: 'Instrument Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-serif: 'Newsreader', 'Iowan Old Style', Georgia, serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+
+  /* Neutrals (warm paper) */
+  --paper: #f6f4ee;
+  --paper-2: #efece3;
+  --surface: #ffffff;
+  --surface-raised: #ffffff;
+  --sunken: #f2efe7;
+  --line: #e4e0d4;
+  --line-soft: #ece9df;
+  --line-strong: #cdc7b6;
+
+  /* Text */
+  --ink: #17150f;
+  --ink-2: #47433a;
+  --muted: #6b6659;
+  --faint: #9a9483;
+
+  /* Brand */
+  --hero: #ffd21f;          /* primary — logo lightning */
+  --hero-hover: #f6c700;
+  --hero-press: #e5b800;
+  --hero-subtle: #fff6cc;   /* primary subtle background */
+  --hero-line: #efd77a;
+  --hero-ink: #4a3b00;      /* text on subtle yellow */
+  --signal: #e3262b;        /* logo hashtag red */
+
+  /* Semantic */
+  --success: #1d744a;
+  --success-bg: #e7f3ec;
+  --success-line: #bcdcc9;
+  --warning: #9a4a0c;
+  --warning-bg: #fdefe1;
+  --warning-line: #f1caa5;
+  --danger: #b4232a;
+  --danger-bg: #fcecea;
+  --danger-line: #f0c3c0;
+  --info: #285a9e;
+  --info-bg: #e9eff8;
+  --info-line: #c6d5ec;
+
+  /* Sidebar / dark surfaces */
+  --night: #15130e;
+  --night-2: #211e17;
+  --night-3: #2c2820;
+  --night-line: #2f2b22;
+  --night-text: #c4bead;
+  --night-muted: #847d6b;
+
+  /* Shape + depth (restrained) */
+  --r-xs: 3px;
+  --r-sm: 5px;
+  --r: 7px;
+  --r-lg: 10px;
+  --shadow-1: 0 1px 0 rgba(23, 21, 15, 0.03), 0 1px 2px rgba(23, 21, 15, 0.06);
+  --shadow-2: 0 10px 28px -10px rgba(23, 21, 15, 0.22), 0 2px 6px rgba(23, 21, 15, 0.06);
+  --shadow-3: 0 28px 64px -16px rgba(23, 21, 15, 0.34), 0 4px 12px rgba(23, 21, 15, 0.08);
+  --book-shadow: 0 1px 1px rgba(23, 21, 15, 0.12), 0 6px 14px -6px rgba(23, 21, 15, 0.35);
+
+  /* Motion */
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --t-1: 120ms;
+  --t-2: 200ms;
+  --t-3: 280ms;
+
+  /* Layout */
+  --sidebar-w: 244px;
+  --topbar-h: 60px;
+  --staff-w: 460px;
+}

@@ -1,0 +1,76 @@
+# =========================================================
+# BookHero - single .gitignore for Backend (Django/DRF) and Frontend (React/Vite)
+# =========================================================
+
+# ---- Claude Code ----
+.claude/
+
+# ---- Secrets & environment (never commit; .env.example is allowed) ----
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# ---- Backend: Python / Django ----
+env/
+venv/
+.venv/
+ENV/
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Django migrations (keep each app's migrations/__init__.py so the package still imports)
+**/migrations/*
+!**/migrations/__init__.py
+
+# Django runtime files
+*.sqlite3
+*.sqlite3-journal
+db.sqlite3
+local_settings.py
+staticfiles/
+media/
+celerybeat-schedule
+celerybeat.pid
+
+# ---- Frontend: Node / React / Vite ----
+node_modules/
+dist/
+dist-ssr/
+.vite/
+.eslintcache
+*.local
+*.tsbuildinfo
+coverage/
+
+# ---- Logs ----
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ---- Editors & OS ----
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.DS_Store
+Thumbs.db
+Desktop.ini
