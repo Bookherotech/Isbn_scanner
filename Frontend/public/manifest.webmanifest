@@ -1,0 +1,13 @@
+{
+  "name": "BookHero",
+  "short_name": "BookHero",
+  "description": "Scan, shelve and submit books for approval.",
+  "start_url": "/staff",
+  "display": "standalone",
+  "background_color": "#F6F4EE",
+  "theme_color": "#15130E",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
