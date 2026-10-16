@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { login as apiLogin } from '../services/mockApi'
 import { db } from '../services/store'
 import { setAuthLostHandler } from '../services/apiClient'
-import { fetchMe, loginWithPassword, verifyOtp } from '../services/authApi'
+import { fetchMe, loginWithPassword, saveProfile, verifyOtp } from '../services/authApi'
 import { clearAuth, readAuth, updateAuth, writeAuth } from '../services/authStorage'
 
 const AuthContext = createContext(null)
@@ -16,7 +16,7 @@ const KEY = 'bookhero.session' // demo (mock) session: just a mock user id
 function toSessionUser(apiUser) {
   const users = db().users
   const base = users.find((u) => u.email === apiUser.email) ?? users.find((u) => u.id === (apiUser.role === 'admin' ? 'u_admin' : 'u_sarah'))
-  return { ...base, role: apiUser.role, email: apiUser.email, name: apiUser.full_name || apiUser.email.split('@')[0], backendId: apiUser.id, source: 'api' }
+  return { ...base, role: apiUser.role, email: apiUser.email, name: apiUser.full_name || apiUser.email.split('@')[0], phone: apiUser.phone_number || '', backendId: apiUser.id, source: 'api' }
 }
 
 function readSession() {
@@ -70,6 +70,14 @@ export function AuthProvider({ children }) {
     [startSession],
   )
 
+  // The signed-in user edits their own name / phone (the email cannot be changed).
+  const updateProfile = useCallback(async ({ fullName, phoneNumber }) => {
+    const apiUser = await saveProfile({ fullName, phoneNumber })
+    updateAuth({ user: apiUser })
+    setUser(toSessionUser(apiUser))
+    return apiUser
+  }, [])
+
   // Demo access (no password): a mock user, used by the "Continue as ..." buttons and the demo switcher.
   const signIn = useCallback(async ({ role, username, remember = true }) => {
     const u = await apiLogin({ role, username })
@@ -115,7 +123,7 @@ export function AuthProvider({ children }) {
     }
   }, [])
 
-  const value = useMemo(() => ({ user, signIn, signInWithPassword, signInWithOtp, signOut }), [user, signIn, signInWithPassword, signInWithOtp, signOut])
+  const value = useMemo(() => ({ user, signIn, signInWithPassword, signInWithOtp, updateProfile, signOut }), [user, signIn, signInWithPassword, signInWithOtp, updateProfile, signOut])
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 

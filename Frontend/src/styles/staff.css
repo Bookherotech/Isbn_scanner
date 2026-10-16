@@ -621,3 +621,8 @@
 .s-appbar__title { font-size: 15px; font-weight: 650; letter-spacing: -0.01em; }
 .s-appbar .demo-badge { margin-left: auto; padding: 0 3px; box-shadow: none; }
 .s-appbar .demo-badge__text { display: none; }
+
+/* Profile: your details */
+.profile__form { display: grid; gap: 14px; padding: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+.profile__form .input:disabled, .profile__form .select select:disabled { background: var(--paper-2); color: var(--muted); cursor: not-allowed; }
+.profile__form-head { display: flex; justify-content: flex-end; margin-bottom: -6px; }

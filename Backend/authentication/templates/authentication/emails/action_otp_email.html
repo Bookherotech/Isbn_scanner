@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>{{ heading }}</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f6f4ee;">
+  <!-- Preview text shown next to the subject in the inbox (never contains the code) -->
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:#f6f4ee;">
+    {{ heading }}. The code expires in {{ ttl_minutes }} minutes.
+  </div>
+
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f6f4ee;">
+    <tr>
+      <td align="center" style="padding:16px 10px;">
+
+        <table role="presentation" width="480" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:480px;">
+
+          <!-- Header: BookHero dark with the yellow lightning accent -->
+          <tr>
+            <td style="background-color:#17150f;border-radius:14px 14px 0 0;border-bottom:4px solid #ffd21f;padding:14px 20px;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td style="padding-right:12px;vertical-align:middle;">
+                    <img src="cid:{{ logo_cid }}" width="40" height="40" alt="BookHero" style="display:block;width:40px;height:40px;border-radius:10px;border:0;">
+                  </td>
+                  <td style="vertical-align:middle;">
+                    <div style="font-family:'Trebuchet MS',Helvetica,Arial,sans-serif;font-size:19px;font-weight:800;letter-spacing:-0.4px;line-height:1.1;color:#ffffff;">
+                      <span style="color:#e3262b;">#</span>BookHero
+                    </div>
+                    <div style="font-family:Helvetica,Arial,sans-serif;font-size:10px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;color:#ffd21f;padding-top:3px;">
+                      Inventory automation
+                    </div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Card -->
+          <tr>
+            <td style="background-color:#ffffff;border-left:1px solid #e4e0d4;border-right:1px solid #e4e0d4;padding:20px 20px 4px 20px;">
+              <span style="display:inline-block;background-color:#fff6cc;border:1px solid #efd77a;border-radius:999px;padding:3px 10px;font-family:Helvetica,Arial,sans-serif;font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:#4a3b00;">
+                {{ badge }}
+              </span>
+
+              <h1 style="margin:10px 0 4px 0;font-family:'Trebuchet MS',Helvetica,Arial,sans-serif;font-size:21px;line-height:1.2;font-weight:800;letter-spacing:-0.3px;color:#17150f;">
+                {{ heading }}
+              </h1>
+              <p style="margin:0;font-family:Helvetica,Arial,sans-serif;font-size:14px;line-height:1.5;color:#47433a;">
+                Hi {{ name }}, {{ intro }}
+                The code expires in <strong style="color:#17150f;">{{ ttl_minutes }} minutes</strong> and works only once.
+              </p>
+            </td>
+          </tr>
+
+          <!-- The code, one box per digit -->
+          <tr>
+            <td align="center" style="background-color:#ffffff;border-left:1px solid #e4e0d4;border-right:1px solid #e4e0d4;padding:14px 20px 2px 20px;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center">
+                <tr>
+                  {% for digit in digits %}
+                  <td align="center" style="width:52px;height:58px;background-color:#fff6cc;border:2px solid #efd77a;border-radius:10px;font-family:'Courier New',Courier,monospace;font-size:30px;font-weight:700;line-height:58px;color:#17150f;">{{ digit }}</td>
+                  {% if not forloop.last %}<td style="width:8px;font-size:0;line-height:0;">&nbsp;</td>{% endif %}
+                  {% endfor %}
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="background-color:#ffffff;border-left:1px solid #e4e0d4;border-right:1px solid #e4e0d4;padding:10px 20px 2px 20px;">
+              <p style="margin:0;font-family:Helvetica,Arial,sans-serif;font-size:12px;line-height:1.5;color:#6b6659;text-align:center;">
+                Never share this code. BookHero will never ask you for it.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Security note -->
+          <tr>
+            <td style="background-color:#ffffff;border-left:1px solid #e4e0d4;border-right:1px solid #e4e0d4;border-bottom:1px solid #e4e0d4;border-radius:0 0 14px 14px;padding:12px 20px 18px 20px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td style="border-left:3px solid #e3262b;background-color:#f6f4ee;border-radius:4px;padding:8px 12px;font-family:Helvetica,Arial,sans-serif;font-size:12px;line-height:1.45;color:#47433a;">
+                    {{ warning }}
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td align="center" style="padding:12px 10px 0 10px;font-family:Helvetica,Arial,sans-serif;font-size:11px;line-height:1.5;color:#6b6659;">
+              <strong style="color:#17150f;">BookHero</strong> &middot; Inventory automation for physical books<br>
+              &copy; {{ year }} BookHero &middot; automated message, please do not reply
+            </td>
+          </tr>
+
+        </table>
+
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

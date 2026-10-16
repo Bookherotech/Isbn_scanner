@@ -113,6 +113,7 @@ DATABASES = {
 AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+        'OPTIONS': {'user_attributes': ('email', 'full_name')},  # BookHero users have an email and a full name, no username
     },
     {
         'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
@@ -204,5 +205,6 @@ SIMPLE_JWT = {
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'ROTATE_REFRESH_TOKENS': True,
     'UPDATE_LAST_LOGIN': True,
+    'CHECK_REVOKE_TOKEN': True,  # tokens are tied to the password: changing it signs the user out everywhere
     'AUTH_HEADER_TYPES': ('Bearer',),
 }

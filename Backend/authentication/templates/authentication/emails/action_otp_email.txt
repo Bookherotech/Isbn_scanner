@@ -1,0 +1,15 @@
+{% autoescape off %}BookHero - {{ badge }}
+
+Hi {{ name }},
+
+{{ intro }}
+
+Your code: {{ code }}
+
+It expires in {{ ttl_minutes }} minutes and works only once.
+Never share this code with anyone. BookHero will never ask you for it.
+
+{{ warning }}
+
+BookHero - Inventory automation for physical books
+{% endautoescape %}

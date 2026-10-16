@@ -1,33 +1,110 @@
-import { useMemo, useState } from 'react'
-import { Pencil, Power, UserPlus } from 'lucide-react'
-import { getStaff, saveStaff, setStaffStatus } from '../../services/mockApi'
-import { useDebounce, useQuery, useTicker } from '../../hooks/useStore'
+import { useState } from 'react'
+import { KeyRound, Pencil, Power, Trash2, UserPlus } from 'lucide-react'
+import { useAuth } from '../../hooks/useAuth'
+import { useQuery } from '../../hooks/useStore'
 import { useToast } from '../../hooks/useToast'
+import { deleteStaff, fetchStaff, updateStaff } from '../../services/authApi'
 import { DataTable } from '../../components/ui/Data'
 import { Avatar, PageHeader } from '../../components/ui/Misc'
-import { Field, Input, SearchInput, Segmented } from '../../components/ui/Form'
 import { Button, IconButton } from '../../components/ui/Button'
 import { EmptyState } from '../../components/ui/Feedback'
 import { Modal } from '../../components/ui/Overlay'
 import { cn, timeAgo } from '../../utils/format'
+import AddStaffForm from './AddStaffForm'
+import ChangePasswordForm from './ChangePasswordForm'
+import EditStaffForm from './EditStaffForm'
+
+const displayName = (u) => u.full_name || u.email
 
 export default function Staff() {
-  const { toast } = useToast()
-  const [q, setQ] = useState('')
-  const [filter, setFilter] = useState('all')
-  const dq = useDebounce(q, 150)
-  const { data, loading, error, reload, refreshing } = useQuery(() => getStaff(), [])
-  const [editing, setEditing] = useState(null)
-  const [toggling, setToggling] = useState(null)
-  useTicker()
+  const { user } = useAuth()
+  // Demo accounts have no backend session, so only a real sign-in can manage staff.
+  const real = user?.source === 'api'
 
-  const rows = useMemo(
-    () =>
-      (data || []).filter(
-        (u) => (filter === 'all' || u.status === filter) && (!dq || `${u.name} ${u.username} ${u.email}`.toLowerCase().includes(dq.toLowerCase())),
-      ),
-    [data, dq, filter],
+  return (
+    <div>
+      <PageHeader
+        eyebrow="Management"
+        title="Staff"
+        description="People who scan and submit books from the Staff app. Deactivated staff can’t sign in."
+      />
+      {real ? (
+        <StaffList />
+      ) : (
+        <EmptyState art="books" title="Sign in with your admin account">
+          Staff are stored in the backend. Sign in with your real admin email and password to add and see staff.
+        </EmptyState>
+      )}
+    </div>
   )
+}
+
+function StaffList() {
+  const { toast } = useToast()
+  const [adding, setAdding] = useState(false)
+  const [editing, setEditing] = useState(null) // the staff member being edited
+  const [toggling, setToggling] = useState(null) // ...being activated / deactivated
+  const [deleting, setDeleting] = useState(null) // ...being deleted
+  const [passwordFor, setPasswordFor] = useState(null) // ...getting a new password
+  const [busy, setBusy] = useState(false)
+  const [more, setMore] = useState({ rows: [], next: undefined, loading: false })
+  const { data, loading, error, reload, refreshing } = useQuery(() => fetchStaff(), [])
+
+  const rows = [...(data?.results || []), ...more.rows]
+  const next = more.next === undefined ? data?.next : more.next
+
+  const refresh = () => {
+    setMore({ rows: [], next: undefined, loading: false })
+    reload()
+  }
+
+  const loadMore = async () => {
+    setMore((m) => ({ ...m, loading: true }))
+    try {
+      const page = await fetchStaff(next)
+      setMore((m) => ({ rows: [...m.rows, ...page.results], next: page.next, loading: false }))
+    } catch {
+      setMore((m) => ({ ...m, loading: false }))
+      toast({ title: 'Could not load more staff', tone: 'error' })
+    }
+  }
+
+  const failure = (e, fallback) =>
+    toast({ title: e.status === 404 ? 'That staff member no longer exists' : e.status === 0 ? 'Cannot reach the server' : fallback, tone: 'error' })
+
+  const confirmToggle = async () => {
+    const person = toggling
+    setBusy(true)
+    try {
+      await updateStaff(person.id, { isActive: !person.is_active })
+      toast({ title: `${displayName(person)} ${person.is_active ? 'deactivated' : 'activated'}`, tone: 'info' })
+      setToggling(null)
+      refresh()
+    } catch (e) {
+      failure(e, 'Could not change the status')
+      setToggling(null)
+      refresh()
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const confirmDelete = async () => {
+    const person = deleting
+    setBusy(true)
+    try {
+      await deleteStaff(person.id)
+      toast({ title: `${displayName(person)} deleted`, tone: 'info' })
+      setDeleting(null)
+      refresh()
+    } catch (e) {
+      failure(e, 'Could not delete the account')
+      setDeleting(null)
+      refresh()
+    } finally {
+      setBusy(false)
+    }
+  }
 
   const columns = [
     {
@@ -36,34 +113,33 @@ export default function Staff() {
       card: 'title',
       render: (u) => (
         <span className="person person--lg">
-          <Avatar name={u.name} hue={u.hue} size={32} />
+          <Avatar name={displayName(u)} hue={(u.id * 47) % 360} size={32} />
           <span>
-            <strong>{u.name}</strong>
+            <strong>{displayName(u)}</strong>
             <span className="muted">{u.email}</span>
+            {!u.email_verified && <span className="email-unverified">Email not verified</span>}
           </span>
         </span>
       ),
     },
-    { key: 'username', header: 'Username', card: 'meta', render: (u) => <span className="td-mono">@{u.username}</span> },
-    { key: 'status', header: 'Status', card: 'badge', render: (u) => <span className={cn('state-pill', u.status === 'active' ? 'is-on' : 'is-off')}>{u.status === 'active' ? 'Active' : 'Inactive'}</span> },
-    { key: 'submitted', header: 'Books submitted', align: 'right', card: 'meta', render: (u) => <span className="num td-strong">{u.submitted}</span> },
+    { key: 'phone', header: 'Phone', card: 'meta', render: (u) => <span className="td-mono">{u.phone_number || '—'}</span> },
     {
-      key: 'quality',
-      header: 'Approved / rejected',
-      card: 'meta',
+      key: 'status',
+      header: 'Status',
+      card: 'badge',
       render: (u) => (
-        <span className="ratio" title={`${u.approved} approved, ${u.rejected} rejected`}>
-          <span className="ratio__bar" aria-hidden>
-            <span style={{ width: `${u.submitted ? (u.approved / u.submitted) * 100 : 0}%` }} />
-            <span className="is-rej" style={{ width: `${u.submitted ? (u.rejected / u.submitted) * 100 : 0}%` }} />
-          </span>
-          <span className="num">
-            {u.approved} / {u.rejected}
-          </span>
-        </span>
+        <button
+          type="button"
+          className={cn('state-pill', u.is_active ? 'is-on' : 'is-off')}
+          title={u.is_active ? `Click to deactivate ${displayName(u)}` : `Click to activate ${displayName(u)}`}
+          aria-label={`${displayName(u)} is ${u.is_active ? 'active' : 'inactive'}. ${u.is_active ? 'Deactivate' : 'Activate'}`}
+          onClick={() => setToggling(u)}
+        >
+          {u.is_active ? 'Active' : 'Inactive'}
+        </button>
       ),
     },
-    { key: 'last', header: 'Last active', card: 'meta', render: (u) => <span className="td-muted">{u.lastActive ? timeAgo(u.lastActive) : 'Never'}</span> },
+    { key: 'last', header: 'Last sign-in', card: 'meta', render: (u) => <span className="td-muted">{u.last_login ? timeAgo(Date.parse(u.last_login)) : 'Never'}</span> },
     {
       key: 'actions',
       header: '',
@@ -71,38 +147,23 @@ export default function Staff() {
       card: 'action',
       render: (u) => (
         <span className="row-actions">
-          <IconButton icon={Pencil} label={`Edit ${u.name}`} size={15} onClick={() => setEditing(u)} />
-          <IconButton icon={Power} label={u.status === 'active' ? `Deactivate ${u.name}` : `Activate ${u.name}`} size={15} onClick={() => setToggling(u)} />
+          <IconButton icon={Pencil} label={`Edit ${displayName(u)}`} size={15} onClick={() => setEditing(u)} />
+          <IconButton icon={KeyRound} label={`Change password for ${displayName(u)}`} size={15} onClick={() => setPasswordFor(u)} />
+          <IconButton icon={Trash2} label={`Delete ${displayName(u)}`} size={15} onClick={() => setDeleting(u)} />
         </span>
       ),
     },
   ]
 
   return (
-    <div>
-      <PageHeader
-        title="Staff"
-        eyebrow="Management"
-        description="People who scan and submit books from the Staff app. Deactivated staff can’t sign in."
-        actions={
-          <Button variant="primary" icon={UserPlus} onClick={() => setEditing({})}>
-            Add staff
-          </Button>
-        }
-      />
+    <>
       <div className="toolbar">
-        <SearchInput value={q} onChange={setQ} placeholder="Search name, username or email" />
-        <Segmented
-          label="Status"
-          value={filter}
-          onChange={setFilter}
-          options={[
-            { value: 'all', label: 'All', count: data?.length },
-            { value: 'active', label: 'Active', count: data?.filter((u) => u.status === 'active').length },
-            { value: 'inactive', label: 'Inactive', count: data?.filter((u) => u.status === 'inactive').length },
-          ]}
-        />
+        <span style={{ flex: 1 }} />
+        <Button variant="primary" icon={UserPlus} onClick={() => setAdding(true)}>
+          Add staff
+        </Button>
       </div>
+
       <DataTable
         columns={columns}
         rows={rows}
@@ -111,86 +172,105 @@ export default function Staff() {
         onRetry={reload}
         refreshing={refreshing}
         caption="Staff"
-        empty={<EmptyState art="search" title="No staff found">No one matches “{dq}”.</EmptyState>}
+        empty={
+          <EmptyState art="books" title="No staff yet" action={<Button variant="primary" icon={UserPlus} onClick={() => setAdding(true)}>Add staff</Button>}>
+            Staff accounts you add will appear here.
+          </EmptyState>
+        }
       />
+      {next && (
+        <p style={{ textAlign: 'center', marginTop: 12 }}>
+          <Button onClick={loadMore} loading={more.loading}>
+            Load more
+          </Button>
+        </p>
+      )}
 
-      <Modal open={!!editing} onClose={() => setEditing(null)} title={editing?.id ? `Edit ${editing.name}` : 'Add staff member'} description={editing?.id ? undefined : 'They’ll receive an invitation to set a password (simulated).'} size="sm">
-        {editing && (
-          <StaffForm
-            key={editing.id || 'new'}
-            user={editing}
-            onClose={() => setEditing(null)}
-            onSaved={(name, isNew) => toast({ title: isNew ? `${name} added` : 'Staff updated', description: isNew ? 'Invitation sent (simulated).' : undefined })}
+      <Modal open={adding} onClose={() => setAdding(false)} title="Add staff member" description="Create a Staff account. They can sign in right away." size="sm">
+        {adding && (
+          <AddStaffForm
+            onClose={() => setAdding(false)}
+            onCreated={(created) => {
+              setAdding(false)
+              refresh()
+              toast({ title: `${displayName(created)} added`, description: 'They can sign in with their email and password.' })
+            }}
           />
         )}
       </Modal>
+
+      <Modal open={!!editing} onClose={() => setEditing(null)} title={editing ? `Edit ${displayName(editing)}` : ''} description="Change their name, phone or email." size="sm">
+        {editing && (
+          <EditStaffForm
+            key={editing.id}
+            staff={editing}
+            onClose={() => setEditing(null)}
+            onSaved={(saved) => {
+              setEditing(null)
+              refresh()
+              toast({ title: `${displayName(saved)} updated` })
+            }}
+            onEmailChanged={(changed) => {
+              setEditing(changed) // keep the dialog open with the new email
+              refresh()
+            }}
+          />
+        )}
+      </Modal>
+
+      <Modal open={!!passwordFor} onClose={() => setPasswordFor(null)} title={`Change password${passwordFor ? ` for ${displayName(passwordFor)}` : ''}`} description="Set a new password for this account." size="sm">
+        {passwordFor && (
+          <ChangePasswordForm
+            key={passwordFor.id}
+            staff={passwordFor}
+            onClose={() => setPasswordFor(null)}
+            onDone={() => {
+              toast({ title: `Password changed for ${displayName(passwordFor)}`, description: 'They were signed out and must use the new password.' })
+              setPasswordFor(null)
+            }}
+          />
+        )}
+      </Modal>
+
       <Modal
         open={!!toggling}
-        onClose={() => setToggling(null)}
+        onClose={() => !busy && setToggling(null)}
         size="sm"
-        title={toggling?.status === 'active' ? `Deactivate ${toggling?.name}?` : `Activate ${toggling?.name}?`}
-        description={toggling?.status === 'active' ? 'They will be signed out and can’t use the Staff app. Their submissions stay in BookHero.' : 'They can sign in to the Staff app again.'}
+        title={toggling?.is_active ? `Deactivate ${toggling && displayName(toggling)}?` : `Activate ${toggling && displayName(toggling)}?`}
+        description={
+          toggling?.is_active
+            ? 'They will be signed out right away and can’t sign in until you activate them again. Their account and details stay.'
+            : 'They will be able to sign in to the Staff app again.'
+        }
         footer={
           <>
-            <Button onClick={() => setToggling(null)}>Cancel</Button>
-            <Button
-              variant={toggling?.status === 'active' ? 'danger' : 'dark'}
-              icon={Power}
-              onClick={async () => {
-                const u = toggling
-                await setStaffStatus(u.id, u.status === 'active' ? 'inactive' : 'active')
-                setToggling(null)
-                toast({ title: `${u.name} ${u.status === 'active' ? 'deactivated' : 'activated'}`, tone: 'info' })
-              }}
-            >
-              {toggling?.status === 'active' ? 'Deactivate' : 'Activate'}
+            <Button onClick={() => setToggling(null)} disabled={busy}>
+              Cancel
+            </Button>
+            <Button variant={toggling?.is_active ? 'danger' : 'dark'} icon={Power} loading={busy} onClick={confirmToggle}>
+              {toggling?.is_active ? 'Deactivate' : 'Activate'}
             </Button>
           </>
         }
       />
-    </div>
-  )
-}
 
-function StaffForm({ user, onClose, onSaved }) {
-  const [name, setName] = useState(user.name || '')
-  const [username, setUsername] = useState(user.username || '')
-  const [email, setEmail] = useState(user.email || '')
-  const [err, setErr] = useState('')
-  const [busy, setBusy] = useState(false)
-  const submit = async (e) => {
-    e.preventDefault()
-    setBusy(true)
-    setErr('')
-    try {
-      await saveStaff({ id: user.id, name, username, email })
-      onSaved(name, !user.id)
-      onClose()
-    } catch (x) {
-      setErr(x.message)
-    } finally {
-      setBusy(false)
-    }
-  }
-  return (
-    <form onSubmit={submit} className="form-stack">
-      <Field label="Full name" htmlFor="s-name">
-        <Input id="s-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Priya Shah" data-autofocus />
-      </Field>
-      <Field label="Username" htmlFor="s-user" error={err}>
-        <Input id="s-user" mono value={username} onChange={(e) => setUsername(e.target.value.replace(/\s/g, '.').toLowerCase())} placeholder="priya.shah" />
-      </Field>
-      <Field label="Email" htmlFor="s-mail" optional>
-        <Input id="s-mail" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="priya@bookhero.store" />
-      </Field>
-      <p className="field__hint">Role: Staff — can scan, correct metadata, choose shelf and quantity, and submit for approval.</p>
-      <div className="form-actions">
-        <span style={{ flex: 1 }} />
-        <Button onClick={onClose}>Cancel</Button>
-        <Button type="submit" variant="dark" loading={busy}>
-          {user.id ? 'Save' : 'Add staff'}
-        </Button>
-      </div>
-    </form>
+      <Modal
+        open={!!deleting}
+        onClose={() => !busy && setDeleting(null)}
+        size="sm"
+        title={`Delete ${deleting ? displayName(deleting) : ''}?`}
+        description="This permanently removes their account and they are signed out right away. It can’t be undone. To only block sign-in for now, deactivate them instead."
+        footer={
+          <>
+            <Button onClick={() => setDeleting(null)} disabled={busy}>
+              Cancel
+            </Button>
+            <Button variant="danger" icon={Trash2} loading={busy} onClick={confirmDelete}>
+              Delete
+            </Button>
+          </>
+        }
+      />
+    </>
   )
 }
