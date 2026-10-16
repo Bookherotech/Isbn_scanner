@@ -115,6 +115,35 @@
 .login__demo-icon { width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center; background: var(--night); color: var(--hero); flex: none; }
 .login__demo-icon--staff { background: var(--hero); color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--ink); }
 .login__foot { font-size: 12px; color: var(--faint); text-align: center; }
+
+/* Super Admin code step */
+.otp__badge { display: grid; place-items: center; width: 46px; height: 46px; margin-bottom: 14px; border-radius: 12px; background: var(--hero); color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--ink); }
+.otp { display: flex; justify-content: center; gap: 10px; margin: 26px 0 8px; }
+.otp__box {
+  width: 64px;
+  height: 72px;
+  text-align: center;
+  font: 700 30px var(--font-mono);
+  color: var(--ink);
+  background: var(--surface);
+  border: 1.5px solid var(--line-strong);
+  border-radius: var(--r-lg);
+  caret-color: transparent;
+  transition: border-color var(--t-1), box-shadow var(--t-1), background var(--t-1);
+}
+.otp__box:hover { border-color: #b7b09c; }
+.otp__box.is-filled { background: var(--hero-subtle); border-color: var(--hero-line); }
+.otp__box:focus { outline: none; border-color: var(--ink); background: var(--hero-subtle); box-shadow: 0 0 0 3px var(--hero-subtle); }
+.otp__box:disabled { opacity: 0.6; }
+.otp.has-error .otp__box { border-color: var(--danger); animation: otp-shake 320ms var(--ease-out); }
+.otp__timer { text-align: center; font-size: 13px; color: var(--muted); margin: 8px 0 16px; }
+.otp__timer.is-expired { color: var(--danger); font-weight: 600; }
+.otp__links { display: flex; justify-content: space-between; align-items: center; margin-top: 16px; }
+.otp__links .login__forgot { display: inline-flex; align-items: center; gap: 4px; }
+.otp__links .login__forgot:disabled { color: var(--faint); cursor: default; text-decoration: none; }
+.login__note { font-size: 13px; color: var(--ink-2); background: var(--hero-subtle); padding: 8px 10px; border-radius: 6px; margin-top: 8px; }
+@keyframes otp-shake { 20% { transform: translateX(-5px); } 40% { transform: translateX(5px); } 60% { transform: translateX(-3px); } 80% { transform: translateX(3px); } }
+@media (max-width: 420px) { .otp { gap: 8px; } .otp__box { width: 56px; height: 64px; font-size: 26px; } }
 @media (max-width: 900px) {
   .login { grid-template-columns: 1fr; }
   .login__brand { display: none; }
@@ -847,3 +876,23 @@
 /* Out-of-stock tab inside Waiting list */
 .oos-intro { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
 .oos-intro p { font-size: 13px; color: var(--muted); max-width: 720px; }
+
+/* Add staff: country code + number on one row */
+.phone-row { display: grid; grid-template-columns: 112px 1fr; gap: 8px; }
+
+/* Staff status: the pill is a button that activates / deactivates the account */
+button.state-pill { border: 0; cursor: pointer; font-family: inherit; transition: filter var(--t-1), transform var(--t-1); }
+button.state-pill:hover { filter: brightness(0.94); }
+button.state-pill:active { transform: scale(0.96); }
+button.state-pill:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+/* Staff: confirmation codes inside dialogs, unverified email, email-change box */
+.otp--compact { margin: 12px 0 4px; gap: 8px; }
+.otp--compact .otp__box { width: 52px; height: 60px; font-size: 26px; }
+.email-unverified { display: inline-block; margin-top: 2px; font-size: 11px; font-weight: 600; color: var(--warning, #a15c00); }
+.email-change { display: grid; gap: 10px; padding: 12px; background: var(--paper-2); border: 1px solid var(--line); border-radius: 10px; }
+.email-change__row { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; }
+.email-change__text { font-size: 13px; color: var(--ink-2); }
+.email-change__links { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.email-change__ok { font-size: 13px; font-weight: 600; color: var(--success); }
+

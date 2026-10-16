@@ -752,55 +752,6 @@ export async function setShelfStatus(id, status, actorId = 'u_admin') {
 }
 
 // --------------------------------------------------------------------------
-// Staff management
-// --------------------------------------------------------------------------
-export async function getStaff() {
-  await latency()
-  guardNetwork()
-  const s = db()
-  return copy(
-    s.users
-      .filter((u) => u.role === 'staff')
-      .map((u) => {
-        const mine = s.items.filter((i) => i.submittedBy === u.id)
-        return {
-          ...u,
-          submitted: mine.length,
-          approved: mine.filter((i) => i.approvedAt).length,
-          rejected: mine.filter((i) => i.status === 'rejected').length,
-          pending: mine.filter((i) => i.status === 'pending').length,
-        }
-      }),
-  )
-}
-
-export async function saveStaff({ id, name, username, email }, actorId = 'u_admin') {
-  await latency(250, 420)
-  const s = db()
-  const uname = username.trim().toLowerCase()
-  if (!name.trim() || !uname) throw new ApiError('validation', 'Name and username are required.')
-  if (s.users.some((u) => u.username === uname && u.id !== id)) throw new ApiError('validation', `Username “${uname}” is already taken.`)
-  commit((st) => {
-    if (id) {
-      Object.assign(st.users.find((u) => u.id === id), { name: name.trim(), username: uname, email: email.trim() })
-      log(st, { actor: actorId, action: 'Updated staff', object: name.trim(), detail: 'Profile details changed', type: 'staff', result: 'info' })
-    } else {
-      st.users.push({ id: `u_${uname.replace(/[^a-z]/g, '')}_${Date.now() % 1000}`, name: name.trim(), username: uname, email: email.trim(), role: 'staff', title: 'Inventory Staff', hue: Math.floor(Math.random() * 360), status: 'active', createdAt: now(), lastActive: null })
-      log(st, { actor: actorId, action: 'Added staff', object: name.trim(), detail: 'Invitation sent (simulated)', type: 'staff' })
-    }
-  })
-}
-
-export async function setStaffStatus(id, status, actorId = 'u_admin') {
-  await latency(200, 350)
-  commit((st) => {
-    const u = st.users.find((x) => x.id === id)
-    u.status = status
-    log(st, { actor: actorId, action: status === 'active' ? 'Activated staff' : 'Deactivated staff', object: u.name, detail: status === 'active' ? 'Access restored' : 'Access removed', type: 'staff', result: status === 'active' ? 'success' : 'warning' })
-  })
-}
-
-// --------------------------------------------------------------------------
 // Reports
 // --------------------------------------------------------------------------
 export async function getReports({ days = 14, shelf = '', staff = '', status = '' } = {}) {

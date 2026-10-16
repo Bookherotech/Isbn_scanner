@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.1/ref/settings/
 """
 
+from datetime import timedelta
 from pathlib import Path
 
 from decouple import Csv, config
@@ -59,6 +60,9 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'main.urls'
 
+# Custom user: email + password login, roles Admin / Staff
+AUTH_USER_MODEL = 'authentication.User'
+
 # Frontend origins allowed to call the API (comma separated, set in .env)
 CORS_ALLOWED_ORIGINS = config(
     'CORS_ALLOWED_ORIGINS',
@@ -89,8 +93,16 @@ WSGI_APPLICATION = 'main.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': config('DB_NAME'),
+        'USER': config('DB_USER'),
+        'PASSWORD': config('DB_PASSWORD'),
+        'HOST': config('DB_HOST', default='127.0.0.1'),
+        'PORT': config('DB_PORT', default='3306'),
+        'OPTIONS': {'charset': 'utf8mb4'},
+        # Scaling: reuse DB connections between requests instead of reconnecting each time
+        'CONN_MAX_AGE': 60,
+        'CONN_HEALTH_CHECKS': True,
     }
 }
 
@@ -101,6 +113,7 @@ DATABASES = {
 AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+        'OPTIONS': {'user_attributes': ('email', 'full_name')},  # BookHero users have an email and a full name, no username
     },
     {
         'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
@@ -135,8 +148,63 @@ STATIC_URL = 'static/'
 # Email
 # https://docs.djangoproject.com/en/6.1/topics/email/#topic-email-configuration
 
-MAILERS = {
-    'default': {
-        'BACKEND': 'django.core.mail.backends.console.EmailBackend',
+# Real email (the Super Admin sign-in code): set EMAIL_HOST and the other EMAIL_* values in .env.
+# Without EMAIL_HOST, emails are only printed in the terminal (local development).
+_email_host = config('EMAIL_HOST', default='')
+_email_user = config('EMAIL_HOST_USER', default='')
+
+if _email_host:
+    MAILERS = {
+        'default': {
+            'BACKEND': 'django.core.mail.backends.smtp.EmailBackend',
+            'OPTIONS': {
+                'host': _email_host,
+                'port': config('EMAIL_PORT', default=587, cast=int),
+                'username': _email_user,
+                'password': config('EMAIL_HOST_PASSWORD', default=''),
+                'use_tls': config('EMAIL_USE_TLS', default=True, cast=bool),
+                'timeout': 15,  # seconds: a slow mail server must not hang the login request
+            },
+        },
+    }
+else:
+    MAILERS = {
+        'default': {
+            'BACKEND': 'django.core.mail.backends.console.EmailBackend',
+        },
+    }
+
+# The "From" address. Gmail and most providers require it to be the account you log in with.
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default=f'BookHero <{_email_user}>' if _email_user else 'BookHero <no-reply@bookhero.local>')
+
+
+# Django REST framework
+# https://www.django-rest-framework.org/api-guide/settings/
+
+REST_FRAMEWORK = {
+    # Stateless JWT auth: no server-side session store, so the API scales across many workers
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated',
+    ),
+    'DEFAULT_RENDERER_CLASSES': (
+        'rest_framework.renderers.JSONRenderer',
+    ),
+    'DEFAULT_THROTTLE_RATES': {
+        'login': '10/min',  # per IP. Uses the cache: switch CACHES to Redis when running several workers
     },
+}
+
+# JWT
+# https://django-rest-framework-simplejwt.readthedocs.io/
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'ROTATE_REFRESH_TOKENS': True,
+    'UPDATE_LAST_LOGIN': True,
+    'CHECK_REVOKE_TOKEN': True,  # tokens are tied to the password: changing it signs the user out everywhere
+    'AUTH_HEADER_TYPES': ('Bearer',),
 }
