@@ -1,14 +1,18 @@
 import { useState } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router-dom'
-import { ArrowRight, LayoutDashboard, Lock, Smartphone, User } from 'lucide-react'
+import { ArrowRight, LayoutDashboard, Lock, Mail, Smartphone } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { Button } from '../../components/ui/Button'
 import { Checkbox, Field } from '../../components/ui/Form'
 import { Barcode } from '../../components/ui/Misc'
 import { DemoBadge } from '../../components/layout/DemoControls'
+import OtpStep from './OtpStep'
+
+// Time is read outside the component (React's purity rule).
+const inSeconds = (seconds) => Date.now() + seconds * 1000
 
 export default function Login() {
-  const { user, signIn } = useAuth()
+  const { user, signIn, signInWithPassword } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const [username, setUsername] = useState('')
@@ -16,8 +20,12 @@ export default function Login() {
   const [remember, setRemember] = useState(true)
   const [busy, setBusy] = useState('')
   const [error, setError] = useState('')
+  const [otp, setOtp] = useState(null) // set when a code was emailed to the Super Admin
 
-  if (user && !busy) return <Navigate to={user.role === 'admin' ? '/admin' : '/staff'} replace />
+  if (user && !busy) {
+    const from = location.state?.from
+    return <Navigate to={from && from.startsWith(`/${user.role}`) ? from : user.role === 'admin' ? '/admin' : '/staff'} replace />
+  }
 
   const go = async (opts, key) => {
     setBusy(key)
@@ -32,13 +40,41 @@ export default function Login() {
     }
   }
 
-  const submit = (e) => {
+  const finish = (u) => {
+    const from = location.state?.from
+    navigate(from && from.startsWith(`/${u.role}`) ? from : u.role === 'admin' ? '/admin' : '/staff', { replace: true })
+  }
+
+  // The sign-in cannot continue (wrong code too often, code expired...): back to the password step.
+  const restart = (message) => {
+    setOtp(null)
+    setPassword('')
+    setBusy('')
+    setError(message)
+  }
+
+  // Real sign-in: email + password checked by the Django backend; the role comes from the account.
+  const submit = async (e) => {
     e.preventDefault()
     if (!username.trim() || !password) {
-      setError('Enter your username and password.')
+      setError('Enter your email and password.')
       return
     }
-    go({ username, role: username.toLowerCase().includes('rachel') || username.toLowerCase().includes('admin') ? 'admin' : 'staff' }, 'form')
+    setBusy('form')
+    setError('')
+    try {
+      const result = await signInWithPassword({ email: username, password, remember })
+      if (result.otpRequired) {
+        // Super Admin: the code was emailed, ask for it before signing in.
+        setOtp({ challenge: result.challenge, emailHint: result.emailHint, expiresAt: inSeconds(result.expiresIn) })
+        setBusy('')
+        return
+      }
+      finish(result)
+    } catch (e) {
+      setError(e.message)
+      setBusy('')
+    }
   }
 
   return (
@@ -81,15 +117,16 @@ export default function Login() {
           </span>
           <DemoBadge />
         </div>
-        <div className="login__form-wrap">
+        {otp && <OtpStep {...otp} remember={remember} onDone={finish} onRestart={restart} />}
+        <div className="login__form-wrap" hidden={!!otp}>
           <h1 className="login__title">Sign in to BookHero</h1>
           <p className="login__sub">Inventory automation for physical books.</p>
 
           <form className="login__form" onSubmit={submit} noValidate>
-            <Field label="Email or username" htmlFor="u">
+            <Field label="Email" htmlFor="u">
               <div className="input-icon">
-                <User size={16} aria-hidden />
-                <input id="u" className="input" autoComplete="username" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="sarah.wilson" />
+                <Mail size={16} aria-hidden />
+                <input id="u" className="input" type="email" autoComplete="username" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="you@bookhero.com" />
               </div>
             </Field>
             <Field label="Password" htmlFor="p">
