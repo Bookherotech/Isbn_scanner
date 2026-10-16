@@ -5,6 +5,7 @@ from django.utils import timezone
 
 from authentication.constants import Role
 from authentication.managers import UserManager
+from authentication.validators import validate_phone_number
 
 
 class User(AbstractBaseUser, PermissionsMixin):
@@ -12,6 +13,8 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     email = models.EmailField(max_length=254, unique=True)  # unique => indexed; the login lookup key. MySQL's default collation makes it case-insensitive
     full_name = models.CharField(max_length=150, blank=True)
+    phone_number = models.CharField(max_length=20, blank=True, default='', validators=[validate_phone_number])  # +<country code><number>
+    email_verified = models.BooleanField(default=True)  # False after an admin changes the email, until the new address confirms a code
     role = models.CharField(max_length=10, choices=Role.choices, default=Role.STAFF)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False, help_text='Can sign in to the Django admin site.')

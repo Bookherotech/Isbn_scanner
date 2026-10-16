@@ -1,18 +1,18 @@
 import { useState } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router-dom'
-import { ArrowRight, LayoutDashboard, Lock, Mail, Smartphone } from 'lucide-react'
+import { ArrowRight, Lock, Mail } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { Button } from '../../components/ui/Button'
 import { Checkbox, Field } from '../../components/ui/Form'
 import { Barcode } from '../../components/ui/Misc'
-import { DemoBadge } from '../../components/layout/DemoControls'
+import ForgotPassword from './ForgotPassword'
 import OtpStep from './OtpStep'
 
 // Time is read outside the component (React's purity rule).
 const inSeconds = (seconds) => Date.now() + seconds * 1000
 
 export default function Login() {
-  const { user, signIn, signInWithPassword } = useAuth()
+  const { user, signInWithPassword } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const [username, setUsername] = useState('')
@@ -21,23 +21,13 @@ export default function Login() {
   const [busy, setBusy] = useState('')
   const [error, setError] = useState('')
   const [otp, setOtp] = useState(null) // set when a code was emailed to the Super Admin
+  const [wrongPassword, setWrongPassword] = useState(false) // the last sign-in attempt had a wrong email or password
+  const [forgot, setForgot] = useState(null) // { email } while the "forgot password" screens are open
+  const [notice, setNotice] = useState('') // e.g. "Password changed" after a reset
 
   if (user && !busy) {
     const from = location.state?.from
     return <Navigate to={from && from.startsWith(`/${user.role}`) ? from : user.role === 'admin' ? '/admin' : '/staff'} replace />
-  }
-
-  const go = async (opts, key) => {
-    setBusy(key)
-    setError('')
-    try {
-      const u = await signIn({ ...opts, remember })
-      const from = location.state?.from
-      navigate(from && from.startsWith(`/${u.role}`) ? from : u.role === 'admin' ? '/admin' : '/staff', { replace: true })
-    } catch (e) {
-      setError(e.message)
-      setBusy('')
-    }
   }
 
   const finish = (u) => {
@@ -62,6 +52,7 @@ export default function Login() {
     }
     setBusy('form')
     setError('')
+    setNotice('')
     try {
       const result = await signInWithPassword({ email: username, password, remember })
       if (result.otpRequired) {
@@ -72,9 +63,19 @@ export default function Login() {
       }
       finish(result)
     } catch (e) {
+      setWrongPassword(e.status === 401) // "Forgot password?" is offered only after a wrong email or password
       setError(e.message)
       setBusy('')
     }
+  }
+
+  // Back from the "forgot password" screens. After a successful reset the new password has to be typed again.
+  const closeForgot = (message = '') => {
+    setForgot(null)
+    setWrongPassword(false)
+    setPassword('')
+    setError('')
+    setNotice(message)
   }
 
   return (
@@ -115,10 +116,10 @@ export default function Login() {
           <span className="login__mobile-logo">
             <img src="/logo.webp" alt="BookHero" width={56} height={56} />
           </span>
-          <DemoBadge />
         </div>
         {otp && <OtpStep {...otp} remember={remember} onDone={finish} onRestart={restart} />}
-        <div className="login__form-wrap" hidden={!!otp}>
+        {forgot && <ForgotPassword initialEmail={forgot.email} onBack={() => closeForgot()} onDone={closeForgot} />}
+        <div className="login__form-wrap" hidden={!!otp || !!forgot}>
           <h1 className="login__title">Sign in to BookHero</h1>
           <p className="login__sub">Inventory automation for physical books.</p>
 
@@ -137,45 +138,26 @@ export default function Login() {
             </Field>
             <div className="login__row">
               <Checkbox label="Remember me" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
-              <button type="button" className="login__forgot" onClick={() => setError('Password reset is handled by your admin in this release.')}>
-                Forgot password?
-              </button>
+              {wrongPassword && (
+                <button type="button" className="login__forgot" onClick={() => setForgot({ email: username.trim() })}>
+                  Forgot password?
+                </button>
+              )}
             </div>
             {error && (
               <p className="login__error" role="alert">
                 {error}
               </p>
             )}
+            {notice && (
+              <p className="login__note" role="status">
+                {notice}
+              </p>
+            )}
             <Button type="submit" variant="dark" size="lg" block iconRight={ArrowRight} loading={busy === 'form'}>
               Sign in
             </Button>
           </form>
-
-          <div className="login__divider">
-            <span>Demo access — no password needed</span>
-          </div>
-          <div className="login__demo">
-            <button className="login__demo-btn" onClick={() => go({ role: 'admin' }, 'admin')} disabled={!!busy}>
-              <span className="login__demo-icon">
-                <LayoutDashboard size={20} />
-              </span>
-              <span>
-                <strong>Continue as Admin</strong>
-                <em>Rachel Morgan · Super Admin · dashboard</em>
-              </span>
-              {busy === 'admin' ? <span className="spinner" /> : <ArrowRight size={17} />}
-            </button>
-            <button className="login__demo-btn" onClick={() => go({ role: 'staff' }, 'staff')} disabled={!!busy}>
-              <span className="login__demo-icon login__demo-icon--staff">
-                <Smartphone size={20} />
-              </span>
-              <span>
-                <strong>Continue as Staff</strong>
-                <em>Sarah Wilson · mobile scanning app</em>
-              </span>
-              {busy === 'staff' ? <span className="spinner" /> : <ArrowRight size={17} />}
-            </button>
-          </div>
         </div>
         <p className="login__foot">© BookHero · Prototype build for client review</p>
       </section>

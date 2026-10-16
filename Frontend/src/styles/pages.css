@@ -876,3 +876,23 @@
 /* Out-of-stock tab inside Waiting list */
 .oos-intro { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
 .oos-intro p { font-size: 13px; color: var(--muted); max-width: 720px; }
+
+/* Add staff: country code + number on one row */
+.phone-row { display: grid; grid-template-columns: 112px 1fr; gap: 8px; }
+
+/* Staff status: the pill is a button that activates / deactivates the account */
+button.state-pill { border: 0; cursor: pointer; font-family: inherit; transition: filter var(--t-1), transform var(--t-1); }
+button.state-pill:hover { filter: brightness(0.94); }
+button.state-pill:active { transform: scale(0.96); }
+button.state-pill:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+/* Staff: confirmation codes inside dialogs, unverified email, email-change box */
+.otp--compact { margin: 12px 0 4px; gap: 8px; }
+.otp--compact .otp__box { width: 52px; height: 60px; font-size: 26px; }
+.email-unverified { display: inline-block; margin-top: 2px; font-size: 11px; font-weight: 600; color: var(--warning, #a15c00); }
+.email-change { display: grid; gap: 10px; padding: 12px; background: var(--paper-2); border: 1px solid var(--line); border-radius: 10px; }
+.email-change__row { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; }
+.email-change__text { font-size: 13px; color: var(--ink-2); }
+.email-change__links { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.email-change__ok { font-size: 13px; font-weight: 600; color: var(--success); }
+
