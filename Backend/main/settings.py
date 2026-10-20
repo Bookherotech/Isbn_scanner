@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'corsheaders',
     # Local apps
     'authentication',
+    'book_admin',
 ]
 
 MIDDLEWARE = [
