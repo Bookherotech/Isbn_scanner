@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { ArrowRight, Check, ChevronDown, History, Search } from 'lucide-react'
-import { getActiveShelvesSync } from '../../services/mockApi'
+import { getCachedShelves, loadShelves } from '../../services/staffApi'
 import { getLastShelf, useDraft } from '../../hooks/useDraft'
+import { useToast } from '../../hooks/useToast'
 import { FlowHeader, BottomBar } from '../../components/staff/StaffBits'
 import { BookCover } from '../../components/books/BookCover'
 import { Button } from '../../components/ui/Button'
@@ -13,7 +14,8 @@ import { cn } from '../../utils/format'
 export default function ShelfQuantity() {
   const navigate = useNavigate()
   const { draft, setDraft } = useDraft()
-  const shelves = useMemo(() => getActiveShelvesSync(), [])
+  const { toast } = useToast()
+  const [shelves, setShelves] = useState(() => getCachedShelves() || []) // usually already loaded by the previous step
   const last = getLastShelf()
   const lastValid = shelves.some((s) => s.id === last) ? last : ''
   const [shelf, setShelf] = useState(draft?.shelfId || lastValid)
@@ -21,6 +23,26 @@ export default function ShelfQuantity() {
   const [q, setQ] = useState('')
   const [qty, setQty] = useState(draft?.quantity ?? 1)
   const [tried, setTried] = useState(false)
+
+  // Refresh the active shelves (an admin may have added or closed one). If nothing was picked yet,
+  // pre-select the last used shelf once it is known to be active, as the screen does with a ready list.
+  useEffect(() => {
+    let alive = true
+    loadShelves()
+      .then((list) => {
+        if (!alive) return
+        setShelves(list)
+        if (!draft?.shelfId && !shelf && list.some((s) => s.id === last)) {
+          setShelf(last)
+          setOpen(false)
+        }
+      })
+      .catch((error) => alive && toast({ title: 'Could not load shelves', description: error.message, tone: 'error' }))
+    return () => {
+      alive = false
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const filtered = useMemo(() => {
     const s = q.trim().toUpperCase().replace(/\s/g, '')
@@ -41,7 +63,7 @@ export default function ShelfQuantity() {
       <FlowHeader title="Shelf & quantity" step={2} onBack={() => navigate(`/staff/book/${draft.isbn}`)} />
       <div className="flow__body">
         <div className="flow-book">
-          <BookCover title={draft.values.title} author={draft.values.author} isbn={draft.meta?.noCover ? null : draft.isbn} size="sm" />
+          <BookCover title={draft.values.title} author={draft.values.author} isbn={draft.meta?.noCover ? null : draft.isbn} photo={draft.photo} size="sm" />
           <div>
             <strong>{draft.values.title}</strong>
             <span>{draft.values.author}</span>

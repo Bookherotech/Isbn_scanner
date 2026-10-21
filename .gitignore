@@ -4,6 +4,8 @@
 
 # ---- Claude Code ----
 .claude/
+CLAUDE.md
+**/CLAUDE.md
 
 # ---- Secrets & environment (never commit; .env.example is allowed) ----
 .env

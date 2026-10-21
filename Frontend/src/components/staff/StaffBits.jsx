@@ -35,7 +35,7 @@ export function FlowHeader({ title, step, onBack, close = false }) {
 export function SubmissionCard({ item }) {
   return (
     <Link to={`/staff/submissions/${item.id}`} className="subcard">
-      <BookCover title={item.title} author={item.author} isbn={item.isbn} size="sm" />
+      <BookCover title={item.title} author={item.author} isbn={item.isbn} photo={item.coverPhotoUrl} size="sm" />
       <span className="subcard__main">
         <span className="subcard__title">{item.title}</span>
         <span className="subcard__meta">
@@ -46,6 +46,7 @@ export function SubmissionCard({ item }) {
         </span>
         <span className="subcard__status">
           <StatusChip status={item.status} ready={item.ready} size="sm" />
+          {item.edited && <span className="edited-tag subcard__edited">Edited</span>}
           {item.flagHold && (
             <span className="subcard__flag">
               <Flag size={11} aria-hidden /> In flag review
@@ -58,7 +59,7 @@ export function SubmissionCard({ item }) {
   )
 }
 
-/** Sticky bottom action area inside the phone. */
-export function BottomBar({ children }) {
-  return <div className="bottombar">{children}</div>
+/** Sticky bottom action area inside the phone. `bottombar--split`: two buttons side by side from tablet width. */
+export function BottomBar({ children, className }) {
+  return <div className={cn('bottombar', className)}>{children}</div>
 }

@@ -1,46 +1,70 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { Camera, CheckCircle2, Flashlight, FlashlightOff, Keyboard, ScanLine, X } from 'lucide-react'
-import { lookupIsbn } from '../../services/mockApi'
-import { DEMO_ISBNS } from '../../services/catalog'
+import { useNavigate } from 'react-router-dom'
+import { CheckCircle2, Flashlight, FlashlightOff, Keyboard, RotateCcw, ScanLine, X } from 'lucide-react'
+import { lookupIsbn } from '../../services/staffApi'
+import { createIsbnDetector } from '../../services/barcode'
+import { isValidIsbn13 } from '../../services/isbn'
 import { useDraft } from '../../hooks/useDraft'
-import { Barcode } from '../../components/ui/Misc'
 import { Button } from '../../components/ui/Button'
 import { Spinner } from '../../components/ui/Feedback'
 import { cn } from '../../utils/format'
 
-const SCANNABLE = DEMO_ISBNS.filter((d) => d.isbn.length === 13)
 const PHASE_TEXT = {
-  idle: 'Align the barcode inside the frame',
+  idle: 'Starting camera…',
   camera: 'Hold steady — looking for an ISBN barcode',
-  scanning: 'Scanning…',
+  failed: 'Camera not available',
   detected: 'ISBN detected',
   loading: 'Loading book information…',
   ready: 'Metadata ready',
 }
 const wait = (ms) => new Promise((r) => setTimeout(r, ms))
 
+/** A message staff can act on, from the getUserMedia error. */
+function cameraErrorText(error) {
+  switch (error?.name) {
+    case 'NotAllowedError':
+    case 'SecurityError':
+      return 'Camera permission was blocked. Allow the camera for this site (the icon next to the address bar), then try again.'
+    case 'NotFoundError':
+    case 'OverconstrainedError':
+      return 'No camera was found on this device. Enter the ISBN manually.'
+    case 'NotReadableError':
+    case 'AbortError':
+      return 'Another app is using the camera. Close it, then try again.'
+    default:
+      return 'The camera could not be started. Try again, or enter the ISBN manually.'
+  }
+}
+
+/** The back camera on phones; any camera on laptops (they have no "environment" camera). */
+async function openCamera() {
+  if (!navigator.mediaDevices?.getUserMedia) throw Object.assign(new Error('No camera API'), { name: 'NotFoundError' })
+  try {
+    return await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1280 } }, audio: false })
+  } catch (error) {
+    if (error?.name !== 'OverconstrainedError' && error?.name !== 'NotFoundError') throw error
+    return navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+  }
+}
+
 export default function Scan() {
   const navigate = useNavigate()
   const { setDraft } = useDraft()
-  const [pick, setPick] = useState(SCANNABLE[0].isbn)
   const [phase, setPhase] = useState('idle')
   const [isbn, setIsbn] = useState(null)
   const [flash, setFlash] = useState(false)
   const [camError, setCamError] = useState('')
-  const [cameraOn, setCameraOn] = useState(false)
-  const [hasDetector] = useState(() => typeof window !== 'undefined' && 'BarcodeDetector' in window)
+  const [hasDetector, setHasDetector] = useState(true) // false only if no barcode decoder could be loaded
   const videoRef = useRef(null)
   const streamRef = useRef(null)
-  const pickMeta = SCANNABLE.find((d) => d.isbn === pick) || SCANNABLE[0]
-  const busy = ['scanning', 'detected', 'loading', 'ready'].includes(phase)
+  const runRef = useRef(0) // bumps on every start/stop, so a camera that opens after leaving the page is shut again
+  const busy = ['detected', 'loading', 'ready'].includes(phase)
 
   const stopCamera = () => {
+    runRef.current++
     streamRef.current?.getTracks().forEach((t) => t.stop())
     streamRef.current = null
-    setCameraOn(false)
   }
-  useEffect(() => () => streamRef.current?.getTracks().forEach((t) => t.stop()), [])
 
   const finish = async (code) => {
     stopCamera()
@@ -60,44 +84,61 @@ export default function Scan() {
     }
   }
 
-  const demoScan = async () => {
-    setPhase('scanning')
-    await wait(1000)
-    finish(pick)
+  const startCamera = async () => {
+    stopCamera()
+    const run = runRef.current
+    setCamError('')
+    setPhase('idle')
+    let stream
+    try {
+      stream = await openCamera()
+    } catch (error) {
+      if (run !== runRef.current) return
+      setCamError(cameraErrorText(error))
+      setPhase('failed')
+      return
+    }
+    if (run !== runRef.current) {
+      stream.getTracks().forEach((t) => t.stop()) // the page was left (or restarted) while the camera was opening
+      return
+    }
+    streamRef.current = stream
+    const video = videoRef.current // always on the page, so the stream can be attached right away
+    if (video) {
+      video.srcObject = stream
+      video.play().catch(() => {})
+    }
+    setPhase('camera')
+
+    // Native reader on Chrome Android / macOS; the WebAssembly reader everywhere else (iPhone, Firefox, Windows, …).
+    let detector
+    try {
+      detector = await createIsbnDetector()
+    } catch {
+      if (run === runRef.current) setHasDetector(false)
+      return
+    }
+    setHasDetector(true)
+    const loop = async () => {
+      if (run !== runRef.current || !videoRef.current) return
+      try {
+        const codes = await detector.detect(videoRef.current)
+        const hit = codes.find((c) => isValidIsbn13(c.rawValue)) // 978/979 prefix + check digit
+        if (hit && run === runRef.current) return finish(hit.rawValue)
+      } catch {
+        /* frame not ready */
+      }
+      setTimeout(loop, 250)
+    }
+    setTimeout(loop, 500)
   }
 
-  const startCamera = async () => {
-    setCamError('')
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1280 } }, audio: false })
-      streamRef.current = stream
-      setCameraOn(true)
-      setPhase('camera')
-      requestAnimationFrame(() => {
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream
-          videoRef.current.play().catch(() => {})
-        }
-      })
-      if (hasDetector) {
-        const detector = new window.BarcodeDetector({ formats: ['ean_13'] })
-        const loop = async () => {
-          if (!streamRef.current || !videoRef.current) return
-          try {
-            const codes = await detector.detect(videoRef.current)
-            const hit = codes.find((c) => /^97[89]\d{10}$/.test(c.rawValue))
-            if (hit) return finish(hit.rawValue)
-          } catch {
-            /* frame not ready */
-          }
-          setTimeout(loop, 250)
-        }
-        setTimeout(loop, 500)
-      }
-    } catch {
-      setCamError('Camera unavailable or permission denied. Use the demo scan or enter the ISBN manually.')
-    }
-  }
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- the camera opens as soon as the scanner is shown
+    startCamera()
+    return stopCamera
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const toggleFlash = async () => {
     const next = !flash
@@ -106,17 +147,15 @@ export default function Scan() {
     if (track?.getCapabilities?.().torch) track.applyConstraints({ advanced: [{ torch: next }] }).catch(() => {})
   }
 
+  const close = (to) => {
+    stopCamera()
+    navigate(to)
+  }
+
   return (
     <div className={cn('scanner', `is-${phase}`, flash && 'has-flash')}>
       <header className="scanner__top">
-        <button
-          className="scanner__btn"
-          onClick={() => {
-            stopCamera()
-            navigate('/staff')
-          }}
-          aria-label="Close scanner"
-        >
+        <button className="scanner__btn" onClick={() => close('/staff')} aria-label="Close scanner">
           <X size={22} />
         </button>
         <span className="scanner__heading">Scan ISBN</span>
@@ -126,22 +165,7 @@ export default function Scan() {
       </header>
 
       <div className="scanner__view">
-        {cameraOn ? (
-          <video ref={videoRef} className="scanner__video" playsInline muted />
-        ) : (
-          <div className="scanner__mock" aria-hidden>
-            <div className="scanner__book">
-              <span className="scanner__book-text">
-                {pickMeta.label}
-                <br />
-                <em>{pickMeta.note.split(' — ')[0]}</em>
-              </span>
-              <div className="scanner__book-code">
-                <Barcode value={pick} height={40} />
-              </div>
-            </div>
-          </div>
-        )}
+        <video ref={videoRef} className="scanner__video" playsInline muted />
         <div className="scanner__frame" aria-hidden>
           <i />
           <i />
@@ -150,56 +174,32 @@ export default function Scan() {
           <span className="scanner__laser" />
         </div>
         <div className="scanner__status" role="status" aria-live="polite">
-          {phase === 'detected' || phase === 'ready' ? <CheckCircle2 size={16} /> : busy ? <Spinner size={14} /> : <ScanLine size={16} />}
+          {phase === 'detected' || phase === 'ready' ? <CheckCircle2 size={16} /> : busy || phase === 'idle' ? <Spinner size={14} /> : <ScanLine size={16} />}
           <span>{PHASE_TEXT[phase]}</span>
-          {isbn && (phase === 'detected' || phase === 'loading' || phase === 'ready') && <span className="mono scanner__isbn">{isbn}</span>}
+          {isbn && busy && <span className="mono scanner__isbn">{isbn}</span>}
         </div>
         {phase === 'camera' && !hasDetector && (
-          <p className="scanner__note">This browser can’t decode barcodes live. Use the demo scan below — on Android Chrome live decoding works.</p>
+          <p className="scanner__note">This browser can’t read barcodes from the camera. Enter the ISBN manually.</p>
         )}
       </div>
 
       <div className="scanner__sheet">
-        <p className="scanner__sheet-label">Demo book to scan</p>
-        <div className="scanner__picks" role="radiogroup" aria-label="Demo book">
-          {SCANNABLE.map((d) => (
-            <button
-              key={d.isbn}
-              role="radio"
-              aria-checked={pick === d.isbn}
-              className={cn('scanner__pick', pick === d.isbn && 'is-active', d.hint === 'error' && 'is-error')}
-              onClick={() => setPick(d.isbn)}
-              disabled={busy}
-            >
-              <strong>{d.label}</strong>
-              <span>{d.note}</span>
-            </button>
-          ))}
-        </div>
-        <Button variant="primary" size="xl" block icon={ScanLine} onClick={demoScan} loading={busy} disabled={busy}>
-          {busy ? PHASE_TEXT[phase] : 'Use demo scan'}
+        <p className="scanner__sheet-label">Scan tips</p>
+        <p className="sq-help">Hold the barcode on the back cover inside the yellow frame.</p>
+        <p className="sq-help">Keep the book steady and in good light — the ISBN is read automatically.</p>
+        <Button variant="primary" size="xl" block icon={Keyboard} onClick={() => close('/staff/manual-isbn')} disabled={busy}>
+          Enter ISBN manually
         </Button>
-        <div className="scanner__alt">
-          {phase !== 'camera' ? (
-            <button className="scanner__link" onClick={startCamera} disabled={busy}>
-              <Camera size={16} aria-hidden /> Use device camera
-            </button>
-          ) : (
-            <button
-              className="scanner__link"
-              onClick={() => {
-                stopCamera()
-                setPhase('idle')
-              }}
-            >
-              <X size={16} aria-hidden /> Stop camera
-            </button>
-          )}
-          <Link to="/staff/manual-isbn" className="scanner__link" onClick={stopCamera}>
-            <Keyboard size={16} aria-hidden /> Enter ISBN manually
-          </Link>
-        </div>
-        {camError && <p className="scanner__err">{camError}</p>}
+        {camError && (
+          <>
+            <p className="scanner__err" role="alert">
+              {camError}
+            </p>
+            <Button variant="secondary" block icon={RotateCcw} onClick={startCamera}>
+              Try camera again
+            </Button>
+          </>
+        )}
       </div>
     </div>
   )

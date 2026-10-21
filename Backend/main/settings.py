@@ -45,6 +45,9 @@ INSTALLED_APPS = [
     'corsheaders',
     # Local apps
     'authentication',
+    'book_admin',
+    'inventory',  # shared books / shelves
+    'staff_api',  # staff portal APIs
 ]
 
 MIDDLEWARE = [
@@ -138,11 +141,19 @@ USE_I18N = True
 
 USE_TZ = True
 
+# The store's local timezone: where "today" starts for daily counts (e.g. the staff home screen).
+STORE_TIME_ZONE = config('STORE_TIME_ZONE', default='Asia/Dubai')
+
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.1/howto/static-files/
 
 STATIC_URL = 'static/'
+
+# Uploaded files (book cover photos taken by staff). Served by Django only while DEBUG is on;
+# in production the web server (e.g. nginx) serves MEDIA_ROOT at MEDIA_URL.
+MEDIA_URL = 'media/'
+MEDIA_ROOT = BASE_DIR / 'media'
 
 
 # Email
@@ -194,6 +205,8 @@ REST_FRAMEWORK = {
     ),
     'DEFAULT_THROTTLE_RATES': {
         'login': '10/min',  # per IP. Uses the cache: switch CACHES to Redis when running several workers
+        'isbn_lookup': '60/min',  # per staff user; protects the Google Books / Open Library quota
+        'book_search': '30/min',  # per staff user; title suggestions while typing (Google Books daily quota)
     },
 }
 
@@ -208,3 +221,10 @@ SIMPLE_JWT = {
     'CHECK_REVOKE_TOKEN': True,  # tokens are tied to the password: changing it signs the user out everywhere
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
+
+# Book metadata (ISBN lookup): providers are asked in this order; the first that has the book wins.
+# Open Library first: Google Books returns nothing for ISBN searches on our account, but its title
+# search still fills in details when staff type a book in by hand (GET /api/staff/book-search/).
+METADATA_PROVIDERS = config('METADATA_PROVIDERS', default='openlibrary,google', cast=Csv())
+GOOGLE_BOOKS_API_KEY = config('GOOGLE_BOOKS_API_KEY', default='')
+METADATA_TIMEOUT_SECONDS = config('METADATA_TIMEOUT_SECONDS', default=5, cast=int)  # per provider

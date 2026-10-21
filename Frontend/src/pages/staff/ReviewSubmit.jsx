@@ -1,9 +1,8 @@
 import { useState } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { Clock3, Flag, Hourglass, Info, ScanLine, Send, XCircle } from 'lucide-react'
-import { submitBook } from '../../services/mockApi'
-import { setLastShelf, useDraft } from '../../hooks/useDraft'
-import { useAuth } from '../../hooks/useAuth'
+import { submitBook } from '../../services/staffApi'
+import { isDraftEdited, setLastShelf, useDraft } from '../../hooks/useDraft'
 import { FlowHeader, BottomBar } from '../../components/staff/StaffBits'
 import { BookCover } from '../../components/books/BookCover'
 import { DuplicateExplainer, ShelfMove, SourceBadge } from '../../components/books/BookBits'
@@ -15,7 +14,6 @@ import { useToast } from '../../hooks/useToast'
 
 export default function ReviewSubmit() {
   const navigate = useNavigate()
-  const { user } = useAuth()
   const { draft, clearDraft } = useDraft()
   const { toast } = useToast()
   const stages = useStages()
@@ -29,18 +27,19 @@ export default function ReviewSubmit() {
       const res = await stages.run(
         ['Checking ISBN', 'Preparing submission', 'Checking inventory — title + author', 'Submission created'],
         () =>
-          submitBook(
-            {
-              isbn: draft.isbn,
-              ...draft.values,
-              source: draft.source,
-              subjects: !draft.manual ? draft.meta?.subjects || [] : [],
-              fetched: draft.meta && !draft.manual ? { title: draft.meta.title, author: draft.meta.author, publisher: draft.meta.publisher, year: draft.meta.year, pages: draft.meta.pages } : null,
-              shelfId: draft.shelfId,
-              quantity: draft.quantity,
-            },
-            user.id,
-          ),
+          submitBook({
+            isbn: draft.isbn,
+            ...draft.values,
+            source: draft.source,
+            subjects: !draft.manual ? draft.meta?.subjects || [] : [],
+            fetched:
+              draft.meta && !draft.manual
+                ? { title: draft.meta.title, author: draft.meta.author, publisher: draft.meta.publisher, year: draft.meta.year, pages: draft.meta.pages, isbn: draft.originalIsbn || draft.isbn }
+                : null,
+            photo: draft.photo || null,
+            shelfId: draft.shelfId,
+            quantity: draft.quantity,
+          }),
         { stepMs: 300 },
       )
       setLastShelf(draft.shelfId)
@@ -61,9 +60,12 @@ export default function ReviewSubmit() {
       <div className="flow__body">
         <article className="review-card">
           <div className="review-card__book">
-            <BookCover title={d.values.title} author={d.values.author} isbn={d.meta?.noCover ? null : d.isbn} size="lg" />
+            <BookCover title={d.values.title} author={d.values.author} isbn={d.meta?.noCover ? null : d.isbn} photo={d.photo} size="lg" />
             <div className="review-card__text">
-              <SourceBadge source={d.source} />
+              <span className="meta-hero__badges">
+                <SourceBadge source={d.source} />
+                {isDraftEdited(d) && <span className="edited-tag">Edited</span>}
+              </span>
               <h2 className="serif">{d.values.title}</h2>
               <p>{d.values.author}</p>
               {(d.values.publisher || d.values.year) && (
@@ -136,7 +138,7 @@ function SubmitResult({ result }) {
         <p className="result__text">{cfg.text}</p>
 
         <div className="result__book">
-          <BookCover title={d.values.title} author={d.values.author} isbn={d.meta?.noCover ? null : d.isbn} size="sm" />
+          <BookCover title={d.values.title} author={d.values.author} isbn={d.meta?.noCover ? null : d.isbn} photo={d.photo} size="sm" />
           <div>
             <strong>{d.values.title}</strong>
             <span>

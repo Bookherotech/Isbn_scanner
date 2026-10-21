@@ -1,12 +1,12 @@
 import { useNavigate } from 'react-router-dom'
-import { LayoutDashboard, LogOut } from 'lucide-react'
+import { LogOut } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { Avatar } from '../../components/ui/Misc'
 import { Button } from '../../components/ui/Button'
 import ProfileDetails from './ProfileDetails'
 
 export default function Profile() {
-  const { user, signOut, signIn } = useAuth()
+  const { user, signOut } = useAuth()
   const navigate = useNavigate()
 
   return (
@@ -25,17 +25,7 @@ export default function Profile() {
       </section>
 
       <section className="profile__sec">
-        <h2>Demo</h2>
-        <Button
-          block
-          icon={LayoutDashboard}
-          onClick={async () => {
-            await signIn({ role: 'admin' })
-            navigate('/admin')
-          }}
-        >
-          Switch to Admin dashboard
-        </Button>
+        <h2>Account</h2>
         <Button
           block
           variant="danger-ghost"

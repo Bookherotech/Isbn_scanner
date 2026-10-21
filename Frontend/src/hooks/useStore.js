@@ -13,12 +13,14 @@ export function useSelector(select) {
 }
 
 /**
- * Minimal data-fetching hook for the mock API.
+ * Minimal data-fetching hook.
  * - First load shows `loading` (skeletons); background refreshes keep old data.
- * - Refetches automatically when the store changes.
+ * - Refetches automatically when the mock store changes, unless `{ mock: false }` is passed
+ *   (pages that read the real backend: a mock-store change says nothing about their data).
  */
-export function useQuery(fetcher, deps = []) {
-  const version = useStoreVersion()
+export function useQuery(fetcher, deps = [], { mock = true } = {}) {
+  const storeVersion = useStoreVersion()
+  const version = mock ? storeVersion : 0
   const [state, setState] = useState({ data: null, loading: true, error: null, refreshing: false })
   const [nonce, setNonce] = useState(0)
   const fetcherRef = useRef(fetcher)

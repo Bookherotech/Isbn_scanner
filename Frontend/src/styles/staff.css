@@ -271,6 +271,10 @@
   padding: 12px 16px calc(14px + env(safe-area-inset-bottom));
   background: linear-gradient(to bottom, rgba(246, 244, 238, 0), var(--paper) 22%);
 }
+/* Edit + Continue: stacked on phones (Edit first), side by side from tablet width (desktop already is) */
+@media (min-width: 600px) {
+  .bottombar--split { grid-template-columns: 1fr 1fr; gap: 10px; }
+}
 
 /* ---------- Scanner ---------- */
 .scanner {
@@ -436,6 +440,13 @@
 .meta-hero { display: flex; gap: 16px; align-items: flex-start; }
 .meta-hero .cover--lg { --cw: 104px !important; width: 104px; }
 .meta-hero__info { display: grid; gap: 8px; justify-items: start; min-width: 0; flex: 1; }
+.meta-hero__badges { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.meta-hero__cover { display: grid; gap: 6px; justify-items: center; align-content: start; flex: none; }
+.meta-hero__cover .field__error { max-width: 132px; text-align: center; }
+.meta-hero__photo-btn { cursor: pointer; }
+.meta-isbn { display: flex; gap: 8px; align-items: center; }
+.meta-isbn .input { flex: 1; min-width: 0; }
+.meta-hero__badges .edited-tag, .subcard__edited { margin-left: 0; }
 .meta-hero__found { font-size: 13px; color: var(--ink-2); font-weight: 600; }
 .meta-hero__code { width: 100%; max-width: 190px; padding: 6px 8px 2px; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; }
 .meta-hero__code .barcode { width: 100%; }

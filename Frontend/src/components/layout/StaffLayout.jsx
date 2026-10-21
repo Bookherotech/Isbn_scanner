@@ -1,11 +1,10 @@
 import { Suspense } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { Bell, ChevronDown, House, Keyboard, LayoutDashboard, Layers, LogOut, ScanLine, UserRound } from 'lucide-react'
+import { Bell, ChevronDown, House, Keyboard, Layers, LogOut, ScanLine, UserRound } from 'lucide-react'
 import { Logo } from './Logo'
-import { DemoBadge } from './DemoControls'
 import { useAuth } from '../../hooks/useAuth'
 import { useMediaQuery, useSelector } from '../../hooks/useStore'
-import { getLastShelf } from '../../hooks/useDraft'
+import { useActiveLastShelf } from '../../hooks/useDraft'
 import { selectors } from '../../services/mockApi'
 import { Skeleton } from '../ui/Feedback'
 import { Avatar, Menu, MenuItem } from '../ui/Misc'
@@ -47,11 +46,11 @@ function PageFallback() {
 function StaffDesktop() {
   const { pathname } = useLocation()
   const navigate = useNavigate()
-  const { user, signIn, signOut } = useAuth()
+  const { user, signOut } = useAuth()
   const unread = useSelector(() => selectors.unreadCount(user))
   const inFlow = FLOW.some((p) => pathname.startsWith(p))
   const title = TITLES.find(([p]) => pathname.startsWith(p))?.[1] ?? 'BookHero'
-  const lastShelf = getLastShelf()
+  const lastShelf = useActiveLastShelf()
   const nav = (to, label, Icon, extra) => (
     <li>
       <NavLink to={to} end={to === '/staff'} className={({ isActive }) => cn('navlink', isActive && 'is-active', extra?.hero && 'navlink--hero')}>
@@ -102,7 +101,6 @@ function StaffDesktop() {
         <header className="topbar">
           <h1 className="topbar__title">{title}</h1>
           <div className="topbar__right" style={{ marginLeft: 'auto' }}>
-            <DemoBadge />
             <IconButton icon={Bell} label={`Alerts${unread ? `, ${unread} unread` : ''}`} badge={unread} onClick={() => navigate('/staff/notifications')} />
             <Menu
               trigger={({ toggle, props }) => (
@@ -122,15 +120,6 @@ function StaffDesktop() {
               </div>
               <MenuItem icon={UserRound} onClick={() => navigate('/staff/profile')}>
                 Profile
-              </MenuItem>
-              <MenuItem
-                icon={LayoutDashboard}
-                onClick={async () => {
-                  await signIn({ role: 'admin' })
-                  navigate('/admin')
-                }}
-              >
-                Switch to Admin (demo)
               </MenuItem>
               <MenuItem
                 icon={LogOut}
@@ -170,7 +159,6 @@ function StaffPhone() {
           <header className="s-appbar">
             <Logo size={40} withWord={false} />
             <span className="s-appbar__title">{TITLES.find(([p]) => pathname.startsWith(p))?.[1] ?? 'BookHero'}</span>
-            <DemoBadge floating />
           </header>
         )}
         <div className="phone__screen" id="main">
