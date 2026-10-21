@@ -2,8 +2,8 @@ import { Link } from 'react-router-dom'
 import { ChevronRight, Keyboard, ScanLine } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useQuery, useTicker } from '../../hooks/useStore'
-import { getStaffHome } from '../../services/mockApi'
-import { getLastShelf } from '../../hooks/useDraft'
+import { getStaffHome } from '../../services/staffApi'
+import { useActiveLastShelf } from '../../hooks/useDraft'
 import { Avatar, Barcode } from '../../components/ui/Misc'
 import { EmptyState, ErrorState, Skeleton } from '../../components/ui/Feedback'
 import { ShelfTag } from '../../components/ui/Status'
@@ -12,8 +12,8 @@ import { clockNow, firstName, greeting, longDate } from '../../utils/format'
 
 export default function StaffHome() {
   const { user } = useAuth()
-  const { data, loading, error, reload } = useQuery(() => getStaffHome(user.id), [user.id])
-  const lastShelf = getLastShelf()
+  const { data, loading, error, reload } = useQuery(() => getStaffHome(), [user.id], { mock: false })
+  const lastShelf = useActiveLastShelf()
   useTicker(60_000)
 
   return (

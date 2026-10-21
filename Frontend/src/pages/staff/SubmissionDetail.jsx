@@ -1,5 +1,5 @@
 import { useNavigate, useParams } from 'react-router-dom'
-import { getItem } from '../../services/mockApi'
+import { getSubmission } from '../../services/staffApi'
 import { useQuery } from '../../hooks/useStore'
 import { FlowHeader } from '../../components/staff/StaffBits'
 import { BookCover } from '../../components/books/BookCover'
@@ -36,7 +36,7 @@ function timeline(it) {
 export default function SubmissionDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { data: it, loading, error, reload } = useQuery(() => getItem(id), [id])
+  const { data: it, loading, error, reload } = useQuery(() => getSubmission(id), [id], { mock: false })
 
   return (
     <div className="flow">
@@ -52,12 +52,15 @@ export default function SubmissionDetail() {
         ) : (
           <div className="subdetail">
             <div className="subdetail__hero">
-              <BookCover title={it.title} author={it.author} isbn={it.isbn} size="lg" />
+              <BookCover title={it.title} author={it.author} isbn={it.isbn} photo={it.coverPhotoUrl} size="lg" />
               <div>
                 <StatusChip status={it.status} ready={it.ready} />
                 <h2 className="serif">{it.title}</h2>
                 <p>{it.author}</p>
-                <SourceBadge source={it.source} />
+                <span className="meta-hero__badges">
+                  <SourceBadge source={it.source} />
+                  {it.edited && <span className="edited-tag">Edited</span>}
+                </span>
               </div>
             </div>
             <dl className="subdetail__facts">

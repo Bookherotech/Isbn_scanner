@@ -1,8 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import { ArrowRight, CircleAlert, Keyboard, PencilLine, RotateCcw, SearchX, ServerCrash } from 'lucide-react'
-import { lookupIsbn } from '../../services/mockApi'
-import { useDraft } from '../../hooks/useDraft'
+import { ArrowRight, Camera, Check, CircleAlert, Keyboard, Pencil, PencilLine, RotateCcw, Search, SearchX, ServerCrash, Trash2 } from 'lucide-react'
+import { loadShelves, lookupIsbn, searchBooks } from '../../services/staffApi'
+import { addRecentIsbn, setRecentIsbnTitle } from '../../services/recentIsbns'
+import { shrinkPhoto } from '../../services/photo'
+import { checkIsbn } from '../../services/isbn'
+import { useAuth } from '../../hooks/useAuth'
+import { isDraftEdited, useDraft } from '../../hooks/useDraft'
+import { useDebounce } from '../../hooks/useStore'
 import { FlowHeader, BottomBar } from '../../components/staff/StaffBits'
 import { BookCover } from '../../components/books/BookCover'
 import { SourceBadge } from '../../components/books/BookBits'
@@ -15,12 +20,15 @@ import { cn } from '../../utils/format'
 const FIELDS = ['title', 'author', 'publisher', 'year', 'pages']
 const EMPTY = { title: '', author: '', publisher: '', year: '', pages: '' }
 const pickValues = (m) => Object.fromEntries(FIELDS.map((k) => [k, m?.[k] ?? '']))
+const isEmpty = (v) => String(v ?? '').trim() === ''
+const MIN_SEARCH = 3 // letters of the title before Google matches are looked up
 
 export default function BookMetadata() {
   const { isbn } = useParams()
   const location = useLocation()
   const navigate = useNavigate()
   const { draft, setDraft } = useDraft()
+  const { user } = useAuth()
   const preset = draft?.isbn === isbn ? draft : null
 
   const [state, setState] = useState(() =>
@@ -30,11 +38,25 @@ export default function BookMetadata() {
   const [manual, setManual] = useState(preset?.manual ?? false)
   const [values, setValues] = useState(() => preset?.values || (preset?.meta ? pickValues(preset.meta) : EMPTY))
   const [showErrors, setShowErrors] = useState(false)
+  // Found details open locked: staff press Edit to change them. Manual entry is always editable.
+  const [editing, setEditing] = useState(false)
+  const locked = !manual && !editing
+
+  // Cover photo taken by staff (JPEG data URL), and the ISBN box (editable like the other fields).
+  const [photo, setPhoto] = useState(preset?.photo ?? null)
+  const [photoError, setPhotoError] = useState('')
+  const originalIsbn = preset?.originalIsbn ?? isbn // the ISBN first scanned/typed: a different one counts as an edit
+  const [isbnInput, setIsbnInput] = useState(isbn)
+  const [isbnError, setIsbnError] = useState('')
+  const [lookingUp, setLookingUp] = useState(false)
+  const isbnCheck = checkIsbn(isbnInput)
+  const newIsbn = isbnCheck.isbn13 && isbnCheck.isbn13 !== isbn ? isbnCheck.isbn13 : null
 
   const load = async (retry = false) => {
     setState({ status: 'loading' })
     try {
       const m = await lookupIsbn(isbn, { retry })
+      setRecentIsbnTitle(user, isbn, m.title) // name the entry in the "recently entered" list, if it is there
       setMeta(m)
       setValues(pickValues(m))
       setManual(false)
@@ -47,6 +69,7 @@ export default function BookMetadata() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- initial fetch when not prefetched by the scanner
     if (state.status === 'loading') load()
+    loadShelves().catch(() => {}) // warm the shelf list so the next step opens instantly
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -67,15 +90,106 @@ export default function BookMetadata() {
   const invalid = Object.values(errors).some(Boolean)
   const missing = meta?.missing || []
   const edited = (k) => meta && String(meta[k] ?? '') !== String(values[k] ?? '') && String(meta[k] ?? '') !== ''
+  // Shown next to the source badge (and on Review / Submissions): details, ISBN or photo changed.
+  const bookEdited = isDraftEdited({ manual, meta, values, photo, isbn, originalIsbn })
+  const lockedClass = locked && 'input--readonly'
+
+  const draftFor = (targetIsbn, extra) => ({ isbn: targetIsbn, originalIsbn, meta, manual, values, photo, ...extra })
+
+  const choosePhoto = async (e) => {
+    const file = e.target.files?.[0]
+    e.target.value = '' // the same file can be picked again
+    if (!file) return
+    setPhotoError('')
+    try {
+      setPhoto(await shrinkPhoto(file))
+    } catch (error) {
+      setPhotoError(error.message)
+    }
+  }
+
+  /** Fetch the details for a corrected ISBN; the page then shows that book (its address changes too). */
+  const lookUpNewIsbn = async () => {
+    if (!newIsbn) return
+    setIsbnError('')
+    setLookingUp(true)
+    addRecentIsbn(user, newIsbn)
+    try {
+      const m = await lookupIsbn(newIsbn)
+      setRecentIsbnTitle(user, newIsbn, m.title)
+      setDraft(draftFor(newIsbn, { meta: m, manual: false, values: pickValues(m) }))
+      navigate(`/staff/book/${newIsbn}`, { replace: true })
+    } catch (error) {
+      setLookingUp(false)
+      setIsbnError(
+        error.code === 'not_found'
+          ? manual
+            ? 'No record for this ISBN. You can keep it and enter the details yourself.'
+            : 'No record for this ISBN. Check the number on the book.'
+          : error.message,
+      )
+    }
+  }
+
+  // Google Books matches by title: offered when the ISBN was not found (manual entry) or came back with
+  // fields missing. Staff pick the matching book; it fills the empty fields. The scanned ISBN is never changed.
+  const [suggestions, setSuggestions] = useState([])
+  const [pickedTitle, setPickedTitle] = useState(null) // no new search until the title changes after a pick
+  const [dismissed, setDismissed] = useState(null)
+  // Only while something is still empty: coming back to a filled-in page must not open the list again.
+  const fillable = ['author', 'publisher', 'year', 'pages'].some((k) => isEmpty(values[k]))
+  const canSuggest = state.status === 'ready' && !locked && (manual || missing.length > 0) && fillable
+  const query = canSuggest && values.title.trim().length >= MIN_SEARCH && values.title !== pickedTitle ? values.title.trim() : ''
+  const searched = useDebounce(query, 500)
+
+  useEffect(() => {
+    let alive = true
+    if (!searched) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- clear old matches when there is nothing to search
+      setSuggestions([])
+      return undefined
+    }
+    searchBooks({ title: searched, author: values.author.trim() })
+      .then((found) => alive && setSuggestions(found))
+      .catch(() => alive && setSuggestions([])) // no matches shown; staff simply keep typing
+    return () => {
+      alive = false
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- search again only when the title changes
+  }, [searched])
+
+  const showSuggestions = suggestions.length > 0 && query !== '' && searched === query && dismissed !== query
+
+  const pickSuggestion = (s) => {
+    const next = { ...values }
+    if (manual || isEmpty(next.title)) next.title = s.title // a typed (maybe partial) title becomes the full one
+    for (const k of ['author', 'publisher', 'year', 'pages']) {
+      if (isEmpty(next[k]) && !isEmpty(s[k])) next[k] = String(s[k]) // only empty fields: found values are never overwritten
+    }
+    setValues(next)
+    setPickedTitle(next.title)
+    setSuggestions([])
+  }
 
   const proceed = () => {
     setShowErrors(true)
-    if (invalid) return
+    if (!isbnCheck.isbn13) {
+      setIsbnError('Enter a valid ISBN-10 or ISBN-13.')
+      setEditing(true)
+      return
+    }
+    if (newIsbn && !manual) {
+      setIsbnError('Look up the new ISBN first, so the details match the number.')
+      return
+    }
+    if (invalid) {
+      setEditing(true) // e.g. no author found: open the fields so it can be filled in
+      return
+    }
+    const finalIsbn = isbnCheck.isbn13 // manual entry may keep a corrected ISBN without a lookup
     setDraft((d) => ({
       ...(d?.isbn === isbn ? d : {}),
-      isbn,
-      meta,
-      manual,
+      ...draftFor(finalIsbn),
       values: { ...values, title: values.title.trim(), author: values.author.trim() },
       source: manual ? 'manual' : meta.source,
     }))
@@ -134,9 +248,36 @@ export default function BookMetadata() {
         {state.status === 'ready' && (
           <div className="meta">
             <div className="meta-hero">
-              <BookCover title={values.title || 'Untitled'} author={values.author} isbn={meta?.noCover ? null : isbn} size="lg" />
+              <div className="meta-hero__cover">
+                <BookCover title={values.title || 'Untitled'} author={values.author} isbn={meta?.noCover ? null : isbn} photo={photo} size="lg" />
+                {!locked && (
+                  <>
+                    <Button as="label" size="sm" icon={Camera} className="meta-hero__photo-btn">
+                      {photo || !manual ? 'Change photo' : 'Add photo'}
+                      <input type="file" accept="image/*" onChange={choosePhoto} hidden />
+                    </Button>
+                    {photo && (
+                      <Button variant="ghost" size="sm" icon={Trash2} onClick={() => setPhoto(null)}>
+                        Remove photo
+                      </Button>
+                    )}
+                  </>
+                )}
+                {photoError && (
+                  <p className="field__error" role="alert">
+                    {photoError}
+                  </p>
+                )}
+              </div>
               <div className="meta-hero__info">
-                {manual ? <SourceBadge source="manual" /> : <SourceBadge source={meta.source} fallback={meta.fallback} />}
+                {manual ? (
+                  <SourceBadge source="manual" />
+                ) : (
+                  <span className="meta-hero__badges">
+                    <SourceBadge source={meta.source} fallback={meta.fallback} />
+                    {bookEdited && <EditedTag />}
+                  </span>
+                )}
                 <p className="meta-hero__found">{manual ? 'Entered manually' : `Metadata found via ${meta.source === 'google' ? 'Google Books' : 'Open Library'}`}</p>
                 <div className="meta-hero__code">
                   <Barcode value={isbn} height={26} />
@@ -160,7 +301,7 @@ export default function BookMetadata() {
             {!manual && missing.length === 0 && (
               <div className="callout callout--note">
                 <PencilLine size={16} aria-hidden />
-                <p>Fetched details can be wrong. Check them against the book — every field is editable.</p>
+                <p>Fetched details can be wrong. Check them against the book — tap Edit to correct them.</p>
               </div>
             )}
 
@@ -173,24 +314,72 @@ export default function BookMetadata() {
               noValidate
             >
               <Field label="Title" htmlFor="m-title" error={showErrors && errors.title} badge={edited('title') && <EditedTag />}>
-                <Input id="m-title" size="lg" value={values.title} onChange={set('title')} className={cn(missing.includes('title') && !values.title && 'is-missing')} />
+                <Input
+                  id="m-title"
+                  size="lg"
+                  value={values.title}
+                  onChange={set('title')}
+                  readOnly={locked}
+                  onKeyDown={(e) => e.key === 'Escape' && setDismissed(query)}
+                  className={cn(missing.includes('title') && !values.title && 'is-missing', lockedClass)}
+                  aria-controls={showSuggestions ? 'm-title-matches' : undefined}
+                />
+                {showSuggestions && (
+                  <div className="shelf-pop" id="m-title-matches">
+                    <ul className="cmd__list" aria-label="Matching books from Google Books">
+                      {suggestions.map((s, i) => (
+                        <li key={`${s.title}|${s.author}|${s.publisher}|${s.year}|${i}`}>
+                          <button type="button" className="cmd__item" onClick={() => pickSuggestion(s)}>
+                            <BookCover title={s.title} author={s.author} size="xs" />
+                            <span className="cmd__text">
+                              <strong>{s.title}</strong>
+                              <span>{[s.author, s.publisher, s.year].filter(Boolean).join(' · ')}</span>
+                            </span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </Field>
               <Field label="Author" htmlFor="m-author" error={showErrors && errors.author} badge={edited('author') && <EditedTag />}>
-                <Input id="m-author" size="lg" value={values.author} onChange={set('author')} className={cn(missing.includes('author') && !values.author && 'is-missing')} />
+                <Input id="m-author" size="lg" value={values.author} onChange={set('author')} readOnly={locked} className={cn(missing.includes('author') && !values.author && 'is-missing', lockedClass)} />
               </Field>
               <Field label="Publisher" htmlFor="m-pub" optional badge={edited('publisher') && <EditedTag />}>
-                <Input id="m-pub" value={values.publisher} onChange={set('publisher')} className={cn(missing.includes('publisher') && !values.publisher && 'is-missing')} placeholder={missing.includes('publisher') ? 'Not found — add if printed on the book' : ''} />
+                <Input id="m-pub" value={values.publisher} onChange={set('publisher')} readOnly={locked} className={cn(missing.includes('publisher') && !values.publisher && 'is-missing', lockedClass)} placeholder={missing.includes('publisher') ? 'Not found — add if printed on the book' : ''} />
               </Field>
               <div className="meta-form__row">
                 <Field label="Year" htmlFor="m-year" optional error={showErrors && errors.year} badge={edited('year') && <EditedTag />}>
-                  <Input id="m-year" inputMode="numeric" value={values.year} onChange={set('year')} className={cn(missing.includes('year') && !values.year && 'is-missing')} />
+                  <Input id="m-year" inputMode="numeric" value={values.year} onChange={set('year')} readOnly={locked} className={cn(missing.includes('year') && !values.year && 'is-missing', lockedClass)} />
                 </Field>
                 <Field label="Pages" htmlFor="m-pages" optional error={showErrors && errors.pages} badge={edited('pages') && <EditedTag />}>
-                  <Input id="m-pages" inputMode="numeric" value={values.pages} onChange={set('pages')} className={cn(missing.includes('pages') && !values.pages && 'is-missing')} />
+                  <Input id="m-pages" inputMode="numeric" value={values.pages} onChange={set('pages')} readOnly={locked} className={cn(missing.includes('pages') && !values.pages && 'is-missing', lockedClass)} />
                 </Field>
               </div>
-              <Field label="ISBN">
-                <Input value={isbn} readOnly mono className="input--readonly" aria-readonly />
+              <Field label="ISBN" htmlFor="m-isbn" error={isbnError} badge={isbnCheck.isbn13 && isbnCheck.isbn13 !== originalIsbn && !manual && <EditedTag />}>
+                <div className="meta-isbn">
+                  <Input
+                    id="m-isbn"
+                    mono
+                    inputMode="numeric"
+                    maxLength={17}
+                    value={isbnInput}
+                    readOnly={locked}
+                    aria-readonly={locked}
+                    onChange={(e) => {
+                      setIsbnInput(e.target.value)
+                      setIsbnError('')
+                    }}
+                    aria-invalid={!locked && isbnCheck.state === 'invalid'}
+                    className={cn(lockedClass)}
+                  />
+                  {!locked && newIsbn && (
+                    <Button variant="dark" size="lg" icon={Search} onClick={lookUpNewIsbn} loading={lookingUp}>
+                      Look up
+                    </Button>
+                  )}
+                </div>
+                {!locked && !isbnError && isbnInput !== isbn && <p className="field__hint">{isbnCheck.message}</p>}
               </Field>
               <button type="submit" hidden />
             </form>
@@ -198,7 +387,12 @@ export default function BookMetadata() {
         )}
       </div>
       {state.status === 'ready' && (
-        <BottomBar>
+        <BottomBar className={cn(!manual && 'bottombar--split')}>
+          {!manual && (
+            <Button size="xl" block icon={editing ? Check : Pencil} onClick={() => setEditing((on) => !on)} aria-pressed={editing}>
+              {editing ? 'Done' : 'Edit'}
+            </Button>
+          )}
           <Button variant="primary" size="xl" block iconRight={ArrowRight} onClick={proceed}>
             Continue
           </Button>
