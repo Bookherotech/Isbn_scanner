@@ -2,15 +2,18 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowRight, CheckCircle2, CircleAlert, Info } from 'lucide-react'
 import { checkIsbn } from '../../services/isbn'
-import { DEMO_ISBNS } from '../../services/catalog'
+import { addRecentIsbn, getRecentIsbns } from '../../services/recentIsbns'
+import { useAuth } from '../../hooks/useAuth'
 import { useDraft } from '../../hooks/useDraft'
 import { FlowHeader, BottomBar } from '../../components/staff/StaffBits'
 import { Button } from '../../components/ui/Button'
-import { cn } from '../../utils/format'
+import { cn, timeAgo } from '../../utils/format'
 
 export default function ManualIsbn() {
   const navigate = useNavigate()
   const { setDraft } = useDraft()
+  const { user } = useAuth()
+  const [recent] = useState(() => getRecentIsbns(user))
   const [raw, setRaw] = useState('')
   const [touched, setTouched] = useState(false)
   const check = checkIsbn(raw)
@@ -21,6 +24,7 @@ export default function ManualIsbn() {
     e?.preventDefault()
     setTouched(true)
     if (!ok) return
+    addRecentIsbn(user, check.isbn13)
     setDraft(null)
     navigate(`/staff/book/${check.isbn13}`)
   }
@@ -51,27 +55,29 @@ export default function ManualIsbn() {
           {check.message}
         </p>
 
-        <div className="manual__demo">
-          <p className="eyebrow">Demo ISBNs — tap to fill</p>
-          <ul>
-            {DEMO_ISBNS.map((d) => (
-              <li key={d.isbn}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setRaw(d.isbn)
-                    setTouched(true)
-                  }}
-                >
-                  <span className="mono">{d.isbn}</span>
-                  <span>
-                    <strong>{d.label}</strong> {d.note}
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
+        {recent.length > 0 && (
+          <div className="manual__demo">
+            <p className="eyebrow">Recently entered ISBNs — tap to fill</p>
+            <ul>
+              {recent.map((r) => (
+                <li key={r.isbn}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRaw(r.isbn)
+                      setTouched(true)
+                    }}
+                  >
+                    <span className="mono">{r.isbn}</span>
+                    <span>
+                      {r.title && <strong>{r.title}</strong>} {timeAgo(r.at, Date.now())}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </form>
       <BottomBar>
         <Button variant="primary" size="xl" block iconRight={ArrowRight} disabled={!ok} onClick={submit}>

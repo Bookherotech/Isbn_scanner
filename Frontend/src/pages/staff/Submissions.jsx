@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import { useQuery, useTicker } from '../../hooks/useStore'
-import { getMySubmissions } from '../../services/mockApi'
+import { getMySubmissions } from '../../services/staffApi'
 import { SubmissionCard } from '../../components/staff/StaffBits'
 import { EmptyState, ErrorState, Skeleton } from '../../components/ui/Feedback'
 import { Button } from '../../components/ui/Button'
 import { cn } from '../../utils/format'
+
+const MAX_ROWS = 500 // the API returns at most this many rows (staff_api SubmissionListView.MAX_LIMIT)
 
 const FILTERS = [
   ['all', 'All'],
@@ -20,7 +22,7 @@ export default function Submissions() {
   const { user } = useAuth()
   const [status, setStatus] = useState('all')
   const [pageSize, setPageSize] = useState(12)
-  const { data, loading, error, reload } = useQuery(() => getMySubmissions(user.id, { status, pageSize }), [user.id, status, pageSize])
+  const { data, loading, error, reload } = useQuery(() => getMySubmissions({ status, pageSize }), [user.id, status, pageSize], { mock: false })
   useTicker()
 
   return (
@@ -65,8 +67,8 @@ export default function Submissions() {
               <SubmissionCard key={it.id} item={it} />
             ))}
           </div>
-          {data.total > data.rows.length && (
-            <Button block variant="secondary" onClick={() => setPageSize((n) => n + 12)} className="s-more">
+          {data.total > data.rows.length && data.rows.length < MAX_ROWS && (
+            <Button block variant="secondary" onClick={() => setPageSize((n) => Math.min(n + 12, MAX_ROWS))} className="s-more">
               Show more ({data.total - data.rows.length})
             </Button>
           )}

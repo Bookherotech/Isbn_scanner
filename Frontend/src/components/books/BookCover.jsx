@@ -29,15 +29,19 @@ function hash(s = '') {
 
 const SIZES = { xs: 30, sm: 40, md: 56, lg: 132, xl: 184 }
 
-export const BookCover = memo(function BookCover({ title = '', author = '', isbn, size = 'sm', noRemote = false, className }) {
-  const [loaded, setLoaded] = useState(false)
-  const [failed, setFailed] = useState(false)
+/** `photo`: a cover photo taken by staff (URL or data URL); shown instead of the Open Library cover. */
+export const BookCover = memo(function BookCover({ title = '', author = '', isbn, photo, size = 'sm', noRemote = false, className }) {
+  const [loadedSrc, setLoadedSrc] = useState(null)
+  const [failedSrc, setFailedSrc] = useState(null)
   const h = hash(title + author)
   const [bg, fg, accent] = PALETTES[h % PALETTES.length]
   const layout = (h >> 4) % 5
   const width = SIZES[size] || SIZES.sm
   const showText = width >= 40
-  const remote = !noRemote && isbn && !failed && /^\d{13}$/.test(isbn)
+  const openLibrary = !noRemote && isbn && /^\d{13}$/.test(isbn) ? `https://covers.openlibrary.org/b/isbn/${isbn}-M.jpg?default=false` : null
+  const src = photo || openLibrary
+  const remote = src && failedSrc !== src
+  const loaded = loadedSrc === src
 
   return (
     <span
@@ -57,8 +61,9 @@ export const BookCover = memo(function BookCover({ title = '', author = '', isbn
       </span>
       {remote && (
         <img
+          key={src}
           className={cn('cover__img', loaded && 'is-loaded')}
-          src={`https://covers.openlibrary.org/b/isbn/${isbn}-M.jpg?default=false`}
+          src={src}
           alt=""
           loading="lazy"
           decoding="async"
@@ -66,10 +71,10 @@ export const BookCover = memo(function BookCover({ title = '', author = '', isbn
           height={Math.round(width * 1.5)}
           onLoad={(e) => {
             // Open Library occasionally serves a 1×1 placeholder.
-            if (e.currentTarget.naturalWidth > 10) setLoaded(true)
-            else setFailed(true)
+            if (e.currentTarget.naturalWidth > 10) setLoadedSrc(src)
+            else setFailedSrc(src)
           }}
-          onError={() => setFailed(true)}
+          onError={() => setFailedSrc(src)}
         />
       )}
       <span className="cover__spine" aria-hidden />
