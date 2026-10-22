@@ -6,6 +6,7 @@ from .otp import (
     OTP_TTL_SECONDS,
 )
 from .roles import Role
+from .session import REMEMBER_ME_SESSION_LIFETIME, SHORT_SESSION_LIFETIME
 
 __all__ = [
     'OTP_LENGTH',
@@ -13,5 +14,7 @@ __all__ = [
     'OTP_MAX_SENDS',
     'OTP_RESEND_COOLDOWN_SECONDS',
     'OTP_TTL_SECONDS',
+    'REMEMBER_ME_SESSION_LIFETIME',
     'Role',
+    'SHORT_SESSION_LIFETIME',
 ]

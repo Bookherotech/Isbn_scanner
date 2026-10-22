@@ -20,7 +20,7 @@ const StaffAdmin = lazy(() => import('../pages/admin/Staff'))
 const AdminNotifications = lazy(() => import('../pages/admin/Notifications'))
 const ActivityLog = lazy(() => import('../pages/admin/Activity'))
 const Reports = lazy(() => import('../pages/admin/Reports'))
-const Settings = lazy(() => import('../pages/admin/Settings'))
+const AdminProfile = lazy(() => import('../pages/admin/Profile'))
 
 const StaffHome = lazy(() => import('../pages/staff/Home'))
 const Scan = lazy(() => import('../pages/staff/Scan'))
@@ -76,7 +76,7 @@ export function AppRoutes() {
         <Route path="notifications" element={<AdminNotifications />} />
         <Route path="activity" element={<ActivityLog />} />
         <Route path="reports" element={<Reports />} />
-        <Route path="settings" element={<Settings />} />
+        <Route path="settings" element={<AdminProfile />} />
         <Route path="*" element={<Navigate to="/admin" replace />} />
       </Route>
 

@@ -5,6 +5,7 @@ const NETWORK_DOWN = 'Cannot reach the server. Check your connection and try aga
 function loginError(error) {
   if (!(error instanceof HttpError)) return error
   if (error.data?.code?.startsWith('otp_')) return error // e.g. the code email could not be sent: the backend message is clear
+  if (error.data?.code === 'account_inactive') return error // "Your account has been deactivated. Contact your admin."
   const messages = {
     0: NETWORK_DOWN,
     400: 'Enter your email and password.',
@@ -27,18 +28,18 @@ function otpError(error) {
  * Staff:       { access, refresh, user }
  * Super Admin: { otp_required: true, challenge, email_hint, expires_in } - a code was emailed
  */
-export async function loginWithPassword({ email, password }) {
+export async function loginWithPassword({ email, password, remember = false }) {
   try {
-    return await request('/api/auth/login/', { method: 'POST', body: { email: email.trim().toLowerCase(), password }, auth: false })
+    return await request('/api/auth/login/', { method: 'POST', body: { email: email.trim().toLowerCase(), password, remember }, auth: false })
   } catch (error) {
     throw loginError(error)
   }
 }
 
-/** POST /api/auth/login/verify-otp/ -> { access, refresh, user } */
-export async function verifyOtp({ challenge, otp }) {
+/** POST /api/auth/login/verify-otp/ -> { access, refresh, user }. `remember` = "Remember me" (30-day sign-in). */
+export async function verifyOtp({ challenge, otp, remember = false }) {
   try {
-    return await request('/api/auth/login/verify-otp/', { method: 'POST', body: { challenge, otp }, auth: false })
+    return await request('/api/auth/login/verify-otp/', { method: 'POST', body: { challenge, otp, remember }, auth: false })
   } catch (error) {
     throw otpError(error)
   }

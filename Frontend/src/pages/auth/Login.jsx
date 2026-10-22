@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { ArrowRight, Lock, Mail } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
+import { readRememberedLogin, saveRememberedLogin } from '../../services/rememberedLogin'
 import { Button } from '../../components/ui/Button'
 import { Checkbox, Field } from '../../components/ui/Form'
 import { PasswordToggle } from '../../components/ui/PasswordInput'
@@ -16,10 +17,11 @@ export default function Login() {
   const { user, signInWithPassword } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
-  const [username, setUsername] = useState('')
+  const [saved] = useState(readRememberedLogin) // "Remember me" from last time: the email + the choice
+  const [username, setUsername] = useState(saved.email)
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const [remember, setRemember] = useState(true)
+  const [remember, setRemember] = useState(saved.remember)
   const [busy, setBusy] = useState('')
   const [error, setError] = useState('')
   const [otp, setOtp] = useState(null) // set when a code was emailed to the Super Admin
@@ -57,6 +59,7 @@ export default function Login() {
     setNotice('')
     try {
       const result = await signInWithPassword({ email: username, password, remember })
+      saveRememberedLogin({ email: username, remember }) // the password was right: remember (or forget) the email
       if (result.otpRequired) {
         // Super Admin: the code was emailed, ask for it before signing in.
         setOtp({ challenge: result.challenge, emailHint: result.emailHint, expiresAt: inSeconds(result.expiresIn) })
