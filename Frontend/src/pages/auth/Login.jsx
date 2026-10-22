@@ -2,8 +2,10 @@ import { useState } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { ArrowRight, Lock, Mail } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
+import { readRememberedLogin, saveRememberedLogin } from '../../services/rememberedLogin'
 import { Button } from '../../components/ui/Button'
 import { Checkbox, Field } from '../../components/ui/Form'
+import { PasswordToggle } from '../../components/ui/PasswordInput'
 import { Barcode } from '../../components/ui/Misc'
 import ForgotPassword from './ForgotPassword'
 import OtpStep from './OtpStep'
@@ -15,9 +17,11 @@ export default function Login() {
   const { user, signInWithPassword } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
-  const [username, setUsername] = useState('')
+  const [saved] = useState(readRememberedLogin) // "Remember me" from last time: the email + the choice
+  const [username, setUsername] = useState(saved.email)
   const [password, setPassword] = useState('')
-  const [remember, setRemember] = useState(true)
+  const [showPassword, setShowPassword] = useState(false)
+  const [remember, setRemember] = useState(saved.remember)
   const [busy, setBusy] = useState('')
   const [error, setError] = useState('')
   const [otp, setOtp] = useState(null) // set when a code was emailed to the Super Admin
@@ -55,6 +59,7 @@ export default function Login() {
     setNotice('')
     try {
       const result = await signInWithPassword({ email: username, password, remember })
+      saveRememberedLogin({ email: username, remember }) // the password was right: remember (or forget) the email
       if (result.otpRequired) {
         // Super Admin: the code was emailed, ask for it before signing in.
         setOtp({ challenge: result.challenge, emailHint: result.emailHint, expiresAt: inSeconds(result.expiresIn) })
@@ -133,7 +138,8 @@ export default function Login() {
             <Field label="Password" htmlFor="p">
               <div className="input-icon">
                 <Lock size={16} aria-hidden />
-                <input id="p" className="input" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
+                <input id="p" className="input" type={showPassword ? 'text' : 'password'} autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
+                <PasswordToggle visible={showPassword} onToggle={() => setShowPassword((s) => !s)} controls="p" />
               </div>
             </Field>
             <div className="login__row">

@@ -1,12 +1,12 @@
-import { Suspense, useEffect, useState } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
-  Activity, BarChart3, Bell, BookCopy, CheckCircle2, ChevronDown, Clock3, Hourglass, LayoutDashboard, LogOut, Menu as MenuIcon,
-  Ellipsis, Flag, Search, Settings, Smartphone, Users, Warehouse, X, XCircle,
+  Activity, BarChart3, Bell, BookCopy, CheckCircle2, ChevronDown, ChevronRight, Clock3, Hourglass, LayoutDashboard, LogOut, Menu as MenuIcon,
+  Ellipsis, Flag, Search, UserRound, Users, Warehouse, X, XCircle,
 } from 'lucide-react'
 import { Logo } from './Logo'
 import { CommandSearch } from './CommandSearch'
-import { DemoBadge } from './DemoControls'
+import { TopbarSearch } from './TopbarSearch'
 import { Avatar, Menu, MenuItem } from '../ui/Misc'
 import { IconButton } from '../ui/Button'
 import { CountBadge } from '../ui/Status'
@@ -15,7 +15,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { useMediaQuery, useSelector, useTicker } from '../../hooks/useStore'
 import { Drawer } from '../ui/Overlay'
 import { selectors } from '../../services/mockApi'
-import { cn, formatTime } from '../../utils/format'
+import { cn } from '../../utils/format'
 
 const NAV = [
   { group: 'Overview', items: [{ to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true }] },
@@ -45,7 +45,7 @@ const NAV = [
       { to: '/admin/reports', label: 'Reports', icon: BarChart3 },
     ],
   },
-  { group: 'Settings', items: [{ to: '/admin/settings', label: 'Settings', icon: Settings }] },
+  { group: 'Account', items: [{ to: '/admin/settings', label: 'Profile', icon: UserRound }] },
 ]
 
 const TITLES = [
@@ -62,14 +62,16 @@ const TITLES = [
   ['/admin/notifications', 'Notifications'],
   ['/admin/activity', 'Activity log'],
   ['/admin/reports', 'Reports'],
-  ['/admin/settings', 'Settings'],
+  ['/admin/settings', 'Profile'],
   ['/admin', 'Dashboard'],
 ]
+
+// Colour of a nav item's count badge (sidebar + phone menu).
+const countTone = (key) => ({ ready: 'hero', oos: 'warn', unread: 'signal', flagged: 'flag' })[key] ?? 'neutral'
 
 function Sidebar({ onNavigate }) {
   const { user } = useAuth()
   const counts = useSelector(() => ({ ...selectors.navCounts(), unread: selectors.unreadCount(user) }))
-  const shop = useSelector(() => selectors.shopify())
   useTicker(30_000)
   return (
     <div className="sidebar__inner">
@@ -86,7 +88,7 @@ function Sidebar({ onNavigate }) {
                   <NavLink to={it.to} end={it.end} className={({ isActive }) => cn('navlink', isActive && 'is-active')} onClick={onNavigate}>
                     <it.icon size={17} aria-hidden strokeWidth={2} />
                     <span>{it.label}</span>
-                    {it.count && <CountBadge value={counts[it.count]} tone={it.count === 'ready' ? 'hero' : it.count === 'oos' ? 'warn' : it.count === 'unread' ? 'signal' : it.count === 'flagged' ? 'flag' : 'neutral'} />}
+                    {it.count && <CountBadge value={counts[it.count]} tone={countTone(it.count)} />}
                   </NavLink>
                 </li>
               ))}
@@ -94,15 +96,6 @@ function Sidebar({ onNavigate }) {
           </div>
         ))}
       </nav>
-      <NavLink to="/admin/settings#shopify" className="sidebar__shop" onClick={onNavigate}>
-        <span className="sidebar__shop-head">
-          <span className="live-dot" aria-hidden /> Shopify · {shop.health === 'healthy' ? 'Healthy' : 'Degraded'}
-        </span>
-        <span className="sidebar__shop-sub">
-          Stock check every {shop.pollMinutes} min · last {formatTime(shop.lastPollAt)}
-        </span>
-        <span className="sidebar__shop-mock">Demo / mock integration</span>
-      </NavLink>
     </div>
   )
 }
@@ -152,74 +145,72 @@ function AdminTabbar({ onMore, moreOpen }) {
 }
 
 function MoreSheet({ open, onClose }) {
-  const { user, signIn, signOut } = useAuth()
+  const { user, signOut } = useAuth()
   const navigate = useNavigate()
+  const { pathname } = useLocation()
   const counts = useSelector(() => ({ ...selectors.navCounts(), unread: selectors.unreadCount(user) }))
-  const shop = useSelector(() => selectors.shopify())
   const go = (to) => {
     onClose()
     navigate(to)
   }
-  const groups = NAV.filter((g) => g.group !== 'Overview').map((g) => ({ ...g, items: g.items.filter((i) => !TAB_PATHS.includes(i.to)) })).filter((g) => g.items.length)
+  // Everything not already in the bottom tab bar. The profile has its own card at the top.
+  const groups = NAV.filter((g) => g.group !== 'Overview' && g.group !== 'Account')
+    .map((g) => ({ ...g, items: g.items.filter((i) => !TAB_PATHS.includes(i.to)) }))
+    .filter((g) => g.items.length)
   return (
-    <Drawer open={open} onClose={onClose} title="Menu" subtitle={`${user.name} · ${user.title}`} className="moresheet">
-      {groups.map((g) => (
-        <section key={g.group} className="moresheet__group">
-          <h3 className="moresheet__label">{g.group}</h3>
-          <div className="moresheet__grid">
-            {g.items.map((it) => (
-              <button key={it.to} className="moresheet__tile" onClick={() => go(it.to)}>
-                <span className="moresheet__icon">
-                  <it.icon size={19} aria-hidden />
-                  {it.count && counts[it.count] > 0 && <span className={cn('tabbar__dot', it.count === 'flagged' && 'tabbar__dot--flag')}>{counts[it.count]}</span>}
-                </span>
-                <span>{it.label}</span>
-              </button>
-            ))}
-          </div>
-        </section>
-      ))}
-      <button className="moresheet__shop" onClick={() => go('/admin/settings')}>
-        <span className="live-dot" aria-hidden />
-        <span>
-          <strong>Shopify · {shop.health === 'healthy' ? 'Healthy' : 'Degraded'}</strong>
-          <em>
-            Stock check every {shop.pollMinutes} min · last {formatTime(shop.lastPollAt)} · demo / mock
-          </em>
+    <Drawer open={open} onClose={onClose} title="Menu" className="moresheet">
+      <button className="moresheet__me" onClick={() => go('/admin/settings')}>
+        <Avatar name={user.name} hue={user.hue} size={44} />
+        <span className="moresheet__me-text">
+          <strong>{user.name}</strong>
+          <span>{user.email}</span>
+        </span>
+        <span className="moresheet__me-link">
+          Profile <ChevronRight size={15} aria-hidden />
         </span>
       </button>
-      <div className="moresheet__actions">
-        <button
-          className="moresheet__row"
-          onClick={async () => {
-            onClose()
-            await signIn({ role: 'staff' })
-            navigate('/staff')
-          }}
-        >
-          <Smartphone size={18} aria-hidden /> Switch to Staff app (demo)
-        </button>
-        <button
-          className="moresheet__row is-danger"
-          onClick={() => {
-            onClose()
-            signOut()
-            navigate('/login')
-          }}
-        >
-          <LogOut size={18} aria-hidden /> Sign out
-        </button>
-      </div>
+
+      {groups.map((g) => (
+        <section key={g.group} className="moresheet__group" aria-label={g.group}>
+          <h3 className="moresheet__label">{g.group}</h3>
+          <ul className="moresheet__list">
+            {g.items.map((it) => (
+              <li key={it.to}>
+                <button className={cn('moresheet__item', pathname.startsWith(it.to) && 'is-active')} onClick={() => go(it.to)}>
+                  <span className="moresheet__icon">
+                    <it.icon size={17} aria-hidden />
+                  </span>
+                  <span className="moresheet__item-label">{it.label}</span>
+                  {it.count && <CountBadge value={counts[it.count]} tone={countTone(it.count)} />}
+                  <ChevronRight size={16} className="moresheet__chev" aria-hidden />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
+
+      <button
+        className="moresheet__signout"
+        onClick={() => {
+          onClose()
+          signOut()
+          navigate('/login')
+        }}
+      >
+        <LogOut size={17} aria-hidden /> Sign out
+      </button>
     </Drawer>
   )
 }
 
 export function AdminLayout() {
-  const { user, signOut, signIn } = useAuth()
+  const { user, signOut } = useAuth()
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const [drawer, setDrawer] = useState(false)
   const [search, setSearch] = useState(false)
+  const searchInput = useRef(null) // the top bar search box (wide screens)
   const [more, setMore] = useState(false)
   const phone = useMediaQuery('(max-width: 760px)')
   const unread = useSelector(() => selectors.unreadCount(user))
@@ -229,7 +220,9 @@ export function AdminLayout() {
     const onKey = (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault()
-        setSearch(true)
+        // Type straight into the top bar box when it is shown; otherwise open the search dialog.
+        if (searchInput.current?.offsetParent) searchInput.current.focus()
+        else setSearch(true)
       }
     }
     window.addEventListener('keydown', onKey)
@@ -268,13 +261,9 @@ export function AdminLayout() {
           {phone ? (
             <IconButton icon={Search} label="Search books" className="topbar__search-icon" onClick={() => setSearch(true)} />
           ) : (
-            <button className="topbar__search" onClick={() => setSearch(true)}>
-              <span className="topbar__search-text">Search title, author, ISBN or shelf</span>
-              <kbd className="kbd">Ctrl K</kbd>
-            </button>
+            <TopbarSearch inputRef={searchInput} onOpenDialog={() => setSearch(true)} />
           )}
           <div className="topbar__right">
-            <DemoBadge />
             <IconButton icon={Bell} label={`Notifications${unread ? `, ${unread} unread` : ''}`} badge={unread} onClick={() => navigate('/admin/notifications')} className="topbar__bell" />
             <Menu
               trigger={({ toggle, props }) => (
@@ -292,17 +281,8 @@ export function AdminLayout() {
                 <strong>{user.name}</strong>
                 <span>{user.email}</span>
               </div>
-              <MenuItem icon={Settings} onClick={() => navigate('/admin/settings')}>
-                Profile & settings
-              </MenuItem>
-              <MenuItem
-                icon={Smartphone}
-                onClick={async () => {
-                  await signIn({ role: 'staff' })
-                  navigate('/staff')
-                }}
-              >
-                Switch to Staff app (demo)
+              <MenuItem icon={UserRound} onClick={() => navigate('/admin/settings')}>
+                Profile
               </MenuItem>
               <MenuItem
                 icon={LogOut}

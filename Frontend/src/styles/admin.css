@@ -147,6 +147,33 @@
 .topbar__search:hover { border-color: #b7b09c; color: var(--muted); }
 .topbar__search-text { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .topbar__right { display: flex; align-items: center; gap: 8px; }
+
+/* Top bar layout: title left, search centred, bell + profile right */
+.admin:not(.admin--phone) .topbar__title { flex: 1 1 0; }
+.admin:not(.admin--phone) .topbar__right { flex: 1 1 0; justify-content: flex-end; gap: 18px; }
+.topbar__bell { position: relative; }
+.topbar__bell::after { content: ''; position: absolute; right: -10px; top: 50%; width: 1px; height: 22px; transform: translateY(-50%); background: var(--line); } /* divider before the profile */
+
+/* Top bar search box with results dropping down under it */
+.tsearch { position: relative; flex: 0 1 520px; min-width: 0; }
+.tsearch__field {
+  display: flex; align-items: center; gap: 10px; height: 38px; padding: 0 8px 0 12px;
+  border: 1px solid var(--line-strong); border-radius: var(--r); background: var(--surface); color: var(--faint);
+  transition: border-color var(--t-1), box-shadow var(--t-1); cursor: text;
+}
+.tsearch__field:hover { border-color: #b7b09c; }
+.tsearch__field:focus-within { border-color: var(--ink); color: var(--muted); }
+.tsearch__field input { flex: 1; min-width: 0; height: 100%; border: 0; background: none; font-size: 13.5px; color: var(--ink); }
+.tsearch__field input:focus, .tsearch__field input:focus-visible { outline: none; box-shadow: none; } /* the field's dark border shows focus */
+.tsearch__field input::placeholder { color: var(--faint); }
+.tsearch__field input::-webkit-search-cancel-button { display: none; }
+.tsearch__field:focus-within .kbd { display: none; }
+.tsearch__panel {
+  position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 30;
+  max-height: min(440px, 70vh); overflow: auto;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow-3, 0 18px 40px -16px rgba(23, 21, 15, 0.35));
+}
+.tsearch__icon { display: none; }
 .usermenu { display: flex; align-items: center; gap: 9px; padding: 3px 6px 3px 3px; border-radius: 99px; transition: background var(--t-1); }
 .usermenu:hover { background: rgba(23, 21, 15, 0.06); }
 .usermenu__text { display: grid; text-align: left; line-height: 1.15; }
@@ -168,6 +195,9 @@
   .topbar__mobile-logo { display: inline-flex; }
   .topbar__search { width: 36px; padding: 0; justify-content: center; margin-left: auto; }
   .topbar__search-text, .topbar__search .kbd { display: none; }
+  .tsearch { display: none; }
+  .tsearch__icon { display: inline-grid; margin-left: auto; }
+  .admin:not(.admin--phone) .topbar__title, .admin:not(.admin--phone) .topbar__right { flex: 0 1 auto; }
   .admin__content { padding: 18px 16px 40px; }
 }
 @media (max-width: 560px) {
