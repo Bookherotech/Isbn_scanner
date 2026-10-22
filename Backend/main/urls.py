@@ -18,9 +18,13 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
+from decouple import config
+
+# Django's own admin panel. Not /admin/: that address belongs to the Super Admin pages of the React app.
+DJANGO_ADMIN_PATH = config('DJANGO_ADMIN_PATH', default='django-admin/').strip('/') + '/'
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
+    path(DJANGO_ADMIN_PATH, admin.site.urls),
     path('api/auth/', include('authentication.urls')),
     path('api/staff/', include('staff_api.urls')),
 ]
