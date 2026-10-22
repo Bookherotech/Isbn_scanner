@@ -70,10 +70,10 @@ export default function ProfileDetails() {
           </Button>
         </div>
       )}
-      <Field label="Full name" htmlFor="me-name" error={errors.name}>
+      <Field label="Full name" htmlFor="me-name" error={errors.name} className="profile__half">
         <Input id="me-name" value={name} onChange={(e) => setName(e.target.value)} disabled={!editing} autoComplete="name" data-autofocus />
       </Field>
-      <Field label="Phone number" htmlFor="me-phone" error={errors.phone}>
+      <Field label="Phone number" htmlFor="me-phone" error={errors.phone} className="profile__half">
         <div className="phone-row">
           <Select aria-label="Country code" value={code} onChange={(e) => setCode(e.target.value)} disabled={!editing}>
             {!code && <option value="">Other</option>}
@@ -95,7 +95,7 @@ export default function ProfileDetails() {
           />
         </div>
       </Field>
-      <Field label="Email" htmlFor="me-email" hint="Contact your admin to change your email.">
+      <Field label="Email" htmlFor="me-email" hint={user.role === 'admin' ? 'This is the email you sign in with and receive codes at.' : 'Contact your admin to change your email.'}>
         <Input id="me-email" type="email" value={user.email || ''} placeholder="—" disabled readOnly />
       </Field>
       {!real && <p className="field__hint">This is a demo account. Sign in with your own email and password to see and edit your real details.</p>}

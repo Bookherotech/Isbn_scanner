@@ -8,7 +8,7 @@ from authentication.throttles import OtpVerifyThrottle
 
 
 class VerifyOtpView(APIView):
-    """POST /api/auth/login/verify-otp/ {challenge, otp} -> {access, refresh, user}."""
+    """POST /api/auth/login/verify-otp/ {challenge, otp, remember} -> {access, refresh, user}."""
 
     permission_classes = [AllowAny]
     authentication_classes = []
@@ -17,5 +17,6 @@ class VerifyOtpView(APIView):
     def post(self, request):
         serializer = OtpVerifySerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        user = verify_challenge(serializer.validated_data['challenge'], serializer.validated_data['otp'])
-        return Response(issue_tokens(user))
+        data = serializer.validated_data
+        user = verify_challenge(data['challenge'], data['otp'])
+        return Response(issue_tokens(user, remember=data['remember']))

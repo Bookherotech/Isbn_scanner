@@ -11,3 +11,4 @@ class OtpVerifySerializer(serializers.Serializer):
         regex=rf'^\d{{{OTP_LENGTH}}}$',
         error_messages={'invalid': f'Enter the {OTP_LENGTH}-digit code.'},
     )
+    remember = serializers.BooleanField(required=False, default=False)  # "Remember me" from the sign-in form

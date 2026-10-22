@@ -1,12 +1,12 @@
-import { Suspense, useEffect, useState } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
   Activity, BarChart3, Bell, BookCopy, CheckCircle2, ChevronDown, Clock3, Hourglass, LayoutDashboard, LogOut, Menu as MenuIcon,
-  Ellipsis, Flag, Search, Settings, Smartphone, Users, Warehouse, X, XCircle,
+  Ellipsis, Flag, Search, Smartphone, UserRound, Users, Warehouse, X, XCircle,
 } from 'lucide-react'
 import { Logo } from './Logo'
 import { CommandSearch } from './CommandSearch'
-import { DemoBadge } from './DemoControls'
+import { TopbarSearch } from './TopbarSearch'
 import { Avatar, Menu, MenuItem } from '../ui/Misc'
 import { IconButton } from '../ui/Button'
 import { CountBadge } from '../ui/Status'
@@ -45,7 +45,7 @@ const NAV = [
       { to: '/admin/reports', label: 'Reports', icon: BarChart3 },
     ],
   },
-  { group: 'Settings', items: [{ to: '/admin/settings', label: 'Settings', icon: Settings }] },
+  { group: 'Account', items: [{ to: '/admin/settings', label: 'Profile', icon: UserRound }] },
 ]
 
 const TITLES = [
@@ -62,7 +62,7 @@ const TITLES = [
   ['/admin/notifications', 'Notifications'],
   ['/admin/activity', 'Activity log'],
   ['/admin/reports', 'Reports'],
-  ['/admin/settings', 'Settings'],
+  ['/admin/settings', 'Profile'],
   ['/admin', 'Dashboard'],
 ]
 
@@ -215,11 +215,12 @@ function MoreSheet({ open, onClose }) {
 }
 
 export function AdminLayout() {
-  const { user, signOut, signIn } = useAuth()
+  const { user, signOut } = useAuth()
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const [drawer, setDrawer] = useState(false)
   const [search, setSearch] = useState(false)
+  const searchInput = useRef(null) // the top bar search box (wide screens)
   const [more, setMore] = useState(false)
   const phone = useMediaQuery('(max-width: 760px)')
   const unread = useSelector(() => selectors.unreadCount(user))
@@ -229,7 +230,9 @@ export function AdminLayout() {
     const onKey = (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault()
-        setSearch(true)
+        // Type straight into the top bar box when it is shown; otherwise open the search dialog.
+        if (searchInput.current?.offsetParent) searchInput.current.focus()
+        else setSearch(true)
       }
     }
     window.addEventListener('keydown', onKey)
@@ -268,13 +271,9 @@ export function AdminLayout() {
           {phone ? (
             <IconButton icon={Search} label="Search books" className="topbar__search-icon" onClick={() => setSearch(true)} />
           ) : (
-            <button className="topbar__search" onClick={() => setSearch(true)}>
-              <span className="topbar__search-text">Search title, author, ISBN or shelf</span>
-              <kbd className="kbd">Ctrl K</kbd>
-            </button>
+            <TopbarSearch inputRef={searchInput} onOpenDialog={() => setSearch(true)} />
           )}
           <div className="topbar__right">
-            <DemoBadge />
             <IconButton icon={Bell} label={`Notifications${unread ? `, ${unread} unread` : ''}`} badge={unread} onClick={() => navigate('/admin/notifications')} className="topbar__bell" />
             <Menu
               trigger={({ toggle, props }) => (
@@ -292,17 +291,8 @@ export function AdminLayout() {
                 <strong>{user.name}</strong>
                 <span>{user.email}</span>
               </div>
-              <MenuItem icon={Settings} onClick={() => navigate('/admin/settings')}>
-                Profile & settings
-              </MenuItem>
-              <MenuItem
-                icon={Smartphone}
-                onClick={async () => {
-                  await signIn({ role: 'staff' })
-                  navigate('/staff')
-                }}
-              >
-                Switch to Staff app (demo)
+              <MenuItem icon={UserRound} onClick={() => navigate('/admin/settings')}>
+                Profile
               </MenuItem>
               <MenuItem
                 icon={LogOut}
