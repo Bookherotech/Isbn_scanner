@@ -4,6 +4,7 @@ import { ArrowRight, Lock, Mail } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { Button } from '../../components/ui/Button'
 import { Checkbox, Field } from '../../components/ui/Form'
+import { PasswordToggle } from '../../components/ui/PasswordInput'
 import { Barcode } from '../../components/ui/Misc'
 import ForgotPassword from './ForgotPassword'
 import OtpStep from './OtpStep'
@@ -17,6 +18,7 @@ export default function Login() {
   const location = useLocation()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [remember, setRemember] = useState(true)
   const [busy, setBusy] = useState('')
   const [error, setError] = useState('')
@@ -133,7 +135,8 @@ export default function Login() {
             <Field label="Password" htmlFor="p">
               <div className="input-icon">
                 <Lock size={16} aria-hidden />
-                <input id="p" className="input" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
+                <input id="p" className="input" type={showPassword ? 'text' : 'password'} autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
+                <PasswordToggle visible={showPassword} onToggle={() => setShowPassword((s) => !s)} controls="p" />
               </div>
             </Field>
             <div className="login__row">

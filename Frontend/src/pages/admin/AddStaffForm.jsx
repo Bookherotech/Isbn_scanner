@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { createStaff } from '../../services/authApi'
 import { COUNTRY_CODES } from '../../utils/countryCodes'
 import { Field, Input } from '../../components/ui/Form'
+import { PasswordInput } from '../../components/ui/PasswordInput'
 import { Button } from '../../components/ui/Button'
 import PhoneField from './PhoneField'
 
@@ -86,10 +87,10 @@ export default function AddStaffForm({ onCreated, onClose }) {
         <Input id="staff-email" type="email" value={form.email} onChange={set('email')} placeholder="priya@bookhero.store" autoComplete="off" />
       </Field>
       <Field label="Password" htmlFor="staff-password" error={errors.password}>
-        <Input id="staff-password" type="password" value={form.password} onChange={set('password')} autoComplete="new-password" />
+        <PasswordInput id="staff-password" value={form.password} onChange={set('password')} autoComplete="new-password" />
       </Field>
       <Field label="Re-enter password" htmlFor="staff-confirm" error={errors.confirmPassword}>
-        <Input id="staff-confirm" type="password" value={form.confirmPassword} onChange={set('confirmPassword')} autoComplete="new-password" />
+        <PasswordInput id="staff-confirm" value={form.confirmPassword} onChange={set('confirmPassword')} autoComplete="new-password" />
       </Field>
       <p className="field__hint">They sign in to the Staff app with this email and password. No verification code is needed.</p>
       {errors.form && (

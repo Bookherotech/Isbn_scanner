@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { changeStaffPassword } from '../../services/authApi'
-import { Field, Input } from '../../components/ui/Form'
+import { Field } from '../../components/ui/Form'
+import { PasswordInput } from '../../components/ui/PasswordInput'
 import { Button } from '../../components/ui/Button'
 
 const first = (messages) => (Array.isArray(messages) ? messages[0] : messages)
@@ -46,10 +47,10 @@ export default function ChangePasswordForm({ staff, onDone, onClose }) {
   return (
     <form onSubmit={submit} className="form-stack" noValidate>
       <Field label="New password" htmlFor="staff-new-password" error={errors.password}>
-        <Input id="staff-new-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" data-autofocus />
+        <PasswordInput id="staff-new-password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" data-autofocus />
       </Field>
       <Field label="Re-enter new password" htmlFor="staff-new-password-2" error={errors.confirmPassword}>
-        <Input id="staff-new-password-2" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} autoComplete="new-password" />
+        <PasswordInput id="staff-new-password-2" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} autoComplete="new-password" />
       </Field>
       <p className="field__hint">{staff.full_name || staff.email} will be signed out everywhere and must use this new password. Tell them what it is.</p>
       {errors.form && (
