@@ -89,6 +89,10 @@
 .input-icon { position: relative; }
 .input-icon svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--faint); pointer-events: none; }
 .input-icon .input { padding-left: 36px; height: 44px; }
+/* Sign-in password: eye button on the right (styles in ui.css .password-toggle) */
+.input-icon:has(.password-toggle) .input { padding-right: 44px; }
+.input-icon .password-toggle { width: 36px; height: 36px; right: 4px; }
+.input-icon .password-toggle svg { position: static; transform: none; color: inherit; }
 .login__row { display: flex; justify-content: space-between; align-items: center; }
 .login__forgot { font-size: 13px; font-weight: 600; color: var(--ink-2); }
 .login__forgot:hover { text-decoration: underline; }

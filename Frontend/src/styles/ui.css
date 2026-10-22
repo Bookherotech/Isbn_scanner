@@ -282,6 +282,17 @@
 .input--lg { height: 52px; font-size: 18px; border-radius: var(--r-lg); }
 .field.has-error .input { border-color: var(--danger); }
 .input.is-missing { background: var(--hero-subtle); border-color: var(--hero-line); }
+
+/* Password field with an eye button (show / hide) on the right */
+.password-input { position: relative; }
+.password-input .input { padding-right: 42px; }
+.password-toggle {
+  position: absolute; right: 3px; top: 50%; transform: translateY(-50%);
+  width: 32px; height: 32px; display: grid; place-items: center;
+  border-radius: 6px; color: var(--faint);
+}
+.password-toggle:hover { color: var(--ink-2); }
+.password-toggle:focus-visible { outline: 2px solid var(--ink-2); outline-offset: -2px; }
 .textarea { height: auto; min-height: 76px; padding: 9px 11px; resize: vertical; line-height: 1.45; }
 
 .select { position: relative; }
