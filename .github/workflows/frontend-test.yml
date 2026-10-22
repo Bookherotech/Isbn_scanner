@@ -1,18 +1,18 @@
-# Frontend CI/CD - runs only when something under Frontend/ changes.
+# Frontend CI/CD for the TEST site (http://13.234.161.181:8080) - runs on pushes to `development` that change Frontend/.
 #   1. Build:  installs the packages and builds the React app (fails here = nothing is deployed)
-#   2. Deploy: only if the build passed -> main = live site, development = test site
-# The server builds again with its own Frontend/.env (VITE_API_BASE_URL) and swaps the new build in.
+#   2. Deploy: only if step 1 passed -> runs "~/deploy.sh test frontend" on the server over SSH
+# The server's ~/deploy-gate.sh only lets this key run "<live|test> <backend|frontend>".
 # Secrets (Settings > Secrets and variables > Actions): SSH_HOST, SSH_KEY, SSH_KNOWN_HOSTS
-name: Frontend
+name: Frontend (test)
 
 on:
   push:
-    branches: [main, development]
-    paths: ['Frontend/**', '.github/workflows/frontend.yml']
-  workflow_dispatch: # "Run workflow" button in the Actions tab
+    branches: [development]
+    paths: ['Frontend/**', '.github/workflows/frontend-test.yml']
+  workflow_dispatch: # "Run workflow" button in the Actions tab (pick the development branch)
 
 concurrency:
-  group: frontend-${{ github.ref_name }}
+  group: frontend-test
   cancel-in-progress: false
 
 jobs:
@@ -38,12 +38,9 @@ jobs:
         run: npm run build
 
   deploy:
-    name: Deploy to ${{ github.ref_name == 'main' && 'live' || 'test' }}
+    name: Deploy to test
     needs: build
     runs-on: ubuntu-24.04
-    env:
-      TARGET: ${{ github.ref_name == 'main' && 'live' || 'test' }}
-      SITE_URL: ${{ github.ref_name == 'main' && 'http://13.234.161.181' || 'http://13.234.161.181:8080' }}
     steps:
       - name: Deploy frontend on the server
         env:
@@ -54,14 +51,14 @@ jobs:
           install -m 700 -d ~/.ssh
           echo "$SSH_KEY" > ~/.ssh/deploy_key && chmod 600 ~/.ssh/deploy_key
           echo "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
-          ssh -i ~/.ssh/deploy_key -o ServerAliveInterval=30 ubuntu@"$SSH_HOST" "$TARGET frontend"
+          ssh -i ~/.ssh/deploy_key -o ServerAliveInterval=30 ubuntu@"$SSH_HOST" "test frontend"
 
       - name: Summary
         if: always()
         run: |
           {
-            echo "### Frontend -> $TARGET: ${{ job.status }}"
+            echo "### Frontend -> test: ${{ job.status }}"
             echo "- Branch: \`${{ github.ref_name }}\`"
             echo "- Commit: \`${GITHUB_SHA::7}\` by ${{ github.actor }}"
-            echo "- Site: $SITE_URL"
+            echo "- Site: http://13.234.161.181:8080"
           } >> "$GITHUB_STEP_SUMMARY"
