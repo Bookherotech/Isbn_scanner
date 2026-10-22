@@ -28,7 +28,15 @@ SECRET_KEY = config('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=False, cast=bool)
 
-ALLOWED_HOSTS = []
+# Addresses this site answers to (comma separated, set in .env), e.g. 13.234.161.181,bookhero.com
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=Csv())
+
+# Behind nginx: origins allowed to post forms (Django admin), e.g. http://13.234.161.181
+CSRF_TRUSTED_ORIGINS = config('CSRF_TRUSTED_ORIGINS', default='', cast=Csv())
+# nginx tells Django whether the browser used HTTPS
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+# Cookies only over HTTPS: set SECURE_COOKIES=True once the site has a domain + HTTPS
+SESSION_COOKIE_SECURE = CSRF_COOKIE_SECURE = config('SECURE_COOKIES', default=False, cast=bool)
 
 
 # Application definition
@@ -149,6 +157,8 @@ STORE_TIME_ZONE = config('STORE_TIME_ZONE', default='Asia/Dubai')
 # https://docs.djangoproject.com/en/6.1/howto/static-files/
 
 STATIC_URL = 'static/'
+# `collectstatic` gathers files here; nginx serves them on the server
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # Uploaded files (book cover photos taken by staff). Served by Django only while DEBUG is on;
 # in production the web server (e.g. nginx) serves MEDIA_ROOT at MEDIA_URL.
