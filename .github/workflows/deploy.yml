@@ -1,0 +1,30 @@
+# Deploys to the AWS server on every push:
+#   main        -> live site  (http://13.234.161.181)
+#   development -> test site  (http://13.234.161.181:8080)
+# The server's ~/deploy-gate.sh only lets this key run "live" or "test" (~/deploy.sh).
+# Secrets (Settings > Secrets and variables > Actions): SSH_HOST, SSH_KEY, SSH_KNOWN_HOSTS
+name: Deploy
+
+on:
+  push:
+    branches: [main, development]
+
+concurrency:
+  group: deploy-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to server
+        env:
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+          TARGET: ${{ github.ref_name == 'main' && 'live' || 'test' }}
+        run: |
+          install -m 700 -d ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/deploy_key && chmod 600 ~/.ssh/deploy_key
+          echo "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          ssh -i ~/.ssh/deploy_key ubuntu@"$SSH_HOST" "$TARGET"
