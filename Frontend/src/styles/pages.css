@@ -908,21 +908,25 @@
 .admin--phone .panel { border-radius: 14px; }
 .admin--phone .rowcard { border-radius: 14px; }
 
-.moresheet .drawer__body { padding-top: 10px; }
-.moresheet__group + .moresheet__group { margin-top: 16px; }
-.moresheet__label { font-family: var(--font-ui); font-size: 11.5px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
-.moresheet__grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-.moresheet__tile { display: grid; justify-items: center; gap: 6px; padding: 12px 6px; border-radius: 12px; border: 1px solid var(--line); background: var(--paper); font-size: 12.5px; font-weight: 600; text-align: center; transition: background var(--t-1), border-color var(--t-1); }
-.moresheet__tile:active { background: var(--hero-subtle); border-color: var(--hero-line); }
-.moresheet__icon { position: relative; width: 38px; height: 38px; display: grid; place-items: center; border-radius: 10px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
-.moresheet__icon .tabbar__dot { top: -6px; right: -8px; }
-.moresheet__shop { display: flex; gap: 10px; align-items: center; width: 100%; margin-top: 18px; padding: 12px; border-radius: 12px; background: var(--night); color: #ece7da; text-align: left; }
-.moresheet__shop > span:last-child { display: grid; }
-.moresheet__shop strong { font-size: 13.5px; }
-.moresheet__shop em { font-style: normal; font-size: 11.5px; color: #a49d8b; }
-.moresheet__actions { display: grid; gap: 6px; margin-top: 12px; }
-.moresheet__row { display: flex; align-items: center; gap: 10px; width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--line); font-weight: 600; font-size: 14px; text-align: left; }
-.moresheet__row.is-danger { color: var(--danger); }
+.moresheet .drawer__body { padding-top: 6px; }
+/* Phone "More" menu: profile card, grouped lists, sign out */
+.moresheet__me { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 14px; border-radius: 14px; background: var(--night); color: #f3eee0; text-align: left; }
+.moresheet__me-text { flex: 1; display: grid; min-width: 0; line-height: 1.25; }
+.moresheet__me-text strong { font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.moresheet__me-text span { font-size: 12.5px; color: #a49d8b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.moresheet__me-link { display: inline-flex; align-items: center; gap: 2px; flex: none; font-size: 12.5px; font-weight: 600; color: var(--hero); }
+.moresheet__group { margin-top: 18px; }
+.moresheet__label { font-family: var(--font-ui); font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px 4px; }
+.moresheet__list { list-style: none; margin: 0; padding: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.moresheet__list li + li { border-top: 1px solid var(--line-soft); }
+.moresheet__item { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 52px; padding: 8px 12px; text-align: left; font-size: 14.5px; font-weight: 600; transition: background var(--t-1); }
+.moresheet__item:active, .moresheet__item:hover { background: var(--paper); }
+.moresheet__item.is-active { background: var(--hero-subtle); }
+.moresheet__item-label { flex: 1; min-width: 0; }
+.moresheet__icon { width: 34px; height: 34px; flex: none; display: grid; place-items: center; border-radius: 9px; background: var(--paper); color: var(--ink-2); box-shadow: inset 0 0 0 1px var(--line); }
+.moresheet__item.is-active .moresheet__icon { background: var(--hero); color: var(--ink); box-shadow: none; }
+.moresheet__chev { flex: none; color: var(--faint); }
+.moresheet__signout { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; margin-top: 20px; min-height: 48px; border-radius: 14px; border: 1px solid var(--danger-line, rgba(196, 50, 50, 0.25)); background: var(--danger-bg); color: var(--danger); font-weight: 650; font-size: 14.5px; }
 .tabbar--admin .tabbar__scan { align-self: end; padding-bottom: 2px; }
 
 /* Report library */

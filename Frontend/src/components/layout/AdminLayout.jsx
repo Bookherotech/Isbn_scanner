@@ -1,8 +1,8 @@
 import { Suspense, useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
-  Activity, BarChart3, Bell, BookCopy, CheckCircle2, ChevronDown, Clock3, Hourglass, LayoutDashboard, LogOut, Menu as MenuIcon,
-  Ellipsis, Flag, Search, Smartphone, UserRound, Users, Warehouse, X, XCircle,
+  Activity, BarChart3, Bell, BookCopy, CheckCircle2, ChevronDown, ChevronRight, Clock3, Hourglass, LayoutDashboard, LogOut, Menu as MenuIcon,
+  Ellipsis, Flag, Search, UserRound, Users, Warehouse, X, XCircle,
 } from 'lucide-react'
 import { Logo } from './Logo'
 import { CommandSearch } from './CommandSearch'
@@ -15,7 +15,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { useMediaQuery, useSelector, useTicker } from '../../hooks/useStore'
 import { Drawer } from '../ui/Overlay'
 import { selectors } from '../../services/mockApi'
-import { cn, formatTime } from '../../utils/format'
+import { cn } from '../../utils/format'
 
 const NAV = [
   { group: 'Overview', items: [{ to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true }] },
@@ -66,10 +66,12 @@ const TITLES = [
   ['/admin', 'Dashboard'],
 ]
 
+// Colour of a nav item's count badge (sidebar + phone menu).
+const countTone = (key) => ({ ready: 'hero', oos: 'warn', unread: 'signal', flagged: 'flag' })[key] ?? 'neutral'
+
 function Sidebar({ onNavigate }) {
   const { user } = useAuth()
   const counts = useSelector(() => ({ ...selectors.navCounts(), unread: selectors.unreadCount(user) }))
-  const shop = useSelector(() => selectors.shopify())
   useTicker(30_000)
   return (
     <div className="sidebar__inner">
@@ -86,7 +88,7 @@ function Sidebar({ onNavigate }) {
                   <NavLink to={it.to} end={it.end} className={({ isActive }) => cn('navlink', isActive && 'is-active')} onClick={onNavigate}>
                     <it.icon size={17} aria-hidden strokeWidth={2} />
                     <span>{it.label}</span>
-                    {it.count && <CountBadge value={counts[it.count]} tone={it.count === 'ready' ? 'hero' : it.count === 'oos' ? 'warn' : it.count === 'unread' ? 'signal' : it.count === 'flagged' ? 'flag' : 'neutral'} />}
+                    {it.count && <CountBadge value={counts[it.count]} tone={countTone(it.count)} />}
                   </NavLink>
                 </li>
               ))}
@@ -94,15 +96,6 @@ function Sidebar({ onNavigate }) {
           </div>
         ))}
       </nav>
-      <NavLink to="/admin/settings#shopify" className="sidebar__shop" onClick={onNavigate}>
-        <span className="sidebar__shop-head">
-          <span className="live-dot" aria-hidden /> Shopify · {shop.health === 'healthy' ? 'Healthy' : 'Degraded'}
-        </span>
-        <span className="sidebar__shop-sub">
-          Stock check every {shop.pollMinutes} min · last {formatTime(shop.lastPollAt)}
-        </span>
-        <span className="sidebar__shop-mock">Demo / mock integration</span>
-      </NavLink>
     </div>
   )
 }
@@ -152,64 +145,61 @@ function AdminTabbar({ onMore, moreOpen }) {
 }
 
 function MoreSheet({ open, onClose }) {
-  const { user, signIn, signOut } = useAuth()
+  const { user, signOut } = useAuth()
   const navigate = useNavigate()
+  const { pathname } = useLocation()
   const counts = useSelector(() => ({ ...selectors.navCounts(), unread: selectors.unreadCount(user) }))
-  const shop = useSelector(() => selectors.shopify())
   const go = (to) => {
     onClose()
     navigate(to)
   }
-  const groups = NAV.filter((g) => g.group !== 'Overview').map((g) => ({ ...g, items: g.items.filter((i) => !TAB_PATHS.includes(i.to)) })).filter((g) => g.items.length)
+  // Everything not already in the bottom tab bar. The profile has its own card at the top.
+  const groups = NAV.filter((g) => g.group !== 'Overview' && g.group !== 'Account')
+    .map((g) => ({ ...g, items: g.items.filter((i) => !TAB_PATHS.includes(i.to)) }))
+    .filter((g) => g.items.length)
   return (
-    <Drawer open={open} onClose={onClose} title="Menu" subtitle={`${user.name} · ${user.title}`} className="moresheet">
-      {groups.map((g) => (
-        <section key={g.group} className="moresheet__group">
-          <h3 className="moresheet__label">{g.group}</h3>
-          <div className="moresheet__grid">
-            {g.items.map((it) => (
-              <button key={it.to} className="moresheet__tile" onClick={() => go(it.to)}>
-                <span className="moresheet__icon">
-                  <it.icon size={19} aria-hidden />
-                  {it.count && counts[it.count] > 0 && <span className={cn('tabbar__dot', it.count === 'flagged' && 'tabbar__dot--flag')}>{counts[it.count]}</span>}
-                </span>
-                <span>{it.label}</span>
-              </button>
-            ))}
-          </div>
-        </section>
-      ))}
-      <button className="moresheet__shop" onClick={() => go('/admin/settings')}>
-        <span className="live-dot" aria-hidden />
-        <span>
-          <strong>Shopify · {shop.health === 'healthy' ? 'Healthy' : 'Degraded'}</strong>
-          <em>
-            Stock check every {shop.pollMinutes} min · last {formatTime(shop.lastPollAt)} · demo / mock
-          </em>
+    <Drawer open={open} onClose={onClose} title="Menu" className="moresheet">
+      <button className="moresheet__me" onClick={() => go('/admin/settings')}>
+        <Avatar name={user.name} hue={user.hue} size={44} />
+        <span className="moresheet__me-text">
+          <strong>{user.name}</strong>
+          <span>{user.email}</span>
+        </span>
+        <span className="moresheet__me-link">
+          Profile <ChevronRight size={15} aria-hidden />
         </span>
       </button>
-      <div className="moresheet__actions">
-        <button
-          className="moresheet__row"
-          onClick={async () => {
-            onClose()
-            await signIn({ role: 'staff' })
-            navigate('/staff')
-          }}
-        >
-          <Smartphone size={18} aria-hidden /> Switch to Staff app (demo)
-        </button>
-        <button
-          className="moresheet__row is-danger"
-          onClick={() => {
-            onClose()
-            signOut()
-            navigate('/login')
-          }}
-        >
-          <LogOut size={18} aria-hidden /> Sign out
-        </button>
-      </div>
+
+      {groups.map((g) => (
+        <section key={g.group} className="moresheet__group" aria-label={g.group}>
+          <h3 className="moresheet__label">{g.group}</h3>
+          <ul className="moresheet__list">
+            {g.items.map((it) => (
+              <li key={it.to}>
+                <button className={cn('moresheet__item', pathname.startsWith(it.to) && 'is-active')} onClick={() => go(it.to)}>
+                  <span className="moresheet__icon">
+                    <it.icon size={17} aria-hidden />
+                  </span>
+                  <span className="moresheet__item-label">{it.label}</span>
+                  {it.count && <CountBadge value={counts[it.count]} tone={countTone(it.count)} />}
+                  <ChevronRight size={16} className="moresheet__chev" aria-hidden />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
+
+      <button
+        className="moresheet__signout"
+        onClick={() => {
+          onClose()
+          signOut()
+          navigate('/login')
+        }}
+      >
+        <LogOut size={17} aria-hidden /> Sign out
+      </button>
     </Drawer>
   )
 }

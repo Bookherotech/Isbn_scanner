@@ -162,9 +162,9 @@
   transition: border-color var(--t-1), box-shadow var(--t-1); cursor: text;
 }
 .tsearch__field:hover { border-color: #b7b09c; }
-.tsearch__field:focus-within { border-color: var(--ink); box-shadow: 0 0 0 3px rgba(255, 210, 31, 0.55); color: var(--muted); }
+.tsearch__field:focus-within { border-color: var(--ink); color: var(--muted); }
 .tsearch__field input { flex: 1; min-width: 0; height: 100%; border: 0; background: none; font-size: 13.5px; color: var(--ink); }
-.tsearch__field input:focus { outline: none; }
+.tsearch__field input:focus, .tsearch__field input:focus-visible { outline: none; box-shadow: none; } /* the field's dark border shows focus */
 .tsearch__field input::placeholder { color: var(--faint); }
 .tsearch__field input::-webkit-search-cancel-button { display: none; }
 .tsearch__field:focus-within .kbd { display: none; }
