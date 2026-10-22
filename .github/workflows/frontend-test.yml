@@ -1,0 +1,64 @@
+# Frontend CI/CD for the TEST site (http://13.234.161.181:8080) - runs on pushes to `development` that change Frontend/.
+#   1. Build:  installs the packages and builds the React app (fails here = nothing is deployed)
+#   2. Deploy: only if step 1 passed -> runs "~/deploy.sh test frontend" on the server over SSH
+# The server's ~/deploy-gate.sh only lets this key run "<live|test> <backend|frontend>".
+# Secrets (Settings > Secrets and variables > Actions): SSH_HOST, SSH_KEY, SSH_KNOWN_HOSTS
+name: Frontend (test)
+
+on:
+  push:
+    branches: [development]
+    paths: ['Frontend/**', '.github/workflows/frontend-test.yml']
+  workflow_dispatch: # "Run workflow" button in the Actions tab (pick the development branch)
+
+concurrency:
+  group: frontend-test
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build (React + Vite)
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: Frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22 # same as the server
+          cache: npm
+          cache-dependency-path: Frontend/package-lock.json
+
+      - name: Install packages
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+  deploy:
+    name: Deploy to test
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Deploy frontend on the server
+        env:
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/deploy_key && chmod 600 ~/.ssh/deploy_key
+          echo "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          ssh -i ~/.ssh/deploy_key -o ServerAliveInterval=30 ubuntu@"$SSH_HOST" "test frontend"
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### Frontend -> test: ${{ job.status }}"
+            echo "- Branch: \`${{ github.ref_name }}\`"
+            echo "- Commit: \`${GITHUB_SHA::7}\` by ${{ github.actor }}"
+            echo "- Site: http://13.234.161.181:8080"
+          } >> "$GITHUB_STEP_SUMMARY"
