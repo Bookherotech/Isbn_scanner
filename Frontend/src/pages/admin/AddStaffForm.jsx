@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Check, X } from 'lucide-react'
 import { createStaff } from '../../services/authApi'
 import { COUNTRY_CODES } from '../../utils/countryCodes'
 import { Field, Input } from '../../components/ui/Form'
@@ -9,12 +10,40 @@ import PhoneField from './PhoneField'
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const first = (messages) => (Array.isArray(messages) ? messages[0] : messages)
 
+// Live password checks while typing (the server checks again on save, incl. very common passwords).
+function passwordChecks(password, { fullName, email }) {
+  const lower = password.toLowerCase()
+  const nameParts = fullName.toLowerCase().split(/\s+/).filter((p) => p.length >= 3)
+  const emailName = email.trim().toLowerCase().split('@')[0]
+  const similar = (emailName.length >= 3 && lower.includes(emailName)) || nameParts.some((p) => lower.includes(p))
+  return [
+    { ok: password.length >= 8, label: 'At least 8 characters' },
+    { ok: password.length > 0 && !/^\d+$/.test(password), label: 'Not only numbers' },
+    { ok: password.length > 0 && !similar, label: 'Not similar to their name or email' },
+  ]
+}
+
+function LiveCheck({ ok, children }) {
+  const Icon = ok ? Check : X
+  return (
+    <li style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: ok ? 'var(--success)' : 'var(--muted)' }}>
+      <Icon size={13} strokeWidth={2.6} aria-hidden />
+      {children}
+    </li>
+  )
+}
+
 /** The "Add staff" form: name, phone (with country code), email, password and re-entered password. */
 export default function AddStaffForm({ onCreated, onClose }) {
   const [form, setForm] = useState({ fullName: '', countryCode: COUNTRY_CODES[0].code, phone: '', email: '', password: '', confirmPassword: '' })
   const [errors, setErrors] = useState({})
   const [busy, setBusy] = useState(false)
-  const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }))
+  const set = (key) => (e) => {
+    setForm((f) => ({ ...f, [key]: e.target.value }))
+    if (errors[key]) setErrors((all) => ({ ...all, [key]: undefined })) // typing clears the old message
+  }
+  const checks = passwordChecks(form.password, form)
+  const matches = form.confirmPassword.length > 0 && form.password === form.confirmPassword
 
   const validate = () => {
     const found = {}
@@ -23,6 +52,7 @@ export default function AddStaffForm({ onCreated, onClose }) {
     if (national.length < 6 || national.length > 13) found.phone = 'Enter a valid phone number (digits only, without the country code).'
     if (!EMAIL_PATTERN.test(form.email.trim())) found.email = 'Enter a valid email address.'
     if (!form.password) found.password = 'Enter a password.'
+    else if (checks.some((c) => !c.ok)) found.password = 'The password does not meet the rules below.'
     if (!form.confirmPassword) found.confirmPassword = 'Re-enter the password.'
     else if (form.password !== form.confirmPassword) found.confirmPassword = 'Passwords do not match.'
     return found
@@ -87,10 +117,24 @@ export default function AddStaffForm({ onCreated, onClose }) {
         <Input id="staff-email" type="email" value={form.email} onChange={set('email')} placeholder="priya@bookhero.store" autoComplete="off" />
       </Field>
       <Field label="Password" htmlFor="staff-password" error={errors.password}>
-        <PasswordInput id="staff-password" value={form.password} onChange={set('password')} autoComplete="new-password" />
+        <PasswordInput id="staff-password" value={form.password} onChange={set('password')} autoComplete="new-password" aria-describedby="staff-password-checks" />
+        {form.password && (
+          <ul id="staff-password-checks" aria-live="polite" style={{ listStyle: 'none', margin: '4px 0 0', padding: 0, display: 'grid', gap: 3 }}>
+            {checks.map((c) => (
+              <LiveCheck key={c.label} ok={c.ok}>
+                {c.label}
+              </LiveCheck>
+            ))}
+          </ul>
+        )}
       </Field>
       <Field label="Re-enter password" htmlFor="staff-confirm" error={errors.confirmPassword}>
-        <PasswordInput id="staff-confirm" value={form.confirmPassword} onChange={set('confirmPassword')} autoComplete="new-password" />
+        <PasswordInput id="staff-confirm" value={form.confirmPassword} onChange={set('confirmPassword')} autoComplete="new-password" aria-describedby="staff-confirm-check" />
+        {form.confirmPassword && !errors.confirmPassword && (
+          <ul id="staff-confirm-check" aria-live="polite" style={{ listStyle: 'none', margin: '4px 0 0', padding: 0 }}>
+            <LiveCheck ok={matches}>{matches ? 'Passwords match' : 'Passwords do not match yet'}</LiveCheck>
+          </ul>
+        )}
       </Field>
       <p className="field__hint">They sign in to the Staff app with this email and password. No verification code is needed.</p>
       {errors.form && (
