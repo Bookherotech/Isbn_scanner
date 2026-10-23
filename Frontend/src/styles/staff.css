@@ -630,6 +630,9 @@
   z-index: 5;
 }
 .s-appbar__title { font-size: 15px; font-weight: 650; letter-spacing: -0.01em; }
+.s-appbar__me { margin-left: auto; display: inline-flex; border-radius: 50%; }
+.s-appbar__me.active { box-shadow: 0 0 0 2px var(--hero); } /* on the Profile page */
+.phone .s-head__me { display: none; } /* small screens: the profile avatar sits in the top bar instead */
 .s-appbar .demo-badge { margin-left: auto; padding: 0 3px; box-shadow: none; }
 .s-appbar .demo-badge__text { display: none; }
 
