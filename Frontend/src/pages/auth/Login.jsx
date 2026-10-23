@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router-dom'
-import { ArrowRight, Lock, Mail } from 'lucide-react'
+import { ArrowRight, Library, Lock, Mail, ScanLine, Zap } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { readRememberedLogin, saveRememberedLogin } from '../../services/rememberedLogin'
 import { Button } from '../../components/ui/Button'
@@ -171,6 +171,21 @@ export default function Login() {
               Sign in
             </Button>
           </form>
+        </div>
+        {/* Small screens only: a little comic strip of how BookHero works, under the form */}
+        <div className="login__comic" aria-hidden>
+          <span className="login__comic-panel">
+            <ScanLine size={18} strokeWidth={2.4} />
+            Scan
+          </span>
+          <span className="login__comic-panel">
+            <Library size={18} strokeWidth={2.4} />
+            Shelve
+          </span>
+          <span className="login__comic-panel login__comic-panel--pow">
+            <Zap size={18} strokeWidth={2.4} />
+            Live!
+          </span>
         </div>
         <footer className="login__foot">
           <span className="powered" aria-label="Powered by Cresterix">
