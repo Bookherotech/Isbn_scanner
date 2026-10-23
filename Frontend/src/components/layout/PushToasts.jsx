@@ -2,29 +2,45 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { X } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
-import { useStoreVersion } from '../../hooks/useStore'
-import { selectors } from '../../services/mockApi'
+import { getPushSince } from '../../services/notificationApi'
+
+const POLL_MS = 20_000
 
 /**
- * Simulated browser push — styled like an OS notification so the client sees
- * what Admin and Staff receive when stock runs out (Section 04 push rule).
+ * In-app toasts styled like an OS notification: every 20 seconds, new push notifications for the
+ * signed-in user (stock-outs, waiting list ready, ...) are fetched and shown for a few seconds.
  */
 export function PushToasts() {
   const { user } = useAuth()
-  const version = useStoreVersion()
-  const since = useRef(selectors.clock())
+  const since = useRef(Date.now())
   const shown = useRef(new Set())
   const [items, setItems] = useState([])
   const navigate = useNavigate()
+  const signedIn = !!user
 
   useEffect(() => {
-    if (!user) return
-    const fresh = selectors.latestPush(user, since.current).filter((n) => !shown.current.has(n.id))
-    if (!fresh.length) return
-    fresh.forEach((n) => shown.current.add(n.id))
-    setItems((cur) => [...fresh.reverse(), ...cur].slice(0, 3))
-    fresh.forEach((n) => setTimeout(() => setItems((cur) => cur.filter((x) => x.id !== n.id)), 7000))
-  }, [version, user])
+    if (!signedIn) return undefined
+    let alive = true
+    const check = async () => {
+      try {
+        const asked = Date.now()
+        const fresh = (await getPushSince(since.current)).filter((n) => !shown.current.has(n.id))
+        if (!alive) return
+        since.current = asked
+        if (!fresh.length) return
+        fresh.forEach((n) => shown.current.add(n.id))
+        setItems((cur) => [...fresh, ...cur].slice(0, 3))
+        fresh.forEach((n) => setTimeout(() => setItems((cur) => cur.filter((x) => x.id !== n.id)), 7000))
+      } catch {
+        /* offline or signed out: try again next time */
+      }
+    }
+    const id = setInterval(check, POLL_MS)
+    return () => {
+      alive = false
+      clearInterval(id)
+    }
+  }, [signedIn])
 
   if (!items.length) return null
   const target = user.role === 'admin' ? '/admin/notifications' : '/staff/notifications'

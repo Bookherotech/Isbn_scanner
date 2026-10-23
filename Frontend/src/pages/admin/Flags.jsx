@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Check, Flag, Pencil, Plus, ShieldCheck, Tag, X } from 'lucide-react'
-import { getFlagCategories, getFlaggedItems, reviewFlag, saveFlagCategory, setFlagCategoryEnabled } from '../../services/mockApi'
+import { getFlagCategories, getFlaggedItems, reviewFlag, saveFlagCategory, setFlagCategoryEnabled } from '../../services/adminApi'
 import { useQuery, useTicker } from '../../hooks/useStore'
 import { useToast } from '../../hooks/useToast'
 import { DataTable } from '../../components/ui/Data'

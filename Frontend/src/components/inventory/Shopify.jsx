@@ -3,15 +3,14 @@ import { Store } from 'lucide-react'
 import { Panel } from '../ui/Misc'
 import { Skeleton } from '../ui/Feedback'
 import { formatTime, timeAgo } from '../../utils/format'
-import { selectors } from '../../services/mockApi'
 
 function useCountdown(lastPollAt, minutes) {
-  const [now, setNow] = useState(() => selectors.clock())
+  const [now, setNow] = useState(() => Date.now())
   useEffect(() => {
-    const id = setInterval(() => setNow(selectors.clock()), 1000)
+    const id = setInterval(() => setNow(Date.now()), 1000)
     return () => clearInterval(id)
   }, [])
-  const next = lastPollAt + minutes * 60_000
+  const next = (lastPollAt ?? now) + minutes * 60_000
   const left = Math.max(0, next - now)
   const m = Math.floor(left / 60_000)
   const s = Math.floor((left % 60_000) / 1000)
@@ -46,23 +45,23 @@ function ShopifyBody({ shopify }) {
           <strong>{shopify.storeName}</strong>
           <span className="mono">{shopify.domain}</span>
         </div>
-        <span className="shopcard__mock">Demo / mock</span>
+        {!shopify.connected && <span className="shopcard__mock">Not connected</span>}
       </div>
       <dl className="shopcard__facts">
         <div>
           <dt>Connection</dt>
           <dd>
-            <span className="live-dot" aria-hidden /> Connected
+            {shopify.connected ? <><span className="live-dot" aria-hidden /> Connected</> : 'Not connected yet'}
           </dd>
         </div>
         <div>
           <dt>Sync health</dt>
-          <dd>{shopify.health === 'healthy' ? 'Healthy' : 'Degraded'}</dd>
+          <dd>{shopify.connected ? (shopify.health === 'healthy' ? 'Healthy' : 'Degraded') : '—'}</dd>
         </div>
         <div>
           <dt>Last inventory sync</dt>
           <dd className="num">
-            {formatTime(shopify.lastPollAt)} <span className="muted">· {timeAgo(shopify.lastPollAt)}</span>
+            {shopify.lastPollAt ? <>{formatTime(shopify.lastPollAt)} <span className="muted">· {timeAgo(shopify.lastPollAt)}</span></> : '—'}
           </dd>
         </div>
         <div>
@@ -70,6 +69,7 @@ function ShopifyBody({ shopify }) {
           <dd>Every {shopify.pollMinutes} min</dd>
         </div>
       </dl>
+      {shopify.connected && (
       <div className="shopcard__poll">
         <span>Next stock check</span>
         <span className="shopcard__track" aria-hidden>
@@ -77,6 +77,7 @@ function ShopifyBody({ shopify }) {
         </span>
         <span className="num">{cd.label}</span>
       </div>
+      )}
       <p className="shopcard__note">Scheduled polling — no Shopify webhooks in this release.</p>
     </>
   )

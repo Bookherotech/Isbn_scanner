@@ -34,7 +34,7 @@ export default function AdminNotifications() {
               <span>Browser push via the PWA. iPhone requires “Add to Home Screen”. This list is the in-app fallback.</span>
             </li>
           </ol>
-          <p className="muted notif-rules__mock">Push delivery is simulated in this demo.</p>
+          <p className="muted notif-rules__mock">Notifications are delivered in the app (browser push is not connected yet).</p>
         </aside>
       </div>
     </div>

@@ -27,6 +27,8 @@ urlpatterns = [
     path(DJANGO_ADMIN_PATH, admin.site.urls),
     path('api/auth/', include('authentication.urls')),
     path('api/staff/', include('staff_api.urls')),
+    path('api/admin/', include('book_admin.urls')),
+    path('api/notifications/', include(('book_admin.urls.notification_urls', 'notifications'))),
 ]
 
 # Cover photos while developing (static() adds nothing when DEBUG is off; production serves /media/ itself)

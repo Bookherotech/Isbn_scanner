@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowRight } from 'lucide-react'
-import { listItems } from '../../services/mockApi'
+import { listItems } from '../../services/adminApi'
 import { useDebounce, useQuery, useTicker } from '../../hooks/useStore'
 import { DataTable, Pagination } from '../../components/ui/Data'
 import { PageHeader } from '../../components/ui/Misc'
