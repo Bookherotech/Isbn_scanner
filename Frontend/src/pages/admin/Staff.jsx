@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { KeyRound, Pencil, Power, Trash2, UserPlus } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { Crown, KeyRound, Pencil, Power, Trash2, UserPlus } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useQuery } from '../../hooks/useStore'
 import { useToast } from '../../hooks/useToast'
@@ -13,6 +14,7 @@ import { cn, timeAgo } from '../../utils/format'
 import AddStaffForm from './AddStaffForm'
 import ChangePasswordForm from './ChangePasswordForm'
 import EditStaffForm from './EditStaffForm'
+import AdminTransfer from './AdminTransfer'
 
 const displayName = (u) => u.full_name || u.email
 
@@ -41,6 +43,9 @@ export default function Staff() {
 
 function StaffList() {
   const { toast } = useToast()
+  const { signOut } = useAuth()
+  const navigate = useNavigate()
+  const [transferTo, setTransferTo] = useState(null) // ...being made the Super Admin
   const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState(null) // the staff member being edited
   const [toggling, setToggling] = useState(null) // ...being activated / deactivated
@@ -149,6 +154,7 @@ function StaffList() {
         <span className="row-actions">
           <IconButton icon={Pencil} label={`Edit ${displayName(u)}`} size={15} onClick={() => setEditing(u)} />
           <IconButton icon={KeyRound} label={`Change password for ${displayName(u)}`} size={15} onClick={() => setPasswordFor(u)} />
+          {u.is_active && <IconButton icon={Crown} label={`Make ${displayName(u)} the Super Admin`} size={15} onClick={() => setTransferTo(u)} />}
           <IconButton icon={Trash2} label={`Delete ${displayName(u)}`} size={15} onClick={() => setDeleting(u)} />
         </span>
       ),
@@ -227,6 +233,28 @@ function StaffList() {
             onDone={() => {
               toast({ title: `Password changed for ${displayName(passwordFor)}`, description: 'They were signed out and must use the new password.' })
               setPasswordFor(null)
+            }}
+          />
+        )}
+      </Modal>
+
+      <Modal
+        open={!!transferTo}
+        onClose={() => setTransferTo(null)}
+        title={transferTo ? `Make ${displayName(transferTo)} the Super Admin` : ''}
+        description="Hand over the Super Admin role. This needs a code from you and a code from them."
+        size="sm"
+      >
+        {transferTo && (
+          <AdminTransfer
+            key={transferTo.id}
+            staff={transferTo}
+            onClose={() => setTransferTo(null)}
+            onDone={({ new_admin: newAdmin }) => {
+              toast({ title: `${displayName(newAdmin)} is now the Super Admin`, description: 'Your account is now a staff account. Sign in again to continue.' })
+              setTransferTo(null)
+              signOut()
+              navigate('/login', { replace: true })
             }}
           />
         )}

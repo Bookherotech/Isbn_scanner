@@ -1,3 +1,4 @@
+from .admin_transfer import ADMIN_TRANSFER_APPROVAL_SECONDS
 from .otp import (
     OTP_LENGTH,
     OTP_MAX_ATTEMPTS,
@@ -9,6 +10,7 @@ from .roles import Role
 from .session import REMEMBER_ME_SESSION_LIFETIME, SHORT_SESSION_LIFETIME
 
 __all__ = [
+    'ADMIN_TRANSFER_APPROVAL_SECONDS',
     'OTP_LENGTH',
     'OTP_MAX_ATTEMPTS',
     'OTP_MAX_SENDS',

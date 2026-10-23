@@ -606,6 +606,17 @@
   .reports__staff .table-wrap { overflow-x: auto; }
 }
 
+/* Staff page: make a staff member the Super Admin */
+.transfer { display: grid; gap: 14px; }
+.transfer__warn { display: flex; gap: 10px; align-items: flex-start; padding: 12px; border-radius: var(--r); background: var(--danger-bg); color: var(--danger); }
+.transfer__warn svg { flex: none; margin-top: 1px; }
+.transfer__warn > div { display: grid; gap: 3px; }
+.transfer__warn strong { font-size: 13.5px; }
+.transfer__warn span { font-size: 12.5px; color: var(--ink-2); }
+.transfer__steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 13px; color: var(--ink-2); }
+.transfer__text { font-size: 13px; color: var(--ink-2); }
+.transfer__text--muted { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+
 /* Super Admin profile (/admin/settings) */
 .admin-profile { display: grid; grid-template-columns: minmax(260px, 340px) minmax(0, 1fr); gap: 16px; align-items: start; max-width: 1120px; }
 .admin-profile__summary { display: grid; gap: 16px; }
@@ -619,6 +630,13 @@
 .admin-profile__facts dd { margin: 0; font-size: 13px; font-weight: 600; text-align: right; }
 .admin-profile__note { display: flex; gap: 8px; align-items: flex-start; font-size: 12.5px; color: var(--ink-2); background: var(--paper); border-radius: var(--r); padding: 10px 12px; }
 .admin-profile__note svg { flex: none; margin-top: 1px; color: var(--success); }
+.admin-profile__main { display: grid; gap: 16px; min-width: 0; }
+.own-password__closed { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
+.own-password__closed p { font-size: 13px; color: var(--muted); max-width: 440px; }
+.own-password { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 18px; }
+.own-password > * { grid-column: 1 / -1; }
+.own-password > .profile__half { grid-column: auto; }
+@media (max-width: 900px) { .own-password { grid-template-columns: minmax(0, 1fr); } .own-password > .profile__half { grid-column: 1 / -1; } }
 .admin-profile__details .profile__form { padding: 0; border: 0; background: none; grid-template-columns: 1fr 1fr; gap: 16px 18px; }
 .admin-profile__details .profile__form > * { grid-column: 1 / -1; }
 .admin-profile__details .profile__form > .profile__half { grid-column: auto; }
