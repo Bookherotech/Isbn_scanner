@@ -1,6 +1,6 @@
-import { Suspense } from 'react'
+import { Suspense, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { Bell, ChevronDown, House, Keyboard, Layers, LogOut, ScanLine, UserRound } from 'lucide-react'
+import { Bell, ChevronDown, House, Keyboard, Layers, LogOut, Menu as MenuIcon, ScanLine, UserRound, X } from 'lucide-react'
 import { Logo } from './Logo'
 import { SidebarCredit } from './PoweredBy'
 import { useAuth } from '../../hooks/useAuth'
@@ -52,9 +52,10 @@ function StaffDesktop() {
   const inFlow = FLOW.some((p) => pathname.startsWith(p))
   const title = TITLES.find(([p]) => pathname.startsWith(p))?.[1] ?? 'BookHero'
   const lastShelf = useActiveLastShelf()
+  const [drawer, setDrawer] = useState(false) // 900-1024px: the sidebar opens from the ☰ button
   const nav = (to, label, Icon, extra) => (
     <li>
-      <NavLink to={to} end={to === '/staff'} className={({ isActive }) => cn('navlink', isActive && 'is-active', extra?.hero && 'navlink--hero')}>
+      <NavLink to={to} end={to === '/staff'} className={({ isActive }) => cn('navlink', isActive && 'is-active', extra?.hero && 'navlink--hero')} onClick={() => setDrawer(false)}>
         <Icon size={17} aria-hidden strokeWidth={2} />
         <span>{label}</span>
         {extra?.count ? <CountBadge value={extra.count} tone="signal" /> : null}
@@ -62,12 +63,7 @@ function StaffDesktop() {
     </li>
   )
 
-  return (
-    <div className="admin staff-desk">
-      <a href="#main" className="skip-link">
-        Skip to content
-      </a>
-      <aside className="sidebar" aria-label="Sidebar">
+  const sidebar = (
         <div className="sidebar__inner">
           <div className="sidebar__brand">
             <Logo tone="light" sub="Staff app" />
@@ -98,9 +94,29 @@ function StaffDesktop() {
           )}
           <SidebarCredit />
         </div>
+  )
+
+  return (
+    <div className="admin staff-desk">
+      <a href="#main" className="skip-link">
+        Skip to content
+      </a>
+      <aside className="sidebar" aria-label="Sidebar">
+        {sidebar}
       </aside>
+      {drawer && (
+        <div className="sidebar-drawer" onPointerDown={(e) => e.target === e.currentTarget && setDrawer(false)}>
+          <aside className="sidebar sidebar--drawer">
+            <button className="sidebar__close icon-btn" onClick={() => setDrawer(false)} aria-label="Close menu">
+              <X size={18} />
+            </button>
+            {sidebar}
+          </aside>
+        </div>
+      )}
       <div className="admin__main">
         <header className="topbar">
+          <IconButton icon={MenuIcon} label="Open menu" className="topbar__menu" onClick={() => setDrawer(true)} />
           <h1 className="topbar__title">{title}</h1>
           <div className="topbar__right" style={{ marginLeft: 'auto' }}>
             <IconButton icon={Bell} label={`Alerts${unread ? `, ${unread} unread` : ''}`} badge={unread} onClick={() => navigate('/staff/notifications')} />
