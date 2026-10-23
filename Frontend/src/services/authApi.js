@@ -142,6 +142,29 @@ export function confirmEmailVerification(id, { challenge, otp }) {
   return request(`/api/auth/staff/${id}/email-verification/confirm/`, { method: 'POST', body: { challenge, otp } })
 }
 
+/**
+ * Make a staff member the Super Admin (Admin only). Two codes:
+ *  1. startAdminTransfer      -> a code to YOUR inbox: { challenge, email_hint, expires_in }
+ *  2. approveAdminTransfer    -> your code approves; a second code goes to THEIR inbox: { challenge, email_hint, expires_in }
+ *     resendAdminTransferCode -> sends their code again (after approval)
+ *  3. completeAdminTransfer   -> their code completes it: { new_admin, you } (you are now staff)
+ */
+export function startAdminTransfer(id) {
+  return request(`/api/auth/staff/${id}/admin-transfer/`, { method: 'POST', body: {} })
+}
+
+export function approveAdminTransfer(id, { challenge, otp }) {
+  return request(`/api/auth/staff/${id}/admin-transfer/approve/`, { method: 'POST', body: { challenge, otp } })
+}
+
+export function resendAdminTransferCode(id) {
+  return request(`/api/auth/staff/${id}/admin-transfer/resend/`, { method: 'POST', body: {} })
+}
+
+export function completeAdminTransfer(id, { challenge, otp }) {
+  return request(`/api/auth/staff/${id}/admin-transfer/complete/`, { method: 'POST', body: { challenge, otp } })
+}
+
 /** POST /api/auth/staff/<id>/password/ (Admin only): sets a new password and signs the staff member out. */
 export function changeStaffPassword(id, { password, confirmPassword }) {
   return request(`/api/auth/staff/${id}/password/`, { method: 'POST', body: { password, confirm_password: confirmPassword } })
@@ -156,6 +179,17 @@ export function saveProfile({ fullName, phoneNumber }) {
   if (fullName !== undefined) body.full_name = fullName
   if (phoneNumber !== undefined) body.phone_number = phoneNumber
   return request('/api/auth/me/', { method: 'PATCH', body })
+}
+
+/**
+ * POST /api/auth/me/password/ -> { access, refresh, user }: the signed-in user changes their own password.
+ * Other sessions stop working; the new tokens keep this one signed in. Field errors come back in `error.data`.
+ */
+export function changeOwnPassword({ currentPassword, password, confirmPassword }) {
+  return request('/api/auth/me/password/', {
+    method: 'POST',
+    body: { current_password: currentPassword, password, confirm_password: confirmPassword },
+  })
 }
 
 /** GET /api/auth/me/ -> the signed-in user (refreshes the access token when it has expired) */

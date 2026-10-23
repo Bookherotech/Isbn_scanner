@@ -21,6 +21,20 @@ COPY = {
         'intro': 'enter this code to reset your BookHero password.',
         'warning': 'Did not ask for this? Ignore this email and your password stays the same.',
     },
+    ActionOTP.Purpose.TRANSFER_CONFIRM: {
+        'subject': 'Approve the Super Admin transfer - BookHero',
+        'badge': 'Super Admin transfer',
+        'heading': 'Approve the transfer',
+        'intro': 'enter this code to hand your Super Admin role to {staff}. Your own account will become a staff account.',
+        'warning': 'Did not start this? Someone may be using your admin session. Sign out and change your password right away.',
+    },
+    ActionOTP.Purpose.TRANSFER_ACCEPT: {
+        'subject': 'You are becoming the Super Admin - BookHero',
+        'badge': 'Super Admin transfer',
+        'heading': 'Accept the Super Admin role',
+        'intro': 'the current Super Admin is making you the Super Admin of BookHero. Give this code to them to accept. After that, every sign-in asks for a code sent to this email.',
+        'warning': 'Did not expect this? Do not share the code. Nothing changes until it is entered.',
+    },
     ActionOTP.Purpose.EMAIL_VERIFY: {
         'subject': 'Confirm your email - BookHero',
         'badge': 'Confirm your email',

@@ -1,4 +1,5 @@
 from .action_otp_email import send_action_otp_email
+from .admin_transfer_service import check_can_receive, require_approval, transfer_super_admin
 from .action_otp_service import start_action_code, verify_action_code, verify_password_reset_code
 from .otp_email import mask_email, send_otp_email
 from .otp_service import Challenge, resend_challenge, start_challenge, verify_challenge
@@ -7,6 +8,9 @@ from .staff_lookup import get_staff_or_404
 from .token_service import issue_tokens
 
 __all__ = [
+    'check_can_receive',
+    'require_approval',
+    'transfer_super_admin',
     'Challenge',
     'get_staff_or_404',
     'issue_reset_token',
