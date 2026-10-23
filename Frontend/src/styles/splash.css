@@ -107,11 +107,50 @@
 
 .splash__skip {
   position: absolute;
-  bottom: calc(22px + env(safe-area-inset-bottom));
+  top: calc(18px + env(safe-area-inset-top));
+  left: 20px; /* clear of the yellow stripe on the right */
   font-size: 12px;
   color: #6f6857;
   animation: fade-in 400ms ease 1.4s both;
 }
+
+/* "Powered by Cresterix" credit at the bottom */
+.splash__credit {
+  position: absolute;
+  bottom: calc(26px + env(safe-area-inset-bottom));
+  display: grid;
+  justify-items: center;
+  gap: 5px;
+  animation: fade-up 600ms var(--ease-out) 1.5s both;
+}
+.splash__credit-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: #8a8372;
+}
+.splash__credit-label::before,
+.splash__credit-label::after { content: ''; width: 16px; height: 1px; background: linear-gradient(90deg, transparent, #4a4334); }
+.splash__credit-label::after { transform: scaleX(-1); }
+.splash__credit-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-display);
+  font-size: 10.5px;
+  font-weight: 750;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  background: linear-gradient(90deg, #f3eee0 0 40%, #9d968a 70%, #f3eee0);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.splash__credit-brand img { width: auto; height: 11px; opacity: 0.92; }
 
 @keyframes splash-out {
   to { opacity: 0; transform: scale(1.04); visibility: hidden; }

@@ -87,6 +87,15 @@
 .sidebar__shop:hover { border-color: #4a4436; }
 .sidebar__shop-head { display: flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 600; color: #ece7da; }
 .sidebar__shop-sub { font-size: 11.5px; color: var(--night-muted); }
+.sidebar__credit {
+  flex: none; display: flex; align-items: center; justify-content: center; gap: 6px;
+  margin: 0 14px; padding: 12px 0 14px; border-top: 1px solid rgba(255, 255, 255, 0.07);
+  font-size: 9px; line-height: 1; color: var(--night-muted); opacity: 0.85; transition: opacity var(--t-1);
+}
+.sidebar__credit:hover { opacity: 1; }
+.sidebar__credit-label { letter-spacing: 0.2em; text-transform: uppercase; }
+.sidebar__credit img { width: auto; height: 11px; opacity: 0.85; }
+.sidebar__credit-name { font-family: var(--font-display); font-weight: 750; font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: #d9d3c4; }
 .sidebar__shop-mock { font-size: 10.5px; color: #a89a63; letter-spacing: 0.03em; margin-top: 2px; }
 
 .logo { display: inline-flex; align-items: center; gap: 10px; }
