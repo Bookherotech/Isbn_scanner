@@ -25,7 +25,7 @@ export default function StaffHome() {
             {greeting()}, {firstName(user.name)}
           </h1>
         </div>
-        <Link to="/staff/profile" aria-label="Profile">
+        <Link to="/staff/profile" aria-label="Profile" className="s-head__me">
           <Avatar name={user.name} hue={user.hue} size={38} />
         </Link>
       </header>

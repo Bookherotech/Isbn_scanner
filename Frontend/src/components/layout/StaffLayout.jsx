@@ -2,6 +2,7 @@ import { Suspense } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { Bell, ChevronDown, House, Keyboard, Layers, LogOut, ScanLine, UserRound } from 'lucide-react'
 import { Logo } from './Logo'
+import { SidebarCredit } from './PoweredBy'
 import { useAuth } from '../../hooks/useAuth'
 import { useMediaQuery, useSelector } from '../../hooks/useStore'
 import { useActiveLastShelf } from '../../hooks/useDraft'
@@ -95,6 +96,7 @@ function StaffDesktop() {
               <ShelfTag id={lastShelf} />
             </div>
           )}
+          <SidebarCredit />
         </div>
       </aside>
       <div className="admin__main">
@@ -159,6 +161,9 @@ function StaffPhone() {
           <header className="s-appbar">
             <Logo size={40} withWord={false} />
             <span className="s-appbar__title">{TITLES.find(([p]) => pathname.startsWith(p))?.[1] ?? 'BookHero'}</span>
+            <NavLink to="/staff/profile" className="s-appbar__me" aria-label="Profile">
+              <Avatar name={user.name} hue={user.hue} size={36} />
+            </NavLink>
           </header>
         )}
         <div className="phone__screen" id="main">

@@ -12,6 +12,7 @@ import OtpStep from './OtpStep'
 
 // Time is read outside the component (React's purity rule).
 const inSeconds = (seconds) => Date.now() + seconds * 1000
+const YEAR = new Date().getFullYear()
 
 export default function Login() {
   const { user, signInWithPassword } = useAuth()
@@ -121,6 +122,12 @@ export default function Login() {
           <span className="login__mobile-logo">
             <img src="/logo.webp" alt="BookHero" width={56} height={56} />
           </span>
+          {/* Small screens only: the brand line from the dark side panel, which is hidden there */}
+          <p className="login__mobile-tag" aria-hidden>
+            Every book. Scanned,
+            <br />
+            shelved and <span>live.</span>
+          </p>
         </div>
         {otp && <OtpStep {...otp} remember={remember} onDone={finish} onRestart={restart} />}
         {forgot && <ForgotPassword initialEmail={forgot.email} onBack={() => closeForgot()} onDone={closeForgot} />}
@@ -165,7 +172,14 @@ export default function Login() {
             </Button>
           </form>
         </div>
-        <p className="login__foot">© BookHero · Prototype build for client review</p>
+        <footer className="login__foot">
+          <span className="powered" aria-label="Powered by Cresterix">
+            <img className="powered__mark" src="/cresterix-mark.png" alt="" width={19} height={12} />
+            <span className="powered__by">Powered by</span>
+            <span className="powered__name">Cresterix</span>
+          </span>
+          <span className="login__copy">© {YEAR} BookHero. All rights reserved.</span>
+        </footer>
       </section>
     </div>
   )

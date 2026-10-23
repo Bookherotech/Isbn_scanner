@@ -80,6 +80,13 @@ export function Splash() {
         </div>
       </div>
       <span className="splash__skip">Tap to skip</span>
+      <div className="splash__credit" aria-label="Powered by Cresterix">
+        <span className="splash__credit-label">Powered by</span>
+        <span className="splash__credit-brand">
+          <img src="/cresterix-mark-white.png" alt="" width={18} height={11} />
+          Cresterix
+        </span>
+      </div>
     </div>
   )
 }

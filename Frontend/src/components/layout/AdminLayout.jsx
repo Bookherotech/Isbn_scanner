@@ -7,6 +7,7 @@ import {
 import { Logo } from './Logo'
 import { CommandSearch } from './CommandSearch'
 import { TopbarSearch } from './TopbarSearch'
+import { SidebarCredit } from './PoweredBy'
 import { Avatar, Menu, MenuItem } from '../ui/Misc'
 import { IconButton } from '../ui/Button'
 import { CountBadge } from '../ui/Status'
@@ -96,6 +97,7 @@ function Sidebar({ onNavigate }) {
           </div>
         ))}
       </nav>
+      <SidebarCredit />
     </div>
   )
 }
