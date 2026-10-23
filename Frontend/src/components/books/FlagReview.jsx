@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Check, Flag } from 'lucide-react'
-import { reviewFlag } from '../../services/mockApi'
+import { reviewFlag } from '../../services/adminApi'
 import { useToast } from '../../hooks/useToast'
 import { Input } from '../ui/Form'
 import { Button } from '../ui/Button'

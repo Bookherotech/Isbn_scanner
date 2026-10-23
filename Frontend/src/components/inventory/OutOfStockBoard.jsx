@@ -1,14 +1,13 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { BellRing, CheckCircle2, CircleDashed, FlaskConical, PackageX, Radar, Store } from 'lucide-react'
-import { getOutOfStock } from '../../services/mockApi'
+import { CheckCircle2, PackageX, Store } from 'lucide-react'
+import { getOutOfStock } from '../../services/adminApi'
 import { useQuery, useTicker } from '../../hooks/useStore'
 import { Button } from '../ui/Button'
 import { EmptyState, ErrorState, Skeleton } from '../ui/Feedback'
 import { ShelfTag, StatusChip, SyncChip } from '../ui/Status'
 import { BookCover } from '../books/BookCover'
-import { openDemoPanel } from '../layout/DemoControls'
-import { cn, formatDateTime, formatTime, timeAgo, clockNow } from '../../utils/format'
+import { cn, formatTime, timeAgo } from '../../utils/format'
 
 /** Out-of-stock master/detail — shown as the “Out of stock” tab of the Waiting list page. */
 export function OutOfStockBoard() {
@@ -21,12 +20,8 @@ export function OutOfStockBoard() {
     <div>
       <div className="oos-intro">
         <p>
-          Detected by the scheduled stock check (every 10 minutes). Admin and staff get push #1 immediately and push #2 if the book is still out of stock 24 hours later. A
-          ready waiting-list entry can be approved right here.
+          Detected by the scheduled stock check. A ready waiting-list entry can be approved right here.
         </p>
-        <button className="demo-link" onClick={openDemoPanel}>
-          <FlaskConical size={14} aria-hidden /> Demo: simulate a stock-out
-        </button>
       </div>
       {loading ? (
         <div className="oos">
@@ -70,8 +65,6 @@ export function OutOfStockBoard() {
 
 function OosDetail({ d }) {
   const navigate = useNavigate()
-  const now = clockNow()
-  const reminder = d.push2At ? 'sent' : d.reminderCancelled ? 'cancelled' : 'scheduled'
   return (
     <article className="oos__detail" key={d.id}>
       <header className="oos__head">
@@ -96,7 +89,7 @@ function OosDetail({ d }) {
         </div>
         <div>
           <dt>Shopify product</dt>
-          <dd className="mono">#{d.productId}</dd>
+          <dd className="mono">{d.productId ? `#${d.productId}` : '—'}</dd>
         </div>
         <div>
           <dt>Shopify sync</dt>
@@ -111,41 +104,6 @@ function OosDetail({ d }) {
           </dd>
         </div>
       </dl>
-
-      <section className="oos__sec">
-        <h3>Notification status</h3>
-        <ol className="ntl">
-          <li className="ntl__item is-done">
-            <Radar size={15} aria-hidden />
-            <span>
-              <strong>Stock detected at {formatTime(d.stockOutAt)}</strong>
-              <em>{formatDateTime(d.stockOutAt)} · stock check found 0 on Shopify</em>
-            </span>
-          </li>
-          <li className="ntl__item is-done">
-            <BellRing size={15} aria-hidden />
-            <span>
-              <strong>Push #1 sent to admin + staff</strong>
-              <em>{formatDateTime(d.push1At)}</em>
-            </span>
-          </li>
-          <li className={cn('ntl__item', reminder === 'sent' ? 'is-done' : reminder === 'cancelled' ? 'is-muted' : 'is-pending')}>
-            {reminder === 'sent' ? <BellRing size={15} aria-hidden /> : <CircleDashed size={15} aria-hidden />}
-            <span>
-              <strong>
-                {reminder === 'sent' ? 'Push #2 sent — still out of stock after 24 h' : reminder === 'cancelled' ? 'Reminder cancelled' : '24-hour re-check scheduled'}
-              </strong>
-              <em>
-                {reminder === 'sent'
-                  ? formatDateTime(d.push2At)
-                  : reminder === 'cancelled'
-                    ? 'Restocked or waiting entry approved'
-                    : `${formatDateTime(d.reminderDueAt)} · in ${Math.max(1, Math.round((d.reminderDueAt - now) / 3_600_000))} h — push #2 only if still out of stock`}
-              </em>
-            </span>
-          </li>
-        </ol>
-      </section>
 
       <section className="oos__sec">
         <h3>Waiting-list entries</h3>

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { BookCopy, CheckCircle2, Download, Hourglass, PackageX, Users, Warehouse, XCircle } from 'lucide-react'
-import { getReports } from '../../services/mockApi'
+import { getReports } from '../../services/adminApi'
 import { useQuery } from '../../hooks/useStore'
 import { Avatar, PageHeader, Panel } from '../../components/ui/Misc'
 import { Select } from '../../components/ui/Form'
@@ -188,7 +188,7 @@ function ReportLibrary({ data, days }) {
           rows: data.lists.added.map((r) => ({ Title: r.title, Author: r.author, ISBN: r.isbn, Shelf: r.shelf, Quantity: r.quantity, 'Submitted by': r.submittedBy, Submitted: d(r.submittedAt), Status: r.status })),
         },
         {
-          key: 'approved', icon: CheckCircle2, name: 'Books approved', desc: 'Approvals with the Shopify product created for each book.',
+          key: 'approved', icon: CheckCircle2, name: 'Books approved', desc: 'Approvals with the Shopify product for each book.',
           rows: data.lists.approved.map((r) => ({ Title: r.title, Author: r.author, ISBN: r.isbn, Shelf: r.shelf, Quantity: r.quantity, Approved: d(r.approvedAt), 'Shopify product': r.productId })),
         },
         {
@@ -200,8 +200,8 @@ function ReportLibrary({ data, days }) {
           rows: data.lists.waiting.map((r) => ({ Title: r.title, Author: r.author, 'Current shelf': r.currentShelf, 'Current stock': r.currentStock, 'Waiting shelf': r.shelf, Quantity: r.quantity, Status: r.ready ? 'Ready for approval' : 'Waiting', 'Submitted by': r.submittedBy })),
         },
         {
-          key: 'oos', icon: PackageX, name: 'Out of stock', desc: 'Sold-out books, when stock-out was detected and push reminder status.',
-          rows: data.lists.outOfStock.map((r) => ({ Title: r.title, Author: r.author, Shelf: r.shelf, 'Stock-out detected': d(r.stockOutAt), 'Push #2 sent': r.push2 ? 'Yes' : 'No', 'Waiting entries': r.waitingEntries })),
+          key: 'oos', icon: PackageX, name: 'Out of stock', desc: 'Sold-out books and when the stock-out was detected.',
+          rows: data.lists.outOfStock.map((r) => ({ Title: r.title, Author: r.author, Shelf: r.shelf, 'Stock-out detected': d(r.stockOutAt), 'Waiting entries': r.waitingEntries })),
         },
         {
           key: 'shelf', icon: Warehouse, name: 'Inventory by shelf', desc: 'Books, units on Shopify and waiting entries per shelf.',
@@ -214,7 +214,7 @@ function ReportLibrary({ data, days }) {
       ]
     : []
   return (
-    <Panel title="Report library" eyebrow="Mock data · CSV export" className="reports__library">
+    <Panel title="Report library" eyebrow="CSV export" className="reports__library">
       {!data ? (
         <Skeleton h={160} r={6} />
       ) : (

@@ -1,13 +1,10 @@
-import { selectors } from '../services/mockApi'
-
 const MIN = 60_000
 const HOUR = 60 * MIN
 const DAY = 24 * HOUR
 
 export const cn = (...parts) => parts.filter(Boolean).join(' ')
 
-/** "Now" respects the demo clock (fast-forward 24h control). */
-export const clockNow = () => selectors.clock()
+export const clockNow = () => Date.now()
 
 export function timeAgo(t, now = clockNow()) {
   if (!t) return '—'

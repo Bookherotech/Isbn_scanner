@@ -1,6 +1,6 @@
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Store } from 'lucide-react'
-import { getItem } from '../../services/mockApi'
+import { getItem } from '../../services/adminApi'
 import { useQuery, useTicker } from '../../hooks/useStore'
 import { BookCover } from '../../components/books/BookCover'
 import { DuplicateExplainer, SourceBadge } from '../../components/books/BookBits'

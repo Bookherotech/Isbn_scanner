@@ -1,10 +1,9 @@
-import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ArrowRight, ArrowUpRight, BellRing, Clock3, Flag, RefreshCw, TrendingDown, TrendingUp, TriangleAlert } from 'lucide-react'
-import { getDashboard, retrySync } from '../../services/mockApi'
+import { ArrowRight, ArrowUpRight, BellRing, Clock3, Flag, TrendingDown, TrendingUp, TriangleAlert } from 'lucide-react'
+import { getDashboard } from '../../services/adminApi'
+import { useShopify } from '../../hooks/useShopify'
 import { useAuth } from '../../hooks/useAuth'
 import { useQuery, useTicker } from '../../hooks/useStore'
-import { useToast } from '../../hooks/useToast'
 import { Panel, PageHeader, Avatar } from '../../components/ui/Misc'
 import { Button } from '../../components/ui/Button'
 import { EmptyState, ErrorState, Skeleton } from '../../components/ui/Feedback'
@@ -17,6 +16,7 @@ import { firstName, fmtNum, greeting, longDate, plural, timeAgo } from '../../ut
 
 export default function Dashboard() {
   const { user } = useAuth()
+  const shop = useShopify()
   const { data, loading, error, reload } = useQuery(() => getDashboard(), [])
   useTicker()
 
@@ -69,7 +69,7 @@ export default function Dashboard() {
         </Panel>
 
         <div className="dash__side">
-          <ShopifyCard shopify={data?.shopify} loading={loading} />
+          <ShopifyCard shopify={shop} loading={loading} />
           <Panel title="Staff today" className="dash__staff">
             {loading ? (
               <ListSkeleton rows={4} />
@@ -148,8 +148,6 @@ function Kpis({ data, loading }) {
 
 function Attention({ data }) {
   const navigate = useNavigate()
-  const { toast } = useToast()
-  const [retrying, setRetrying] = useState('')
   const { ready, failed, oldestPending, flagged } = data.attention
   if (!ready.length && !failed.length && !oldestPending.length && !flagged.length) {
     return (
@@ -195,21 +193,8 @@ function Attention({ data }) {
           </span>
           <div className="attn__text">
             <strong>{f.title}</strong>
-            <span>Shopify sync failed {timeAgo(f.lastSync)} · rate limited</span>
+            <span>Shopify sync failed {timeAgo(f.lastSync)}</span>
           </div>
-          <Button
-            size="sm"
-            icon={RefreshCw}
-            loading={retrying === f.id}
-            onClick={async () => {
-              setRetrying(f.id)
-              await retrySync(f.id)
-              setRetrying('')
-              toast({ title: 'Sync retried', description: `${f.title} is synced with Shopify.` })
-            }}
-          >
-            Retry sync
-          </Button>
         </li>
       ))}
       {oldestPending.map((p) => (

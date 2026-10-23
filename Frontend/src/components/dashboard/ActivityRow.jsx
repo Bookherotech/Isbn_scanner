@@ -1,6 +1,6 @@
 import { Bot, Store } from 'lucide-react'
 import { Avatar } from '../ui/Misc'
-import { db } from '../../services/store'
+import { hueOf } from '../../services/adminApi'
 import { cn, formatDateTime, timeAgo } from '../../utils/format'
 
 export function ActorAvatar({ actor, name, size = 28 }) {
@@ -12,12 +12,11 @@ export function ActorAvatar({ actor, name, size = 28 }) {
     )
   if (actor === 'shopify')
     return (
-      <span className="actor actor--shopify" style={{ width: size, height: size }} title="Shopify (mock)">
+      <span className="actor actor--shopify" style={{ width: size, height: size }} title="Shopify">
         <Store size={size * 0.52} aria-hidden />
       </span>
     )
-  const hue = db().users.find((u) => u.id === actor)?.hue ?? 40
-  return <Avatar name={name} hue={hue} size={size} />
+  return <Avatar name={name} hue={hueOf(name)} size={size} />
 }
 
 export function ActivityRow({ a, compact }) {

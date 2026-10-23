@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, Check, CircleAlert, Flag, PencilLine, Save, ShieldCheck, Store, X } from 'lucide-react'
-import { approveItem, getItem, listItems, rejectItem, updateItem, getActiveShelvesSync } from '../../services/mockApi'
+import { approveItem, getFilterOptions, getItem, listItems, rejectItem, updateItem } from '../../services/adminApi'
 import { useQuery, useTicker } from '../../hooks/useStore'
 import { useToast } from '../../hooks/useToast'
 import { BookCover } from '../../components/books/BookCover'
@@ -17,7 +17,7 @@ import { Person } from '../../components/inventory/Filters'
 import { cn, formatDateTime, timeAgo } from '../../utils/format'
 
 const FIELDS = ['title', 'author', 'publisher', 'year', 'pages', 'shelfId', 'quantity']
-const REASONS = ['Incorrect metadata', 'Damaged book', 'Invalid shelf', 'Duplicate', 'Other']
+const REASONS = ['Incorrect metadata', 'Damaged book', 'Invalid shelf', 'Other']
 const LABEL = { title: 'Title', author: 'Author', publisher: 'Publisher', year: 'Year', pages: 'Pages' }
 
 export default function ReviewBook() {
@@ -33,7 +33,8 @@ export default function ReviewBook() {
 function ReviewBody({ item }) {
   const navigate = useNavigate()
   const { toast } = useToast()
-  const shelves = useMemo(() => getActiveShelvesSync(), [])
+  const { data: options } = useQuery(() => getFilterOptions(), [], { mock: false })
+  const shelves = useMemo(() => (options?.shelves ?? []).filter((s) => s.status === 'active' || s.id === item.shelfId), [options, item.shelfId])
   const initial = useMemo(() => Object.fromEntries(FIELDS.map((k) => [k, item[k] ?? ''])), [item])
   const [values, setValues] = useState(initial)
   const [saving, setSaving] = useState(false)
@@ -308,11 +309,11 @@ function ApprovedCard({ item, nextId }) {
         <path d="M15 27l7 7 15-16" />
       </svg>
       <h2>Approved</h2>
-      <p className="approved__lead">Book is now Live on Shopify.</p>
+      <p className="approved__lead">Book is now live.</p>
       <dl className="approved__facts">
         <div>
           <dt>Shopify product</dt>
-          <dd className="mono">#{item.productId}</dd>
+          <dd className="mono">{item.productId ? `#${item.productId}` : '—'}</dd>
         </div>
         <div>
           <dt>Shelf</dt>
@@ -332,7 +333,7 @@ function ApprovedCard({ item, nextId }) {
         </div>
       </dl>
       <p className="approved__note">
-        <Store size={14} aria-hidden /> Mock Shopify product created with title, author, cover image and quantity. Staff member notified.
+        <Store size={14} aria-hidden /> The book is live with its counted quantity. The Shopify listing is not connected yet.
       </p>
       <div className="approved__actions">
         {nextId ? (

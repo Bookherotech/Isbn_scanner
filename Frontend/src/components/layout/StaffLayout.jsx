@@ -4,9 +4,9 @@ import { Bell, ChevronDown, House, Keyboard, Layers, LogOut, Menu as MenuIcon, S
 import { Logo } from './Logo'
 import { SidebarCredit } from './PoweredBy'
 import { useAuth } from '../../hooks/useAuth'
-import { useMediaQuery, useSelector } from '../../hooks/useStore'
+import { useMediaQuery } from '../../hooks/useStore'
 import { useActiveLastShelf } from '../../hooks/useDraft'
-import { selectors } from '../../services/mockApi'
+import { useUnreadCount } from '../../hooks/useUnreadCount'
 import { Skeleton } from '../ui/Feedback'
 import { Avatar, Menu, MenuItem } from '../ui/Misc'
 import { IconButton } from '../ui/Button'
@@ -48,7 +48,7 @@ function StaffDesktop() {
   const { pathname } = useLocation()
   const navigate = useNavigate()
   const { user, signOut } = useAuth()
-  const unread = useSelector(() => selectors.unreadCount(user))
+  const unread = useUnreadCount()
   const inFlow = FLOW.some((p) => pathname.startsWith(p))
   const title = TITLES.find(([p]) => pathname.startsWith(p))?.[1] ?? 'BookHero'
   const lastShelf = useActiveLastShelf()
@@ -167,7 +167,7 @@ function StaffDesktop() {
 function StaffPhone() {
   const { pathname } = useLocation()
   const { user } = useAuth()
-  const unread = useSelector(() => selectors.unreadCount(user))
+  const unread = useUnreadCount()
   const inFlow = FLOW.some((p) => pathname.startsWith(p))
 
   return (
