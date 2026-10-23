@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { CornerDownLeft, Search } from 'lucide-react'
-import { globalSearch } from '../../services/mockApi'
+import { globalSearch } from '../../services/adminApi'
 import { useDebounce } from '../../hooks/useStore'
 import { BookCover } from '../books/BookCover'
 import { ShelfTag, StatusChip } from '../ui/Status'

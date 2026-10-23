@@ -15,12 +15,9 @@ import { Skeleton } from '../ui/Feedback'
 import { useAuth } from '../../hooks/useAuth'
 import { useMediaQuery, useTicker } from '../../hooks/useStore'
 import { Drawer } from '../ui/Overlay'
-import { selectors } from '../../services/mockApi'
-import { cn } from '../../utils/format'
 import { useNavCounts } from '../../hooks/useNavCounts'
 import { useUnreadCount } from '../../hooks/useUnreadCount'
-import { useShopify } from '../../hooks/useShopify'
-import { cn, formatTime } from '../../utils/format'
+import { cn } from '../../utils/format'
 
 const NAV = [
   { group: 'Overview', items: [{ to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true }] },
@@ -76,11 +73,9 @@ const countTone = (key) => ({ ready: 'hero', oos: 'warn', unread: 'signal', flag
 
 function Sidebar({ onNavigate }) {
   const { user } = useAuth()
-  const counts = useSelector(() => ({ ...selectors.navCounts(), unread: selectors.unreadCount(user) }))
   const navCounts = useNavCounts()
   const unread = useUnreadCount()
   const counts = { ...navCounts, unread }
-  const shop = useShopify()
   useTicker(30_000)
   return (
     <div className="sidebar__inner">
@@ -106,15 +101,6 @@ function Sidebar({ onNavigate }) {
         ))}
       </nav>
       <SidebarCredit />
-      <NavLink to="/admin/settings#shopify" className="sidebar__shop" onClick={onNavigate}>
-        <span className="sidebar__shop-head">
-          <span className="live-dot" aria-hidden /> Shopify · {shop.connected ? (shop.health === 'healthy' ? 'Healthy' : 'Degraded') : 'Not connected'}
-        </span>
-        <span className="sidebar__shop-sub">
-          Stock check every {shop.pollMinutes} min · last {formatTime(shop.lastPollAt)}
-        </span>
-        {!shop.connected && <span className="sidebar__shop-mock">Integration not connected yet</span>}
-      </NavLink>
     </div>
   )
 }
@@ -169,11 +155,9 @@ function MoreSheet({ open, onClose }) {
   const { user, signOut } = useAuth()
   const navigate = useNavigate()
   const { pathname } = useLocation()
-  const counts = useSelector(() => ({ ...selectors.navCounts(), unread: selectors.unreadCount(user) }))
   const navCounts = useNavCounts()
   const unread = useUnreadCount()
   const counts = { ...navCounts, unread }
-  const shop = useShopify()
   const go = (to) => {
     onClose()
     navigate(to)
@@ -192,30 +176,6 @@ function MoreSheet({ open, onClose }) {
         </span>
         <span className="moresheet__me-link">
           Profile <ChevronRight size={15} aria-hidden />
-    <Drawer open={open} onClose={onClose} title="Menu" subtitle={`${user.name} · ${user.title}`} className="moresheet">
-      {groups.map((g) => (
-        <section key={g.group} className="moresheet__group">
-          <h3 className="moresheet__label">{g.group}</h3>
-          <div className="moresheet__grid">
-            {g.items.map((it) => (
-              <button key={it.to} className="moresheet__tile" onClick={() => go(it.to)}>
-                <span className="moresheet__icon">
-                  <it.icon size={19} aria-hidden />
-                  {it.count && counts[it.count] > 0 && <span className={cn('tabbar__dot', it.count === 'flagged' && 'tabbar__dot--flag')}>{counts[it.count]}</span>}
-                </span>
-                <span>{it.label}</span>
-              </button>
-            ))}
-          </div>
-        </section>
-      ))}
-      <button className="moresheet__shop" onClick={() => go('/admin/settings')}>
-        <span className="live-dot" aria-hidden />
-        <span>
-          <strong>Shopify · {shop.connected ? (shop.health === 'healthy' ? 'Healthy' : 'Degraded') : 'Not connected'}</strong>
-          <em>
-            Stock check every {shop.pollMinutes} min · last {formatTime(shop.lastPollAt)}
-          </em>
         </span>
       </button>
 
