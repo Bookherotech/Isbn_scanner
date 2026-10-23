@@ -6,9 +6,11 @@ from django.utils import timezone
 class ActionOTP(models.Model):
     """A 4-digit code that confirms one sensitive admin action. Only a keyed hash of the code is stored.
 
-    Two purposes, both started by an admin (`actor`) about a staff member (`subject`):
-      EMAIL_CHANGE  the code goes to the ADMIN's inbox and approves changing the staff member's email to `new_email`
-      EMAIL_VERIFY  the code goes to the STAFF member's (new) inbox and proves that address is real
+    Started by an admin (`actor`) about a staff member (`subject`):
+      EMAIL_CHANGE      the code goes to the ADMIN's inbox and approves changing the staff member's email to `new_email`
+      EMAIL_VERIFY      the code goes to the STAFF member's (new) inbox and proves that address is real
+      TRANSFER_CONFIRM  the code goes to the ADMIN's inbox and approves handing the Super Admin role to the staff member
+      TRANSFER_ACCEPT   the code goes to the STAFF member's inbox and proves the account is real before it becomes Super Admin
 
     There is at most one row per (purpose, actor, subject): starting again replaces it, so the table
     stays small and needs no clean-up job.
@@ -18,6 +20,8 @@ class ActionOTP(models.Model):
         EMAIL_CHANGE = 'email_change', 'Approve email change'
         EMAIL_VERIFY = 'email_verify', 'Verify email'
         PASSWORD_RESET = 'password_reset', 'Reset password'  # "forgot password": the code goes to the user's own inbox
+        TRANSFER_CONFIRM = 'transfer_confirm', 'Approve Super Admin transfer'
+        TRANSFER_ACCEPT = 'transfer_accept', 'Accept Super Admin transfer'
 
     purpose = models.CharField(max_length=20, choices=Purpose.choices)
     actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='+')

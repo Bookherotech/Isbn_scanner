@@ -8,6 +8,7 @@ from .otp_errors import (
     TooManyResends,
     WrongCode,
 )
+from .admin_transfer_errors import TransferNotAllowed, TransferNotApproved
 from .password_reset_errors import AccountInactive, InvalidResetToken, NoAccountFound
 
 __all__ = [
@@ -21,5 +22,7 @@ __all__ = [
     'ResendCooldown',
     'TooManyAttempts',
     'TooManyResends',
+    'TransferNotAllowed',
+    'TransferNotApproved',
     'WrongCode',
 ]

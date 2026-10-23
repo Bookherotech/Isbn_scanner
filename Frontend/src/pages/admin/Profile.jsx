@@ -5,6 +5,7 @@ import { formatDate, formatDateTime } from '../../utils/format'
 import { Avatar, PageHeader, Panel } from '../../components/ui/Misc'
 import { Button } from '../../components/ui/Button'
 import ProfileDetails from '../staff/ProfileDetails'
+import OwnPasswordForm from './OwnPasswordForm'
 
 /** The Super Admin's own profile: who they are, their details (name + phone editable), and sign out. */
 export default function AdminProfile() {
@@ -49,9 +50,16 @@ export default function AdminProfile() {
           </Button>
         </Panel>
 
-        <Panel title="Your details" className="admin-profile__details">
-          <ProfileDetails />
-        </Panel>
+        <div className="admin-profile__main">
+          <Panel title="Your details" className="admin-profile__details">
+            <ProfileDetails />
+          </Panel>
+          {user.source === 'api' && (
+            <Panel title="Password" className="admin-profile__details">
+              <OwnPasswordForm />
+            </Panel>
+          )}
+        </div>
       </div>
     </div>
   )

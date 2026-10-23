@@ -1,4 +1,9 @@
+from .admin_transfer_approve_view import AdminTransferApproveView
+from .admin_transfer_complete_view import AdminTransferCompleteView
+from .admin_transfer_resend_view import AdminTransferResendView
+from .admin_transfer_start_view import AdminTransferStartView
 from .login_view import LoginView
+from .me_password_view import MePasswordView
 from .me_view import MeView
 from .password_reset_confirm_view import PasswordResetConfirmView
 from .password_reset_request_view import PasswordResetRequestView
@@ -15,4 +20,4 @@ from .staff_password_view import StaffPasswordView
 from .user_list_view import UserListView
 from .verify_otp_view import VerifyOtpView
 
-__all__ = ['LoginView', 'MeView', 'PasswordResetConfirmView', 'PasswordResetRequestView', 'PasswordResetVerifyView', 'RefreshView', 'ResendOtpView', 'StaffCreateView', 'StaffDetailView', 'StaffEmailChangeConfirmView', 'StaffEmailChangeView', 'StaffEmailVerificationConfirmView', 'StaffEmailVerificationView', 'StaffPasswordView', 'UserListView', 'VerifyOtpView']
+__all__ = ['AdminTransferApproveView', 'AdminTransferCompleteView', 'AdminTransferResendView', 'AdminTransferStartView', 'LoginView', 'MePasswordView', 'MeView', 'PasswordResetConfirmView', 'PasswordResetRequestView', 'PasswordResetVerifyView', 'RefreshView', 'ResendOtpView', 'StaffCreateView', 'StaffDetailView', 'StaffEmailChangeConfirmView', 'StaffEmailChangeView', 'StaffEmailVerificationConfirmView', 'StaffEmailVerificationView', 'StaffPasswordView', 'UserListView', 'VerifyOtpView']
