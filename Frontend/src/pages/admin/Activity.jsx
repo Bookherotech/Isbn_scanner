@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Download } from 'lucide-react'
-import { getActivity, selectors } from '../../services/mockApi'
+import { getActivity, getFilterOptions } from '../../services/adminApi'
+import { useAuth } from '../../hooks/useAuth'
 import { useDebounce, useQuery, useTicker } from '../../hooks/useStore'
 import { Pagination } from '../../components/ui/Data'
 import { PageHeader } from '../../components/ui/Misc'
@@ -33,7 +34,9 @@ export default function ActivityLog() {
   const dq = useDebounce(q)
   const { data, loading, error, reload, refreshing } = useQuery(() => getActivity({ q: dq, type, actor, page, pageSize: 30 }), [dq, type, actor, page])
   useTicker()
-  const people = selectors.staffOptions()
+  const { user } = useAuth()
+  const { data: options } = useQuery(() => getFilterOptions(), [], { mock: false })
+  const people = options?.staff ?? []
   const r1 = (fn) => (v) => {
     fn(v?.target ? v.target.value : v)
     setPage(1)
@@ -75,7 +78,7 @@ export default function ActivityLog() {
         </Select>
         <Select value={actor} onChange={r1(setActor)} aria-label="User">
           <option value="">Everyone</option>
-          <option value="u_admin">Admin (Rachel)</option>
+          <option value={user.backendId}>Admin ({user.name.split(' ')[0]})</option>
           {people.map((p) => (
             <option key={p.id} value={p.id}>
               {p.name}

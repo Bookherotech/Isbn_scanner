@@ -207,6 +207,12 @@
   background: var(--paper);
   box-shadow: inset 0 0 0 1px rgba(23, 21, 15, 0.25);
 }
+/* A shelf tag that opens a list of the book's other waiting shelves (Waiting list page). */
+.shelf-switch { display: inline-flex; align-items: center; padding: 0; border: 0; background: none; cursor: pointer; border-radius: 6px; }
+.shelf-menu .menu__pop { min-width: 0; }
+.table-wrap:has(.shelf-menu .menu__pop) { overflow: visible; } /* the list may hang below the last row */
+.shelf-menu .menu__item { padding: 6px 8px; }
+.shelf-switch:focus-visible { outline: 2px solid var(--hero); outline-offset: 2px; }
 .shelf-tag--sm { height: 20px; font-size: 11.5px; padding-left: 13px; }
 .shelf-tag--sm::before { left: 4px; width: 4px; height: 4px; margin-top: -2px; }
 .shelf-tag--lg { height: 30px; font-size: 15px; padding: 0 10px 0 19px; }

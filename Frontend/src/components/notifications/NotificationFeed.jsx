@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { BellRing, CheckCheck, CheckCircle2, Flag, Hourglass, Inbox, PackageCheck, PackageX, RefreshCcw, TriangleAlert, XCircle } from 'lucide-react'
-import { getNotifications, markAllNotificationsRead, markNotificationRead } from '../../services/mockApi'
+import { getNotifications, markAllNotificationsRead, markNotificationRead } from '../../services/notificationApi'
 import { useQuery, useTicker } from '../../hooks/useStore'
 import { Segmented } from '../ui/Form'
 import { Button } from '../ui/Button'

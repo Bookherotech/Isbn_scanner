@@ -1,9 +1,11 @@
-import { selectors } from '../../services/mockApi'
+import { getFilterOptions, hueOf } from '../../services/adminApi'
+import { useQuery } from '../../hooks/useStore'
 import { Select } from '../ui/Form'
 import { Avatar } from '../ui/Misc'
 
 export function ShelfFilter({ value, onChange, label = 'All shelves' }) {
-  const shelves = selectors.shelfOptions()
+  const { data } = useQuery(() => getFilterOptions(), [], { mock: false })
+  const shelves = data?.shelves ?? []
   return (
     <Select value={value} onChange={(e) => onChange(e.target.value)} aria-label="Filter by shelf">
       <option value="">{label}</option>
@@ -18,7 +20,8 @@ export function ShelfFilter({ value, onChange, label = 'All shelves' }) {
 }
 
 export function StaffFilter({ value, onChange, label = 'All staff' }) {
-  const staff = selectors.staffOptions()
+  const { data } = useQuery(() => getFilterOptions(), [], { mock: false })
+  const staff = data?.staff ?? []
   return (
     <Select value={value} onChange={(e) => onChange(e.target.value)} aria-label="Filter by staff">
       <option value="">{label}</option>
@@ -34,7 +37,7 @@ export function StaffFilter({ value, onChange, label = 'All staff' }) {
 export function Person({ id, name, size = 22 }) {
   return (
     <span className="person">
-      <Avatar name={name} hue={selectors.userHue(id)} size={size} />
+      <Avatar name={name} hue={hueOf(name)} size={size} />
       <span>{name}</span>
     </span>
   )

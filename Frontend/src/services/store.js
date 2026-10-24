@@ -1,11 +1,10 @@
 /**
- * In-memory demo database, persisted to localStorage so the presenter can
- * refresh or switch roles without losing the story. Replace mockApi.js with
- * real Django REST calls later — components never touch this file directly.
+ * Small client-side store: the demo sign-in users, plus a version counter that makes open queries
+ * refetch after a change (see bump()). All real data comes from the Django API.
  */
 import { createSeed } from './mockData'
 
-const KEY = 'bookhero.demo.v2'
+const KEY = 'bookhero.demo.v4'
 let state = load() ?? createSeed()
 let version = 0
 const listeners = new Set()
@@ -15,7 +14,7 @@ function load() {
     const raw = localStorage.getItem(KEY)
     if (!raw) return null
     const parsed = JSON.parse(raw)
-    return parsed?.version === 2 ? parsed : null
+    return parsed?.version === 4 ? parsed : null
   } catch {
     return null
   }
@@ -32,7 +31,7 @@ function persist() {
 export const db = () => state
 
 export function now() {
-  return Date.now() + (state.demo?.clockOffset || 0)
+  return Date.now()
 }
 
 /** Mutate the draft in place, then notify subscribers once. */
@@ -51,22 +50,17 @@ export function subscribe(listener) {
 
 export const getVersion = () => version
 
+/** Tell every open query to refetch (the real backend changed; nothing to save locally). */
+export function bump() {
+  version++
+  listeners.forEach((l) => l())
+}
+
 export function resetStore() {
   state = createSeed()
   version++
   persist()
   listeners.forEach((l) => l())
-}
-
-export function nextId(kind) {
-  const n = state.seq[kind]++
-  const prefix = { item: 'itm', notification: 'ntf', activity: 'act' }[kind]
-  return `${prefix}_${String(n).padStart(4, '0')}`
-}
-
-export function nextProductId() {
-  state.seq.product += 13 + Math.floor(Math.random() * 40)
-  return String(state.seq.product)
 }
 
 // Cross-tab sync: an admin tab and a staff tab stay consistent during demos.

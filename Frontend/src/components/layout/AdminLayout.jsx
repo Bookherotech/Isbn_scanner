@@ -13,9 +13,10 @@ import { IconButton } from '../ui/Button'
 import { CountBadge } from '../ui/Status'
 import { Skeleton } from '../ui/Feedback'
 import { useAuth } from '../../hooks/useAuth'
-import { useMediaQuery, useSelector, useTicker } from '../../hooks/useStore'
+import { useMediaQuery, useTicker } from '../../hooks/useStore'
 import { Drawer } from '../ui/Overlay'
-import { selectors } from '../../services/mockApi'
+import { useNavCounts } from '../../hooks/useNavCounts'
+import { useUnreadCount } from '../../hooks/useUnreadCount'
 import { cn } from '../../utils/format'
 
 const NAV = [
@@ -72,7 +73,9 @@ const countTone = (key) => ({ ready: 'hero', oos: 'warn', unread: 'signal', flag
 
 function Sidebar({ onNavigate }) {
   const { user } = useAuth()
-  const counts = useSelector(() => ({ ...selectors.navCounts(), unread: selectors.unreadCount(user) }))
+  const navCounts = useNavCounts()
+  const unread = useUnreadCount()
+  const counts = { ...navCounts, unread }
   useTicker(30_000)
   return (
     <div className="sidebar__inner">
@@ -114,7 +117,9 @@ const TAB_PATHS = TABS.map((t) => t.to)
 function AdminTabbar({ onMore, moreOpen }) {
   const { user } = useAuth()
   const { pathname } = useLocation()
-  const counts = useSelector(() => ({ ...selectors.navCounts(), unread: selectors.unreadCount(user) }))
+  const navCounts = useNavCounts()
+  const unread = useUnreadCount()
+  const counts = { ...navCounts, unread }
   const inMore = !TAB_PATHS.some((p) => (p === '/admin' ? pathname === '/admin' : pathname.startsWith(p)))
   return (
     <nav className="tabbar tabbar--admin" aria-label="Admin">
@@ -150,7 +155,9 @@ function MoreSheet({ open, onClose }) {
   const { user, signOut } = useAuth()
   const navigate = useNavigate()
   const { pathname } = useLocation()
-  const counts = useSelector(() => ({ ...selectors.navCounts(), unread: selectors.unreadCount(user) }))
+  const navCounts = useNavCounts()
+  const unread = useUnreadCount()
+  const counts = { ...navCounts, unread }
   const go = (to) => {
     onClose()
     navigate(to)
@@ -215,7 +222,7 @@ export function AdminLayout() {
   const searchInput = useRef(null) // the top bar search box (wide screens)
   const [more, setMore] = useState(false)
   const phone = useMediaQuery('(max-width: 760px)')
-  const unread = useSelector(() => selectors.unreadCount(user))
+  const unread = useUnreadCount()
   const title = TITLES.find(([p]) => pathname.startsWith(p))?.[1] ?? 'BookHero'
 
   useEffect(() => {

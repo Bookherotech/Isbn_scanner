@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { LayoutGrid, Pencil, Plus, Power, Rows3 } from 'lucide-react'
-import { getShelves, saveShelf, setShelfStatus } from '../../services/mockApi'
+import { getShelves, saveShelf, setShelfStatus } from '../../services/adminApi'
 import { useDebounce, useQuery } from '../../hooks/useStore'
 import { useToast } from '../../hooks/useToast'
 import { DataTable } from '../../components/ui/Data'

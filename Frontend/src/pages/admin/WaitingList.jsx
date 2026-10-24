@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowDown, Check, Hourglass, Store, X } from 'lucide-react'
-import { approveWaitingEntry, getWaitingList, rejectItem, selectors } from '../../services/mockApi'
-import { useQuery, useSelector, useTicker } from '../../hooks/useStore'
+import { approveWaitingEntry, getWaitingList, rejectItem } from '../../services/adminApi'
+import { useNavCounts } from '../../hooks/useNavCounts'
+import { useQuery, useTicker } from '../../hooks/useStore'
 import { OutOfStockBoard } from '../../components/inventory/OutOfStockBoard'
 import { useToast } from '../../hooks/useToast'
 import { DataTable } from '../../components/ui/Data'
-import { PageHeader } from '../../components/ui/Misc'
+import { Menu, MenuItem, PageHeader } from '../../components/ui/Misc'
 import { Segmented } from '../../components/ui/Form'
 import { Button } from '../../components/ui/Button'
 import { EmptyState, StageList, useStages } from '../../components/ui/Feedback'
@@ -19,16 +20,25 @@ import { cn, formatDateTime, formatTime, timeAgo } from '../../utils/format'
 export default function WaitingList() {
   const [params, setParams] = useSearchParams()
   const tab = params.get('tab') || 'ready'
-  const oosCount = useSelector(() => selectors.navCounts().oos)
+  const oosCount = useNavCounts().oos
   const { data, loading, error, reload, refreshing } = useQuery(() => getWaitingList(), [])
   useTicker()
   const reviewId = params.get('review')
-  const ready = data?.filter((r) => r.ready) ?? []
-  const waiting = data?.filter((r) => !r.ready) ?? []
+  const [picked, setPicked] = useState({}) // book key -> the waiting entry (shelf) chosen in its drop-down
+  const books = data ?? []
+  const ready = books.filter((g) => g.ready)
+  const waiting = books.filter((g) => !g.ready)
   const effectiveTab = tab === 'ready' && data && ready.length === 0 && waiting.length > 0 && !params.get('tab') ? 'waiting' : tab
-  const rows = effectiveTab === 'ready' ? ready : effectiveTab === 'waiting' ? waiting : data
+  const shown = effectiveTab === 'ready' ? ready : effectiveTab === 'waiting' ? waiting : books
   const open = (id) => setParams({ review: id })
-  const reviewing = data?.find((r) => r.id === reviewId) || null
+
+  // The entry a book's row shows: the shelf the admin picked, else the one opened from a link, else the oldest ready one, else the oldest.
+  const entryOf = (g) => g.entries.find((e) => e.id === picked[g.key]) ?? g.entries.find((e) => String(e.id) === reviewId) ?? g.entries.find((e) => e.ready) ?? g.entries[0]
+  const rows = shown.map((g) => {
+    const entry = entryOf(g)
+    return { ...entry, group: g, __highlight: String(entry.id) === reviewId }
+  })
+  const reviewing = books.flatMap((g) => g.entries).find((e) => String(e.id) === reviewId) || null
 
   const columns = [
     { key: 'book', header: 'Book', card: 'title', render: (r) => <BookCell item={r} /> },
@@ -43,7 +53,33 @@ export default function WaitingList() {
         </span>
       ),
     },
-    { key: 'waiting', header: 'Waiting shelf', card: 'meta', render: (r) => <ShelfTag id={r.shelfId} size="sm" variant="outline" /> },
+    {
+      key: 'waiting',
+      header: 'Waiting shelf',
+      card: 'meta',
+      render: (r) =>
+        r.group.entries.length > 1 ? (
+          <span onClick={(e) => e.stopPropagation()}>
+            <Menu
+              align="start"
+              className="shelf-menu"
+              trigger={({ open, toggle, props }) => (
+                <button type="button" className={cn('shelf-switch', open && 'is-open')} onClick={toggle} aria-label={`Waiting shelf for ${r.title}: ${r.shelfId}. Change shelf`} {...props}>
+                  <ShelfTag id={r.shelfId} size="sm" variant="outline" />
+                </button>
+              )}
+            >
+              {r.group.entries.map((e) => (
+                <MenuItem key={e.id} aria-current={e.id === r.id} onClick={() => setPicked((p) => ({ ...p, [r.group.key]: e.id }))}>
+                  <ShelfTag id={e.shelfId} size="sm" variant={e.id === r.id ? 'solid' : 'outline'} />
+                </MenuItem>
+              ))}
+            </Menu>
+          </span>
+        ) : (
+          <ShelfTag id={r.shelfId} size="sm" variant="outline" />
+        ),
+    },
     { key: 'qty', header: 'Qty', align: 'right', card: 'meta', render: (r) => <span className="num td-strong">{r.quantity}</span> },
     { key: 'by', header: 'Submitted by', card: 'meta', render: (r) => <Person id={r.submittedBy} name={r.submittedByName} /> },
     { key: 'at', header: 'Submitted', card: 'meta', render: (r) => <span className="td-muted" title={formatDateTime(r.submittedAt)}>{timeAgo(r.submittedAt)}</span> },
@@ -103,7 +139,7 @@ export default function WaitingList() {
       ) : (
       <DataTable
         columns={columns}
-        rows={rows?.map((r) => ({ ...r, __highlight: r.id === reviewId }))}
+        rows={data ? rows : undefined}
         loading={loading}
         error={error}
         onRetry={reload}
@@ -148,7 +184,7 @@ function WaitingDrawer({ entry, onClose }) {
   const approve = async () => {
     try {
       const res = await stages.run(
-        [`Adding ${e.quantity} units to Shopify product #${productId}`, `Switching active shelf ${from} → ${e.shelfId}`, `Closing shelf ${from} entry`, `Live on ${e.shelfId}`],
+        [`Adding ${e.quantity} units to Shopify product${productId ? ` #${productId}` : ''}`, `Switching active shelf ${from} → ${e.shelfId}`, `Closing shelf ${from} entry`, `Live on ${e.shelfId}`],
         () => approveWaitingEntry(e.id),
         { stepMs: 380 },
       )
@@ -209,7 +245,7 @@ function WaitingDrawer({ entry, onClose }) {
           <div className="transfer__product">
             <Store size={16} aria-hidden />
             <span>
-              Shopify product <span className="mono">#{productId}</span>
+              Shopify product <span className="mono">{productId ? `#${productId}` : '—'}</span>
             </span>
             <em>same product — no new listing</em>
           </div>

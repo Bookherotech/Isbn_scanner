@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Download, RefreshCw } from 'lucide-react'
-import { getAuthors, listItems, retrySync, selectors } from '../../services/mockApi'
-import { useDebounce, useQuery, useSelector, useTicker } from '../../hooks/useStore'
-import { useToast } from '../../hooks/useToast'
+import { Download } from 'lucide-react'
+import { getAuthors, listItems } from '../../services/adminApi'
+import { useShopify } from '../../hooks/useShopify'
+import { useDebounce, useQuery, useTicker } from '../../hooks/useStore'
 import { DataTable, Pagination } from '../../components/ui/Data'
 import { PageHeader } from '../../components/ui/Misc'
 import { SearchInput, Select } from '../../components/ui/Form'
@@ -16,7 +16,6 @@ import { downloadCsv, formatDateTime, formatTime, timeAgo } from '../../utils/fo
 
 export default function LiveInventory() {
   const navigate = useNavigate()
-  const { toast } = useToast()
   const [q, setQ] = useState('')
   const [status, setStatus] = useState('live,out_of_stock')
   const [shelf, setShelf] = useState('')
@@ -24,9 +23,8 @@ export default function LiveInventory() {
   const [sort, setSort] = useState('title')
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(25)
-  const [retrying, setRetrying] = useState('')
   const dq = useDebounce(q)
-  const shop = useSelector(() => selectors.shopify())
+  const shop = useShopify()
   const statuses = status.split(',')
   const { data, loading, error, reload, refreshing } = useQuery(
     () => listItems({ statuses, q: dq, shelf, author, sort, page, pageSize }),
@@ -57,27 +55,7 @@ export default function LiveInventory() {
       key: 'sync',
       header: 'Shopify',
       card: 'meta',
-      render: (r) =>
-        r.syncStatus === 'failed' ? (
-          <span className="sync-cell">
-            <SyncChip status="failed" />
-            <button
-              className="linkbtn"
-              disabled={retrying === r.id}
-              onClick={async (e) => {
-                e.stopPropagation()
-                setRetrying(r.id)
-                await retrySync(r.id)
-                setRetrying('')
-                toast({ title: 'Sync retried', description: `${r.title} synced with Shopify.` })
-              }}
-            >
-              <RefreshCw size={12} className={retrying === r.id ? 'spin' : ''} aria-hidden /> Retry
-            </button>
-          </span>
-        ) : (
-          <SyncChip status={retrying === r.id ? 'syncing' : r.syncStatus} />
-        ),
+      render: (r) => <SyncChip status={r.syncStatus} />,
     },
     { key: 'last', header: 'Last sync', card: 'meta', render: (r) => <span className="td-muted" title={formatDateTime(r.lastSync)}>{timeAgo(r.lastSync)}</span> },
     { key: 'status', header: 'Status', card: 'badge', render: (r) => <StatusChip status={r.status} size="sm" /> },
@@ -98,13 +76,12 @@ export default function LiveInventory() {
         <span className="syncstrip__store">
           <span className="live-dot" aria-hidden /> {shop.storeName}
         </span>
-        <span>Connected</span>
+        <span>{shop.connected ? 'Connected' : 'Shopify not connected'}</span>
         <span>
           Last inventory sync <strong className="num">{formatTime(shop.lastPollAt)}</strong>
         </span>
         <span>Stock check every {shop.pollMinutes} min</span>
-        <span>Sync health: Healthy</span>
-        <span className="syncstrip__mock">Demo / mock integration</span>
+        
       </div>
       <div className="toolbar">
         <SearchInput value={q} onChange={r1(setQ)} placeholder="Search title, author, ISBN or shelf" />
