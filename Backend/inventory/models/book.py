@@ -82,6 +82,14 @@ class Book(models.Model):
             models.Index(fields=['status', 'submitted_at'], name='book_status_time_idx'),
             # Duplicate check: WHERE duplicate_key = ? AND status IN (...)
             models.Index(fields=['duplicate_key', 'status'], name='book_dupkey_status_idx'),
+            # Dashboard "approved" chart, reports, the Approved sort: WHERE approved_at >= ? / ORDER BY approved_at DESC
+            models.Index(fields=['approved_at'], name='book_approved_idx'),
+            # Reports and the Rejected sort: WHERE rejected_at >= ? / ORDER BY rejected_at DESC
+            models.Index(fields=['rejected_at'], name='book_rejected_idx'),
+            # Out-of-stock list: WHERE status = 'out_of_stock' ORDER BY stock_out_at DESC
+            models.Index(fields=['status', 'stock_out_at'], name='book_status_stockout_idx'),
+            # Product history on the book detail, Shopify stock updates: WHERE product_id = ?
+            models.Index(fields=['product_id'], name='book_product_idx'),
         ]
 
     def __str__(self):

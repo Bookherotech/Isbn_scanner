@@ -84,7 +84,7 @@ export default function BookDetail() {
       <div className="bookd__grid">
         {it.flags?.length > 0 && <FlagReviewCard item={it} />}
         {it.productId && (
-          <Panel title="Shopify product" eyebrow="Demo / mock integration">
+          <Panel title="Shopify product">
             <dl className="kv">
               <div>
                 <dt>Product</dt>

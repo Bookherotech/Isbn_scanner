@@ -73,12 +73,13 @@ class SubmissionListView(APIView):
             )
         except DuplicateCheckBusy:
             raise SubmissionBusy from None
+        item = SubmissionSerializer(outcome.book, context={'request': request}).data
         return Response({
             'result': outcome.result,
             'match': outcome.match,
             'ready': outcome.ready,
-            'flags': [],  # content flags: later
-            'flag_hold': False,
-            'item': SubmissionSerializer(outcome.book, context={'request': request}).data,
+            'flags': item['flags'],
+            'flag_hold': item['flag_hold'],
+            'item': item,
             'key': {'title': normalize_title(outcome.book.title), 'author': normalize_author(outcome.book.author)},
         }, status=status.HTTP_201_CREATED)

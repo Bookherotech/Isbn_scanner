@@ -129,7 +129,7 @@ function OosDetail({ d }) {
         )}
       </section>
       <p className="oos__foot">
-        <Store size={13} aria-hidden /> Stock is read from Shopify by polling (mock). No webhooks in this release.
+        <Store size={13} aria-hidden /> Stock is read from Shopify by polling. No webhooks in this release.
       </p>
     </article>
   )

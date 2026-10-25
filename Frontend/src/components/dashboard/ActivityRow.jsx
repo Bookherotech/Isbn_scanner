@@ -1,6 +1,7 @@
 import { Bot, Store } from 'lucide-react'
 import { Avatar } from '../ui/Misc'
 import { hueOf } from '../../services/adminApi'
+import { useAuth } from '../../hooks/useAuth'
 import { cn, formatDateTime, timeAgo } from '../../utils/format'
 
 export function ActorAvatar({ actor, name, size = 28 }) {
@@ -20,12 +21,13 @@ export function ActorAvatar({ actor, name, size = 28 }) {
 }
 
 export function ActivityRow({ a, compact }) {
+  const { user } = useAuth()
   return (
     <li className={cn('act', compact && 'act--compact', `act--${a.result}`)}>
       <ActorAvatar actor={a.actor} name={a.actorName} size={compact ? 26 : 30} />
       <div className="act__main">
         <p className="act__line">
-          <strong>{a.actorName === 'Rachel Morgan' ? 'Admin' : a.actorName.split(' ')[0]}</strong> <span className="act__verb">{a.action.toLowerCase()}</span> <span className="act__obj">{a.object}</span>
+          <strong>{a.actor === user?.id ? 'Admin' : a.actorName.split(' ')[0]}</strong> <span className="act__verb">{a.action.toLowerCase()}</span> <span className="act__obj">{a.object}</span>
         </p>
         {a.detail && <p className="act__detail">{a.detail}</p>}
       </div>

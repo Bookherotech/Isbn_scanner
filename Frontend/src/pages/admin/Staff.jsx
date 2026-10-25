@@ -19,10 +19,6 @@ import AdminTransfer from './AdminTransfer'
 const displayName = (u) => u.full_name || u.email
 
 export default function Staff() {
-  const { user } = useAuth()
-  // Demo accounts have no backend session, so only a real sign-in can manage staff.
-  const real = user?.source === 'api'
-
   return (
     <div>
       <PageHeader
@@ -30,13 +26,7 @@ export default function Staff() {
         title="Staff"
         description="People who scan and submit books from the Staff app. Deactivated staff can’t sign in."
       />
-      {real ? (
-        <StaffList />
-      ) : (
-        <EmptyState art="books" title="Sign in with your admin account">
-          Staff are stored in the backend. Sign in with your real admin email and password to add and see staff.
-        </EmptyState>
-      )}
+      <StaffList />
     </div>
   )
 }

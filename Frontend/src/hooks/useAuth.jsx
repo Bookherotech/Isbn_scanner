@@ -1,42 +1,40 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
-import { login as apiLogin } from '../services/mockApi'
-import { db } from '../services/store'
+import { hueOf } from '../services/adminApi'
 import { setAuthLostHandler } from '../services/apiClient'
 import { fetchMe, loginWithPassword, saveProfile, verifyOtp } from '../services/authApi'
 import { clearAuth, readAuth, touchAuth, updateAuth, writeAuth } from '../services/authStorage'
 
 const AuthContext = createContext(null)
-const KEY = 'bookhero.session' // demo (mock) session: just a mock user id
+const TITLES = { admin: 'Super Admin', staff: 'Inventory Staff' }
 
-/**
- * The screens still read their data from the mock API, so a backend user is mapped onto the
- * mock user that owns that data (matched by email, else the default admin / staff member),
- * with the real name, email and role from the backend laid over it.
- */
+/** The backend user ({id, email, full_name, role, ...}) as the screens use it. The avatar colour follows the email, so it never changes. */
 function toSessionUser(apiUser) {
-  const users = db().users
-  const base = users.find((u) => u.email === apiUser.email) ?? users.find((u) => u.id === (apiUser.role === 'admin' ? 'u_admin' : 'u_sarah'))
-  return { ...base, role: apiUser.role, email: apiUser.email, name: apiUser.full_name || apiUser.email.split('@')[0], phone: apiUser.phone_number || '', joinedAt: apiUser.date_joined, lastLoginAt: apiUser.last_login, backendId: apiUser.id, source: 'api' }
+  return {
+    id: apiUser.id,
+    backendId: apiUser.id,
+    role: apiUser.role,
+    title: TITLES[apiUser.role] ?? 'Staff',
+    hue: hueOf(apiUser.email),
+    email: apiUser.email,
+    name: apiUser.full_name || apiUser.email.split('@')[0],
+    phone: apiUser.phone_number || '',
+    joinedAt: apiUser.date_joined,
+    lastLoginAt: apiUser.last_login,
+  }
 }
 
 function readSession() {
   const auth = readAuth()
-  if (auth?.user) return toSessionUser(auth.user)
-  try {
-    const id = localStorage.getItem(KEY) || sessionStorage.getItem(KEY)
-    return id ? db().users.find((u) => u.id === id) ?? null : null
-  } catch {
-    return null
-  }
+  return auth?.user ? toSessionUser(auth.user) : null
 }
 
-function clearDemoSession() {
-  try {
-    localStorage.removeItem(KEY)
-    sessionStorage.removeItem(KEY)
-  } catch {
-    /* ignore */
-  }
+// Old demo-only browser data (from before the backend was connected): remove once.
+try {
+  localStorage.removeItem('bookhero.session')
+  sessionStorage.removeItem('bookhero.session')
+  localStorage.removeItem('bookhero.demo.v4')
+} catch {
+  /* storage unavailable */
 }
 
 export function AuthProvider({ children }) {
@@ -44,7 +42,6 @@ export function AuthProvider({ children }) {
 
   // Store a successful backend login ({ access, refresh, user }) as the session.
   const startSession = useCallback(({ access, refresh, user: apiUser }, remember) => {
-    clearDemoSession()
     writeAuth({ access, refresh, user: apiUser }, remember)
     const sessionUser = toSessionUser(apiUser)
     setUser(sessionUser)
@@ -78,22 +75,8 @@ export function AuthProvider({ children }) {
     return apiUser
   }, [])
 
-  // Demo access (no password): a mock user, used by the "Continue as ..." buttons and the demo switcher.
-  const signIn = useCallback(async ({ role, username, remember = true }) => {
-    const u = await apiLogin({ role, username })
-    clearAuth()
-    try {
-      ;(remember ? localStorage : sessionStorage).setItem(KEY, u.id)
-    } catch {
-      /* ignore */
-    }
-    setUser(u)
-    return u
-  }, [])
-
   const signOut = useCallback(() => {
     clearAuth()
-    clearDemoSession()
     setUser(null)
   }, [])
 
@@ -134,7 +117,7 @@ export function AuthProvider({ children }) {
     }
   }, [])
 
-  const value = useMemo(() => ({ user, signIn, signInWithPassword, signInWithOtp, updateProfile, signOut }), [user, signIn, signInWithPassword, signInWithOtp, updateProfile, signOut])
+  const value = useMemo(() => ({ user, signInWithPassword, signInWithOtp, updateProfile, signOut }), [user, signInWithPassword, signInWithOtp, updateProfile, signOut])
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 

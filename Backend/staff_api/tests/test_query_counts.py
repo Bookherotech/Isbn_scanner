@@ -6,6 +6,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from inventory.constants import BookStatus
+from inventory.models import Shelf
 from staff_api.tests.helpers import StaffApiTestCase, make_book
 
 MANY = 15
@@ -36,20 +37,20 @@ class QueryCountTests(StaffApiTestCase):
         self.assertEqual(many, expected, url)
 
     def test_list(self):
-        # auth user + tab counts + rows (relations joined)
-        self.assert_flat('get', reverse('staff_api:submissions') + '?limit=100', 3)
+        # auth user + tab counts + rows (relations joined) + flag categories
+        self.assert_flat('get', reverse('staff_api:submissions') + '?limit=100', 4)
 
     def test_list_filtered(self):
-        self.assert_flat('get', reverse('staff_api:submissions') + '?status=waiting&limit=100', 3)
+        self.assert_flat('get', reverse('staff_api:submissions') + '?status=waiting&limit=100', 4)
 
     def test_home(self):
-        # auth user + scanned + pending/waiting + approved + recent
-        self.assert_flat('get', reverse('staff_api:home'), 5)
+        # auth user + scanned + pending/waiting + approved + recent + flag categories
+        self.assert_flat('get', reverse('staff_api:home'), 6)
 
     def test_detail(self):
         book = make_book(self.staff, self.a01, status=BookStatus.WAITING, linked_item=make_book(self.other_staff, self.a02, status=BookStatus.LIVE, stock=2))
-        # auth user + the row (relations joined)
-        self.assert_flat('get', reverse('staff_api:submission-detail', args=[book.id]), 2)
+        # auth user + the row (relations joined) + flag categories
+        self.assert_flat('get', reverse('staff_api:submission-detail', args=[book.id]), 3)
 
     def test_create_does_not_grow_with_existing_duplicates(self):
         url = reverse('staff_api:submissions')
@@ -58,5 +59,7 @@ class QueryCountTests(StaffApiTestCase):
         one = self.queries_for('post', url, body)
         for _ in range(MANY):
             make_book(self.other_staff, self.a02, title='Same Book', author='Same Author', status=BookStatus.WAITING)
-        many = self.queries_for('post', url, body)
+        Shelf.objects.create(code='A-03')
+        # a new shelf, so this one also joins the waiting list (A-01 now has a copy: it would be auto-rejected)
+        many = self.queries_for('post', url, {**body, 'shelf_id': 'A-03'})
         self.assertEqual(one, many, f'create: {one} queries with 1 match but {many} with {MANY + 1} matches (N+1)')

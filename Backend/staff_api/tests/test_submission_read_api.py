@@ -69,8 +69,8 @@ class SubmissionListApiTests(StaffApiTestCase):
     def test_query_count_does_not_grow_with_rows(self):
         with CaptureQueriesContext(connection) as queries:
             self.client.get(self.url)
-        # auth user + counts + rows (related rows joined)
-        self.assertLessEqual(len(queries), 3)
+        # auth user + counts + rows (related rows joined) + flag categories
+        self.assertLessEqual(len(queries), 4)
 
 
 class SubmissionDetailApiTests(StaffApiTestCase):

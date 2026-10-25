@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { getVersion, subscribe } from '../services/store'
 
-/** Re-render when the mock database changes (approvals, notifications, demo controls). */
+/** Re-render when services/store.js is bumped (an admin change or a notification was read). */
 export function useStoreVersion() {
   return useSyncExternalStore(subscribe, getVersion, getVersion)
 }
@@ -15,8 +15,8 @@ export function useSelector(select) {
 /**
  * Minimal data-fetching hook.
  * - First load shows `loading` (skeletons); background refreshes keep old data.
- * - Refetches automatically when the mock store changes, unless `{ mock: false }` is passed
- *   (pages that read the real backend: a mock-store change says nothing about their data).
+ * - Refetches automatically after a bump() in services/store.js, unless `{ mock: false }` is passed
+ *   (pages whose data such a change does not touch, e.g. the staff screens).
  */
 export function useQuery(fetcher, deps = [], { mock = true } = {}) {
   const storeVersion = useStoreVersion()

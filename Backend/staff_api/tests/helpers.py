@@ -1,10 +1,10 @@
 from django.core.cache import cache
+from django.urls import reverse
 from rest_framework.test import APITestCase
 
 from authentication.constants import Role
 from authentication.models import User
 from authentication.services.token_service import issue_tokens
-from authentication.tests.helpers import sign_in
 from inventory.constants import BookStatus
 from inventory.models import Book, Shelf
 from inventory.services import duplicate_key
@@ -39,5 +39,6 @@ class StaffApiTestCase(APITestCase):
         if user.role == Role.ADMIN:
             access = issue_tokens(user)['access']  # the admin login needs an emailed code: same tokens, issued directly
         else:
-            access = sign_in(self.client, user.email, PASSWORD).data['access']
+            response = self.client.post(reverse('authentication:login'), {'email': user.email, 'password': PASSWORD}, format='json')
+            access = response.data['access']  # staff sign in with the password alone, like the real app
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {access}')
