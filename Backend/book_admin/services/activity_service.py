@@ -9,7 +9,7 @@ def log_activity(*, action, kind, target='', detail='', result=ActivityLog.Resul
     """One line in the Activity log. `actor` is a User; leave it out and pass actor_type=system/shopify for automatic events."""
     return ActivityLog.objects.create(
         actor=actor, actor_type=actor_type or (Actor.USER if actor else Actor.SYSTEM), action=action, kind=kind,
-        target=target, detail=detail[:255], result=result, book=book,
+        target=target[:255], detail=detail[:255], result=result, book=book,
     )
 
 

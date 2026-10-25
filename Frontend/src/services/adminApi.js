@@ -5,7 +5,7 @@ import { bump } from './store'
  * Admin portal API (Django `book_admin`, mounted at /api/admin/). Every call needs a signed-in Admin.
  * Responses are mapped to the shape the admin screens render: camelCase keys and timestamps as
  * milliseconds (what utils/format.js expects). Book ids are numbers.
- * After a change the mock store version is bumped, so every open query refetches (lists, counts, the sidebar).
+ * After a change the store version is bumped, so every open query refetches (lists, counts, the sidebar).
  */
 
 const NETWORK_DOWN = 'Cannot reach the server. Check your connection and try again.'

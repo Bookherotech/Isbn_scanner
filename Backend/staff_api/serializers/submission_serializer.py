@@ -1,5 +1,6 @@
 from rest_framework import serializers
 
+from book_admin.services.flag_service import load_categories, match_flags, needs_review
 from inventory.constants import BookStatus
 from inventory.models import Book
 
@@ -65,8 +66,15 @@ class SubmissionSerializer(serializers.ModelSerializer):
             return None
         return 'System' if book.auto_rejected else display_name(book.rejected_by)
 
+    def _flags(self, book):
+        """Content flags (the admin's categories). Loaded once per request: the list's children share the context."""
+        if 'flag_categories' not in self.context:
+            self.context['flag_categories'] = load_categories()
+        return match_flags(book.title, book.subjects, self.context['flag_categories'])
+
     def get_flags(self, book):
-        return []  # content flags are not built yet (agreed: later)
+        return self._flags(book)
 
     def get_flag_hold(self, book):
-        return False
+        """True while the book waits for an admin's flag review."""
+        return needs_review(book.status, book.flag_reviewed_at, self._flags(book))

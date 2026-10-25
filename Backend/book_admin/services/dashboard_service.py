@@ -6,7 +6,7 @@ from django.utils import timezone
 from book_admin.models import ActivityLog
 from book_admin.serializers import ActivitySerializer, BookSerializer
 from book_admin.services.book_queries import book_queryset
-from book_admin.services.flag_service import overview, review_count
+from book_admin.services.flag_service import load_categories, review_count, review_ids
 from book_admin.utils import count_by_day, display_name, last_days, start_of_day, store_today
 from authentication.constants import Role
 from authentication.models import User
@@ -59,12 +59,12 @@ def build_dashboard(request):
         .annotate(units=Sum('stock'), titles=Count('id')).order_by('-units', 'shelf__code')[:TOP_SHELVES]
     )
 
-    flag_data = overview()
-    context = {'request': request, 'flag_categories': flag_data['categories']}
+    categories = load_categories()
+    context = {'request': request, 'flag_categories': categories}
     attention_books = book_queryset()
     ready = attention_books.filter(status=BookStatus.WAITING, linked_item__status=BookStatus.OUT_OF_STOCK).order_by('submitted_at')
     failed = attention_books.filter(sync_status='failed', status__in=(BookStatus.LIVE, BookStatus.OUT_OF_STOCK)).order_by('-last_sync_at')
-    held = attention_books.filter(id__in=flag_data['review']).order_by('submitted_at', 'id')[:ATTENTION_FLAGGED]
+    held = attention_books.filter(id__in=review_ids(categories)).order_by('submitted_at', 'id')[:ATTENTION_FLAGGED]
     oldest = attention_books.filter(status=BookStatus.PENDING).order_by('submitted_at', 'id')[:ATTENTION_PENDING]
 
     staff_today = [
@@ -80,7 +80,7 @@ def build_dashboard(request):
         'kpis': {
             'pending': counts.get(BookStatus.PENDING, 0),
             'waiting': counts.get(BookStatus.WAITING, 0),
-            'ready': len(ready_list),
+            'ready': ready_count(),  # books, like the sidebar badge and the Waiting page
             'live_titles': live['titles'],
             'live_units': live['units'] or 0,
             'out_of_stock': counts.get(BookStatus.OUT_OF_STOCK, 0),

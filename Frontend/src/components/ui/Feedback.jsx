@@ -53,7 +53,7 @@ export function ErrorState({ error, title, onRetry, compact }) {
         <h3>{title || (network ? 'Unable to load data' : 'Something went wrong')}</h3>
         <p>{error?.message || 'The request failed.'}</p>
         <p className="error-state__hint">
-          {network ? 'Check the connection (or turn off “Simulate network failure” in Demo controls), then retry.' : 'Retry. If it keeps happening, reload the page.'}
+          {network ? 'Check the connection, then retry.' : 'Retry. If it keeps happening, reload the page.'}
         </p>
       </div>
       {onRetry && (

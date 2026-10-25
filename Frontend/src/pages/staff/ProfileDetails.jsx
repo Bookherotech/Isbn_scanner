@@ -12,7 +12,6 @@ const first = (messages) => (Array.isArray(messages) ? messages[0] : messages)
 export default function ProfileDetails() {
   const { user, updateProfile } = useAuth()
   const { toast } = useToast()
-  const real = user.source === 'api' // demo accounts have no backend record to edit
 
   const saved = splitPhone(user.phone)
   const [editing, setEditing] = useState(false)
@@ -63,7 +62,7 @@ export default function ProfileDetails() {
 
   return (
     <form className="profile__form" onSubmit={submit} noValidate>
-      {real && !editing && (
+      {!editing && (
         <div className="profile__form-head">
           <Button size="sm" icon={Pencil} onClick={() => setEditing(true)}>
             Edit
@@ -98,7 +97,6 @@ export default function ProfileDetails() {
       <Field label="Email" htmlFor="me-email" hint={user.role === 'admin' ? 'This is the email you sign in with and receive codes at.' : 'Contact your admin to change your email.'}>
         <Input id="me-email" type="email" value={user.email || ''} placeholder="—" disabled readOnly />
       </Field>
-      {!real && <p className="field__hint">This is a demo account. Sign in with your own email and password to see and edit your real details.</p>}
       {errors.form && (
         <p className="field__error" role="alert">
           {errors.form}

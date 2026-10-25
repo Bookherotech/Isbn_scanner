@@ -12,8 +12,6 @@
 .backlink { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--ink-2); padding: 4px 6px 4px 2px; border-radius: 5px; }
 .backlink:hover { color: var(--ink); background: rgba(23, 21, 15, 0.05); }
 .linkbtn { display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; font-weight: 600; color: var(--ink); text-decoration: underline; text-decoration-color: var(--hero); text-decoration-thickness: 2px; text-underline-offset: 2px; }
-.demo-link { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; color: var(--muted); padding: 6px 10px; border: 1px dashed var(--line-strong); border-radius: 99px; }
-.demo-link:hover { color: var(--ink); border-color: var(--ink); background: var(--hero-subtle); }
 
 .person { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; font-size: 13px; }
 .person--lg > span:last-child { display: grid; line-height: 1.25; }
@@ -101,27 +99,6 @@
 .login__forgot { font-size: 13px; font-weight: 600; color: var(--ink-2); }
 .login__forgot:hover { text-decoration: underline; }
 .login__error { font-size: 13px; color: var(--danger); background: var(--danger-bg); padding: 8px 10px; border-radius: 6px; }
-.login__divider { display: flex; align-items: center; gap: 12px; margin: 26px 0 14px; font-size: 12px; color: var(--muted); font-weight: 600; }
-.login__divider::before, .login__divider::after { content: ''; flex: 1; height: 1px; background: var(--line-strong); }
-.login__demo { display: grid; gap: 8px; }
-.login__demo-btn {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 14px;
-  text-align: left;
-  border-radius: var(--r-lg);
-  border: 1px solid var(--line-strong);
-  background: var(--surface);
-  transition: border-color var(--t-1), transform var(--t-1), box-shadow var(--t-1);
-}
-.login__demo-btn:hover { border-color: var(--ink); box-shadow: 0 0 0 3px var(--hero-subtle); }
-.login__demo-btn:active { transform: scale(0.99); }
-.login__demo-btn > span:nth-child(2) { flex: 1; display: grid; }
-.login__demo-btn strong { font-size: 14.5px; }
-.login__demo-btn em { font-style: normal; font-size: 12.5px; color: var(--muted); }
-.login__demo-icon { width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center; background: var(--night); color: var(--hero); flex: none; }
-.login__demo-icon--staff { background: var(--hero); color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--ink); }
 .login__foot { display: grid; justify-items: center; gap: 5px; font-size: 12px; color: var(--faint); text-align: center; }
 /* "Powered by Cresterix" credit under the sign-in form */
 .powered {
@@ -835,7 +812,6 @@
 
 .syncstrip { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; padding: 9px 14px; margin-bottom: 12px; font-size: 12.5px; color: var(--ink-2); background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); }
 .syncstrip__store { display: inline-flex; align-items: center; gap: 7px; font-weight: 700; color: var(--ink); }
-.syncstrip__mock { margin-left: auto; font-size: 10.5px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: #8a6d00; background: repeating-linear-gradient(-45deg, rgba(255, 210, 31, 0.3) 0 5px, rgba(255, 210, 31, 0.12) 5px 10px); padding: 3px 7px; border-radius: 4px; }
 
 .rej { display: grid; gap: 14px; }
 .rej__note { font-family: var(--font-serif); font-style: italic; font-size: 16px; color: var(--ink-2); padding-left: 12px; border-left: 3px solid var(--line-strong); }
