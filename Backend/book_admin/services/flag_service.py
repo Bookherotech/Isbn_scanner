@@ -82,14 +82,17 @@ def overview(categories=None):
     return {'review': review, 'reviewed': reviewed, 'stats': stats, 'categories': categories, 'flags': flags_by_book}
 
 
+def review_ids(categories=None):
+    """Ids of the books waiting for a flag review. Reads only pending / waiting books nobody has reviewed yet
+    (the admin's to-do list), never the whole catalogue; skips the read when no category holds books."""
+    categories = load_categories() if categories is None else categories
+    holding = [c for c in categories if c.enabled and c.mode == FlagCategory.Mode.HOLD and c.patterns]
+    if not holding:
+        return []
+    rows = Book.objects.filter(status__in=REVIEWABLE, flag_reviewed_at__isnull=True).values_list('id', 'title', 'subjects')
+    return [book_id for book_id, title, subjects in rows.iterator(chunk_size=2000) if match_flags(title, subjects, holding)]
+
+
 def review_count():
-    """How many books wait for a flag review (the sidebar badge). Skips the book scan when no category holds books."""
-    categories = [c for c in load_categories() if c.enabled and c.mode == FlagCategory.Mode.HOLD and c.patterns]
-    if not categories:
-        return 0
-    count = 0
-    rows = Book.objects.filter(status__in=REVIEWABLE, flag_reviewed_at__isnull=True).values_list('title', 'subjects')
-    for title, subjects in rows.iterator(chunk_size=2000):
-        if match_flags(title, subjects, categories):
-            count += 1
-    return count
+    """How many books wait for a flag review (the sidebar badge)."""
+    return len(review_ids())

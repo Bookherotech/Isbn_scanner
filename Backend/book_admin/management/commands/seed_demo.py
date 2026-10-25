@@ -1,7 +1,8 @@
 import random
 from datetime import timedelta
 
-from django.core.management.base import BaseCommand
+from django.conf import settings
+from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils import timezone
 
@@ -38,13 +39,20 @@ PLAN = ['live'] * 14 + ['out_of_stock'] * 3 + ['pending'] * 5 + ['rejected'] * 2
 
 
 class Command(BaseCommand):
-    help = 'Fill the database with a demo admin, staff, shelves and real books (metadata fetched live). Safe to run again: existing rows are kept.'
+    help = (
+        'Development only. Fill the database with a demo admin, staff, shelves and real books (metadata fetched live). '
+        'Creates accounts with a known password and replaces the activity log, notifications and settings. '
+        'Refuses to run when DEBUG is off unless --force is given.'
+    )
 
     def add_arguments(self, parser):
         parser.add_argument('--admin-email', default='admin@bookhero.com')
         parser.add_argument('--reset-books', action='store_true', help='Delete every book first, then seed again.')
+        parser.add_argument('--force', action='store_true', help='Run even when DEBUG is off (never on the live server).')
 
     def handle(self, *args, **options):
+        if not settings.DEBUG and not options['force']:
+            raise CommandError('seed_demo is for development only (DEBUG is off). Use --force only on a throwaway database.')
         rng = random.Random(2026)
         admin, staff = self.users(options['admin_email'])
         shelves = self.shelves()

@@ -54,11 +54,9 @@ export default function AdminProfile() {
           <Panel title="Your details" className="admin-profile__details">
             <ProfileDetails />
           </Panel>
-          {user.source === 'api' && (
-            <Panel title="Password" className="admin-profile__details">
-              <OwnPasswordForm />
-            </Panel>
-          )}
+          <Panel title="Password" className="admin-profile__details">
+            <OwnPasswordForm />
+          </Panel>
         </div>
       </div>
     </div>

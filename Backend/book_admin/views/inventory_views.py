@@ -155,11 +155,14 @@ class WaitingApproveView(APIView):
         })
 
 
+OUT_OF_STOCK_LIMIT = 500
+
+
 class OutOfStockView(APIView):
-    """GET /api/admin/out-of-stock/ -> books that sold out, latest first, each with the waiting entries behind it."""
+    """GET /api/admin/out-of-stock/ -> books that sold out, latest first (at most 500), each with the waiting entries behind it."""
 
     permission_classes = [IsAdminRole]
 
     def get(self, request):
-        rows = with_open_waiting(book_queryset().filter(status=BookStatus.OUT_OF_STOCK)).order_by('-stock_out_at', '-id')
+        rows = with_open_waiting(book_queryset().filter(status=BookStatus.OUT_OF_STOCK)).order_by('-stock_out_at', '-id')[:OUT_OF_STOCK_LIMIT]
         return Response(BookWithWaitingSerializer(rows, many=True, context={'request': request}).data)

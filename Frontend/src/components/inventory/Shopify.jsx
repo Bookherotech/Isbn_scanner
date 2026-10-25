@@ -17,7 +17,7 @@ function useCountdown(lastPollAt, minutes) {
   return { label: `${m}:${String(s).padStart(2, '0')}`, pct: 1 - left / (minutes * 60_000) }
 }
 
-/** Shopify connection status — clearly marked as a mock integration. */
+/** Shopify connection status (from the admin settings). */
 export function ShopifyCard({ shopify, loading }) {
   return (
     <Panel className="shopcard" title={null}>
