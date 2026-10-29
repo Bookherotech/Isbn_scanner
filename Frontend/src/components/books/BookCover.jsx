@@ -85,7 +85,7 @@ export const BookCover = memo(function BookCover({ title = '', author = '', isbn
 export function BookCell({ item, size = 'xs', sub, mono }) {
   return (
     <span className="bookcell">
-      <BookCover title={item.title} author={item.author} isbn={item.isbn} size={size} />
+      <BookCover title={item.title} author={item.author} isbn={item.isbn} photo={item.coverPhotoUrl} size={size} />
       <span className="bookcell__text">
         <span className="bookcell__title">{item.title}</span>
         <span className={cn('bookcell__sub', mono && 'mono')}>{sub ?? item.author}</span>

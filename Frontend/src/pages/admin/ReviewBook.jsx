@@ -126,7 +126,7 @@ function ReviewBody({ item }) {
         {/* ---------- Editorial: the book as fetched/submitted ---------- */}
         <article className="review__book">
           <div className="review__cover">
-            <BookCover title={values.title || item.title} author={values.author || item.author} isbn={item.isbn} size="xl" />
+            <BookCover title={values.title || item.title} author={values.author || item.author} isbn={item.isbn} photo={item.coverPhotoUrl} size="xl" />
           </div>
           <div className="review__ident">
             <SourceBadge source={item.source} />

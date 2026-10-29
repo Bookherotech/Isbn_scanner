@@ -44,7 +44,7 @@ export function OutOfStockBoard() {
             {data.map((d) => (
               <li key={d.id}>
                 <button className={cn('oos__item', current?.id === d.id && 'is-active')} onClick={() => setSelected(d.id)} aria-current={current?.id === d.id}>
-                  <BookCover title={d.title} author={d.author} isbn={d.isbn} size="sm" />
+                  <BookCover title={d.title} author={d.author} isbn={d.isbn} photo={d.coverPhotoUrl} size="sm" />
                   <span className="oos__item-text">
                     <strong>{d.title}</strong>
                     <span>
@@ -68,7 +68,7 @@ function OosDetail({ d }) {
   return (
     <article className="oos__detail" key={d.id}>
       <header className="oos__head">
-        <BookCover title={d.title} author={d.author} isbn={d.isbn} size="md" />
+        <BookCover title={d.title} author={d.author} isbn={d.isbn} photo={d.coverPhotoUrl} size="md" />
         <div>
           <StatusChip status="out_of_stock" syncStatus={d.syncStatus} />
           <h2 className="serif">{d.title}</h2>
