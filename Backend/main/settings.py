@@ -238,3 +238,13 @@ SIMPLE_JWT = {
 METADATA_PROVIDERS = config('METADATA_PROVIDERS', default='openlibrary,google', cast=Csv())
 GOOGLE_BOOKS_API_KEY = config('GOOGLE_BOOKS_API_KEY', default='')
 METADATA_TIMEOUT_SECONDS = config('METADATA_TIMEOUT_SECONDS', default=5, cast=int)  # per provider
+
+# Shopify (integrations.shopify): a Dev Dashboard app installed on our store. The Client ID / secret are swapped
+# for a 24 h access token. Keep the secret in .env only. Leave these empty and nothing is sent to Shopify.
+SHOPIFY_STORE_DOMAIN = config('SHOPIFY_STORE_DOMAIN', default='')  # xxxx.myshopify.com
+SHOPIFY_CLIENT_ID = config('SHOPIFY_CLIENT_ID', default='')
+SHOPIFY_CLIENT_SECRET = config('SHOPIFY_CLIENT_SECRET', default='')
+SHOPIFY_LOCATION_ID = config('SHOPIFY_LOCATION_ID', default='')  # the number at the end of Settings > Locations > <location> URL
+SHOPIFY_API_VERSION = config('SHOPIFY_API_VERSION', default='2026-10')
+SHOPIFY_PRODUCT_STATUS = config('SHOPIFY_PRODUCT_STATUS', default='DRAFT')  # new products: DRAFT (set a price, then publish) or ACTIVE
+SHOPIFY_TIMEOUT_SECONDS = config('SHOPIFY_TIMEOUT_SECONDS', default=15, cast=int)

@@ -1,0 +1,165 @@
+"""The Shopify calls BookHero needs: find / create a book's product, set its stock, read stock back.
+
+A book is a single-variant product whose SKU is the ISBN-13, stocked at SHOPIFY_LOCATION_ID.
+IDs are kept as plain numbers in the database (Book.product_id) and turned into GIDs here.
+"""
+
+import uuid
+
+from django.conf import settings
+
+from integrations.shopify.client import graphql, location_gid, raise_user_errors
+from integrations.shopify.exceptions import ShopifyError
+
+STOCK_BATCH = 50  # products per stock query (keeps the query cost well under Shopify's limit)
+DEFAULT_OPTION = {'name': 'Title', 'values': [{'name': 'Default Title'}]}  # how Shopify names a product with no options
+DEFAULT_VALUE = [{'optionName': 'Title', 'name': 'Default Title'}]
+
+
+def product_gid(product_id):
+    return f'gid://shopify/Product/{product_id}'
+
+
+def numeric_id(gid):
+    """'gid://shopify/Product/123' -> '123'."""
+    return str(gid).rsplit('/', 1)[-1]
+
+
+SHOP_QUERY = """
+query Shop($location: ID!) {
+  shop { name myshopifyDomain }
+  location(id: $location) { name isActive }
+}
+"""
+
+
+def shop_info():
+    """{'shop': name, 'domain': ..., 'location': name}. Proves the credentials, scopes and location ID all work."""
+    data = graphql(SHOP_QUERY, {'location': location_gid()})
+    location = data.get('location')
+    if not location:
+        raise ShopifyError('SHOPIFY_LOCATION_ID does not match a location in this store.')
+    return {'shop': data['shop']['name'], 'domain': data['shop']['myshopifyDomain'], 'location': location['name']}
+
+
+FIND_QUERY = """
+query FindBySku($query: String!) {
+  productVariants(first: 1, query: $query) {
+    nodes { product { id } inventoryItem { id } }
+  }
+}
+"""
+
+
+def find_by_isbn(isbn):
+    """(product GID, inventory item GID) of the product whose SKU is this ISBN, or None."""
+    nodes = graphql(FIND_QUERY, {'query': f'sku:{isbn}'})['productVariants']['nodes']
+    if not nodes:
+        return None
+    return nodes[0]['product']['id'], nodes[0]['inventoryItem']['id']
+
+
+ITEM_QUERY = """
+query InventoryItem($id: ID!) {
+  product(id: $id) { variants(first: 1) { nodes { inventoryItem { id } } } }
+}
+"""
+
+
+def inventory_item_of(product_id):
+    """The inventory item GID of a product's (only) variant."""
+    product = graphql(ITEM_QUERY, {'id': product_gid(product_id)})['product']
+    nodes = (product or {}).get('variants', {}).get('nodes') or []
+    if not nodes:
+        raise ShopifyError('The Shopify product for this book no longer exists.')
+    return nodes[0]['inventoryItem']['id']
+
+
+CREATE_MUTATION = """
+mutation CreateBook($input: ProductSetInput!) {
+  productSet(synchronous: true, input: $input) {
+    product { id variants(first: 1) { nodes { inventoryItem { id } } } }
+    userErrors { field message }
+  }
+}
+"""
+
+
+def create_product(book, quantity):
+    """A new product for the book, with `quantity` available at our location -> (product GID, inventory item GID).
+
+    It is created with SHOPIFY_PRODUCT_STATUS (DRAFT by default): BookHero has no prices, so an admin sets the
+    price in Shopify and publishes it there.
+    """
+    product = {
+        'title': book.title,
+        'vendor': book.publisher or book.author,
+        'productType': 'Book',
+        'status': settings.SHOPIFY_PRODUCT_STATUS,
+        'tags': ['BookHero'],
+        'descriptionHtml': f'<p>By {book.author}</p>' if book.author else '',
+        'productOptions': [DEFAULT_OPTION],
+        'variants': [{
+            'optionValues': DEFAULT_VALUE,
+            'inventoryItem': {'sku': book.isbn, 'tracked': True},
+            'inventoryQuantities': [{'locationId': location_gid(), 'name': 'available', 'quantity': quantity}],
+        }],
+    }
+    if book.cover_url.startswith('https://'):
+        product['files'] = [{'originalSource': book.cover_url, 'alt': book.title[:255], 'contentType': 'IMAGE'}]
+    result = graphql(CREATE_MUTATION, {'input': product})['productSet']
+    raise_user_errors(result)
+    created = result['product']
+    return created['id'], created['variants']['nodes'][0]['inventoryItem']['id']
+
+
+SET_STOCK_MUTATION = """
+mutation SetStock($input: InventorySetQuantitiesInput!, $key: String!) {
+  inventorySetQuantities(input: $input) @idempotent(key: $key) {
+    userErrors { code field message }
+  }
+}
+"""
+
+
+def set_available(inventory_item_gid, quantity):
+    """Set the 'available' count at our location (overwrites whatever Shopify had: our shelf count is the truth)."""
+    result = graphql(SET_STOCK_MUTATION, {
+        'key': str(uuid.uuid4()),
+        'input': {
+            'name': 'available',
+            'reason': 'correction',
+            'quantities': [{'inventoryItemId': inventory_item_gid, 'locationId': location_gid(), 'quantity': quantity, 'changeFromQuantity': None}],
+        },
+    })['inventorySetQuantities']
+    raise_user_errors(result)
+
+
+STOCK_QUERY = """
+query Stock($ids: [ID!]!, $location: ID!) {
+  nodes(ids: $ids) {
+    ... on Product {
+      id
+      variants(first: 1) { nodes { inventoryItem { inventoryLevel(locationId: $location) { quantities(names: ["available"]) { quantity } } } } }
+    }
+  }
+}
+"""
+
+
+def available_stock(product_ids):
+    """{product_id: available units at our location} for the given numeric IDs.
+
+    Products that are gone from Shopify, or not stocked at our location, are left out.
+    """
+    found = {}
+    ids = list(dict.fromkeys(str(p) for p in product_ids))
+    for start in range(0, len(ids), STOCK_BATCH):
+        batch = ids[start:start + STOCK_BATCH]
+        nodes = graphql(STOCK_QUERY, {'ids': [product_gid(p) for p in batch], 'location': location_gid()})['nodes']
+        for node in nodes:
+            variants = (node or {}).get('variants', {}).get('nodes') or []
+            level = variants[0]['inventoryItem']['inventoryLevel'] if variants else None
+            if level and level['quantities']:
+                found[numeric_id(node['id'])] = max(int(level['quantities'][0]['quantity']), 0)
+    return found
