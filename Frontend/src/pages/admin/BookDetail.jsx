@@ -34,7 +34,7 @@ export default function BookDetail() {
         <ArrowLeft size={16} aria-hidden /> Back
       </button>
       <div className="bookd__hero">
-        <BookCover title={it.title} author={it.author} isbn={it.isbn} size="xl" />
+        <BookCover title={it.title} author={it.author} isbn={it.isbn} photo={it.coverPhotoUrl} size="xl" />
         <div className="bookd__ident">
           <div className="bookd__chips">
             <StatusChip status={it.status} ready={it.ready} syncStatus={it.syncStatus} />

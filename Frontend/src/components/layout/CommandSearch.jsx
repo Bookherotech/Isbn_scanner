@@ -104,7 +104,7 @@ function CommandSearchDialog({ onClose }) {
               {results.map((r, i) => (
                 <li key={r.id} role="option" aria-selected={i === active}>
                   <button className={cn('cmd__item', i === active && 'is-active')} onPointerEnter={() => setActive(i)} onClick={() => go(r)}>
-                    <BookCover title={r.title} author={r.author} isbn={r.isbn} size="xs" />
+                    <BookCover title={r.title} author={r.author} isbn={r.isbn} photo={r.coverPhotoUrl} size="xs" />
                     <span className="cmd__text">
                       <strong>{r.title}</strong>
                       <span>
