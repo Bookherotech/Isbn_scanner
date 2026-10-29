@@ -35,7 +35,7 @@ export default function Approved() {
     { key: 'by', header: 'Submitted by', card: 'meta', render: (r) => <Person id={r.submittedBy} name={r.submittedByName} /> },
     { key: 'approved', header: 'Approved', card: 'meta', render: (r) => <span className="td-muted" title={formatDateTime(r.approvedAt)}>{timeAgo(r.approvedAt)}</span> },
     { key: 'product', header: 'Shopify product', card: 'meta', render: (r) => <span className="td-mono">{r.productId ? `#${r.productId}` : '—'}</span> },
-    { key: 'status', header: 'Now', card: 'badge', render: (r) => <StatusChip status={r.status} size="sm" /> },
+    { key: 'status', header: 'Now', card: 'badge', render: (r) => <StatusChip status={r.status} syncStatus={r.syncStatus} size="sm" /> },
   ]
 
   return (
