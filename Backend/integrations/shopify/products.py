@@ -9,7 +9,7 @@ import uuid
 from django.conf import settings
 
 from integrations.shopify.client import graphql, location_gid, raise_user_errors
-from integrations.shopify.exceptions import ShopifyError
+from integrations.shopify.exceptions import ProductGone, ShopifyError
 
 STOCK_BATCH = 50  # products per stock query (keeps the query cost well under Shopify's limit)
 DEFAULT_OPTION = {'name': 'Title', 'values': [{'name': 'Default Title'}]}  # how Shopify names a product with no options
@@ -71,7 +71,7 @@ def inventory_item_of(product_id):
     product = graphql(ITEM_QUERY, {'id': product_gid(product_id)})['product']
     nodes = (product or {}).get('variants', {}).get('nodes') or []
     if not nodes:
-        raise ShopifyError('The Shopify product for this book no longer exists.')
+        raise ProductGone('The Shopify product for this book no longer exists.')
     return nodes[0]['inventoryItem']['id']
 
 

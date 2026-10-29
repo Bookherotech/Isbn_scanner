@@ -70,7 +70,7 @@ function OosDetail({ d }) {
       <header className="oos__head">
         <BookCover title={d.title} author={d.author} isbn={d.isbn} size="md" />
         <div>
-          <StatusChip status="out_of_stock" />
+          <StatusChip status="out_of_stock" syncStatus={d.syncStatus} />
           <h2 className="serif">{d.title}</h2>
           <p className="muted">{d.author}</p>
         </div>

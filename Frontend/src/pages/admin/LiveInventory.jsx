@@ -58,7 +58,7 @@ export default function LiveInventory() {
       render: (r) => <SyncChip status={r.syncStatus} />,
     },
     { key: 'last', header: 'Last sync', card: 'meta', render: (r) => <span className="td-muted" title={formatDateTime(r.lastSync)}>{timeAgo(r.lastSync)}</span> },
-    { key: 'status', header: 'Status', card: 'badge', render: (r) => <StatusChip status={r.status} size="sm" /> },
+    { key: 'status', header: 'Status', card: 'badge', render: (r) => <StatusChip status={r.status} syncStatus={r.syncStatus} size="sm" /> },
   ]
 
   return (

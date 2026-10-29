@@ -4,7 +4,9 @@
    counted quantity. A book whose ISBN is already a SKU in the store is linked to that product, not duplicated.
    A waiting-list entry approved onto an existing product pushes its new quantity.
 2. Stock check: Shopify's 'available' count is read back. 0 -> out of stock (waiting-list entries become ready,
-   everyone is notified); back above 0 (restocked in Shopify) -> live again.
+   everyone is notified); back above 0 (restocked in Shopify) -> live again. A product deleted in Shopify ->
+   out of stock with sync status 'deleted' (shown as "Deleted on Shopify"); it is not checked again, and a
+   waiting-list entry approved after it gets a new product.
 3. Reminders: books still out of stock after AppSettings.reminder_after_hours get one more notification.
 
 Shopify is never called inside a database transaction, so a slow API never holds row locks.
@@ -22,14 +24,14 @@ from book_admin.services.activity_service import log_activity, notify, quoted
 from inventory.constants import BookStatus
 from inventory.models import Book
 from integrations.shopify.client import is_configured
-from integrations.shopify.exceptions import ShopifyError, ShopifyNotConfigured
+from integrations.shopify.exceptions import ProductGone, ShopifyError, ShopifyNotConfigured
 from integrations.shopify.products import available_stock, create_product, find_by_isbn, inventory_item_of, numeric_id, set_available, shop_info
 
 logger = logging.getLogger(__name__)
 
 PUBLISH_BATCH = 25  # books put on Shopify per run; the rest follow on the next runs
 STOCK_STATUSES = (BookStatus.LIVE, BookStatus.OUT_OF_STOCK)
-SYNCED, SYNCING, FAILED = 'synced', 'syncing', 'failed'
+SYNCED, SYNCING, FAILED, DELETED = 'synced', 'syncing', 'failed', 'deleted'
 K, R, A = ActivityLog.Kind, ActivityLog.Result, ActivityLog.ActorType
 
 # Live books whose stock Shopify does not have yet: never published, failed, or approved after the last push
@@ -71,7 +73,7 @@ def publish_book(book_id):
     quantity = book.stock if book.stock is not None else book.quantity
     Book.objects.filter(pk=book.pk).update(sync_status=SYNCING)
     try:
-        if book.product_id:
+        if book.product_id and book.sync_status != DELETED:  # a deleted product cannot be reused: make or find a new one
             set_available(inventory_item_of(book.product_id), quantity)
             product_id, action, detail = book.product_id, 'Stock pushed', f'Shelf {book.shelf.code} · {quantity} available'
         else:
@@ -86,6 +88,13 @@ def publish_book(book_id):
             product_id, detail = numeric_id(gid), f'Product {numeric_id(gid)} · {quantity} available'
     except ShopifyNotConfigured:
         raise
+    except ProductGone as error:
+        if book.last_sync_at and book.approved_at and book.last_sync_at >= book.approved_at:  # it was on Shopify and got deleted there
+            _mark_deleted(book.pk, timezone.now(), force=True)
+        else:  # a waiting-list entry approved onto a product deleted meanwhile: give it a new one
+            Book.objects.filter(pk=book.pk).update(sync_status=DELETED)
+            return publish_book(book.pk)
+        return None
     except ShopifyError as error:
         _sync_failed(book, error)
         return None
@@ -137,16 +146,41 @@ def _apply_stock(book_id, available, now):
     return change
 
 
+def _mark_deleted(book_id, now, force=False):
+    """The book's product is gone from Shopify: out of stock, sync status 'deleted'. -> True if the book was changed.
+
+    `force` skips the "changed by an admin since we read it" check (publish_book already knows the product is gone).
+    """
+    with transaction.atomic():
+        book = Book.objects.select_for_update().select_related('shelf').filter(pk=book_id, status__in=STOCK_STATUSES).first()
+        if book is None or book.sync_status == DELETED or (not force and Book.objects.filter(NEEDS_PUSH, pk=book_id).exists()):
+            return False
+        was_live = book.status == BookStatus.LIVE
+        book.status, book.stock, book.stock_out_at = BookStatus.OUT_OF_STOCK, 0, book.stock_out_at or now
+        book.sync_status, book.sync_error, book.last_sync_at = DELETED, 'The product was deleted on Shopify.', now
+        book.save(update_fields=['status', 'stock', 'stock_out_at', 'sync_status', 'sync_error', 'last_sync_at', 'updated_at'])
+        waiting = Book.objects.filter(status=BookStatus.WAITING, linked_item=book)
+        ready = list(waiting.select_related('shelf').order_by('submitted_at'))
+        if was_live:
+            waiting.update(waiting_ready_at=now)
+        log_activity(action='Deleted on Shopify', kind=K.SHOPIFY, target=quoted(book), detail=f'Product {book.product_id} · shelf {book.shelf.code}', actor_type=A.SHOPIFY, result=R.WARNING, book=book)
+        notify(type=Notification.Type.SYNC_FAILED, title='Deleted on Shopify', audience=Notification.Audience.ADMIN, book=book,
+               body=f'{quoted(book)} was deleted on Shopify, so it is now out of stock.' + (' A waiting-list entry is ready for approval.' if ready else ''))
+        if was_live and ready:
+            notify(type=Notification.Type.WAITING_READY, title='Waiting list ready', audience=Notification.Audience.ADMIN, book=ready[0],
+                   body=f'{book.title} is out of stock — the entry on {ready[0].shelf.code} is ready for approval.')
+    return True
+
+
 def check_stock():
-    """Read Shopify's stock for every live / out-of-stock book. -> {'checked', 'sold_out', 'restocked', 'missing'}."""
-    books = list(Book.objects.filter(status__in=STOCK_STATUSES).exclude(NEEDS_PUSH).select_related('shelf'))
+    """Read Shopify's stock for every live / out-of-stock book. -> {'checked', 'sold_out', 'restocked', 'deleted'}."""
+    books = list(Book.objects.filter(status__in=STOCK_STATUSES).exclude(NEEDS_PUSH).exclude(sync_status=DELETED).select_related('shelf'))
     stock = available_stock(b.product_id for b in books)
     now = timezone.now()
-    counts = {'checked': len(books), 'sold_out': 0, 'restocked': 0, 'missing': 0}
+    counts = {'checked': len(books), 'sold_out': 0, 'restocked': 0, 'deleted': 0}
     for book in books:
         if book.product_id not in stock:
-            counts['missing'] += 1
-            _sync_failed(book, 'The product is gone from Shopify, or not stocked at our location.')
+            counts['deleted'] += _mark_deleted(book.pk, now)
             continue
         change = _apply_stock(book.pk, stock[book.product_id], now)
         if change:
@@ -162,8 +196,9 @@ def send_reminders():
         if Notification.objects.filter(type=Notification.Type.STOCK_OUT_REMINDER, book=book, created_at__gte=book.stock_out_at).exists():
             continue
         waiting = Book.objects.filter(status=BookStatus.WAITING, linked_item=book).exists()
+        missing = ' Its Shopify product was deleted.' if book.sync_status == DELETED else ''
         notify(type=Notification.Type.STOCK_OUT_REMINDER, title='Still out of stock', audience=Notification.Audience.ADMIN, book=book,
-               body=f'{book.title} ({book.shelf.code}) is still out of stock.' + (' Approve the waiting-list entry.' if waiting else ' Restock it in Shopify.'))
+               body=f'{book.title} ({book.shelf.code}) is still out of stock.{missing}' + (' Approve the waiting-list entry.' if waiting else ' Restock it in Shopify.' if not missing else ''))
         sent += 1
     return sent
 

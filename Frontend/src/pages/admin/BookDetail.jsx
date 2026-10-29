@@ -37,7 +37,7 @@ export default function BookDetail() {
         <BookCover title={it.title} author={it.author} isbn={it.isbn} size="xl" />
         <div className="bookd__ident">
           <div className="bookd__chips">
-            <StatusChip status={it.status} ready={it.ready} />
+            <StatusChip status={it.status} ready={it.ready} syncStatus={it.syncStatus} />
             <SourceBadge source={it.source} />
           </div>
           <h1 className="review__title">{it.title}</h1>
