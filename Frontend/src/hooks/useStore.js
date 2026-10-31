@@ -17,6 +17,7 @@ export function useSelector(select) {
  * - First load shows `loading` (skeletons); background refreshes keep old data.
  * - Refetches automatically after a bump() in services/store.js, unless `{ mock: false }` is passed
  *   (pages whose data such a change does not touch, e.g. the staff screens).
+ * - `refresh` refetches silently: no dimming, and if it fails the rows on screen stay (see useAutoRefresh).
  */
 export function useQuery(fetcher, deps = [], { mock = true } = {}) {
   const storeVersion = useStoreVersion()
@@ -24,6 +25,7 @@ export function useQuery(fetcher, deps = [], { mock = true } = {}) {
   const [state, setState] = useState({ data: null, loading: true, error: null, refreshing: false })
   const [nonce, setNonce] = useState(0)
   const fetcherRef = useRef(fetcher)
+  const silentRef = useRef(false)
 
   useEffect(() => {
     fetcherRef.current = fetcher
@@ -31,12 +33,14 @@ export function useQuery(fetcher, deps = [], { mock = true } = {}) {
 
   useEffect(() => {
     let alive = true
+    const silent = silentRef.current
+    silentRef.current = false
     // eslint-disable-next-line react-hooks/set-state-in-effect -- mark loading/refreshing for the new request
-    setState((s) => (s.data == null || s.error ? { data: null, loading: true, error: null, refreshing: false } : { ...s, refreshing: true }))
+    if (!silent) setState((s) => (s.data == null || s.error ? { data: null, loading: true, error: null, refreshing: false } : { ...s, refreshing: true }))
     fetcherRef
       .current()
       .then((data) => alive && setState({ data, loading: false, error: null, refreshing: false }))
-      .catch((error) => alive && setState({ data: null, loading: false, error, refreshing: false }))
+      .catch((error) => alive && setState((s) => (silent && s.data != null ? s : { data: null, loading: false, error, refreshing: false })))
     return () => {
       alive = false
     }
@@ -44,8 +48,22 @@ export function useQuery(fetcher, deps = [], { mock = true } = {}) {
   }, [...deps, version, nonce])
 
   const reload = useCallback(() => setNonce((n) => n + 1), [])
+  const refresh = useCallback(() => {
+    silentRef.current = true
+    setNonce((n) => n + 1)
+  }, [])
 
-  return { ...state, reload }
+  return { ...state, reload, refresh }
+}
+
+/** Calls useQuery's `refresh` on a timer, so an open page picks up changes from the Shopify sync. Paused while the tab is hidden. */
+export function useAutoRefresh(refresh, ms = 20_000) {
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (!document.hidden) refresh()
+    }, ms)
+    return () => clearInterval(id)
+  }, [refresh, ms])
 }
 
 export function useDebounce(value, delay = 220) {

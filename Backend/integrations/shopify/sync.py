@@ -32,6 +32,8 @@ logger = logging.getLogger(__name__)
 PUBLISH_BATCH = 25  # books put on Shopify per run; the rest follow on the next runs
 STOCK_STATUSES = (BookStatus.LIVE, BookStatus.OUT_OF_STOCK)
 SYNCED, SYNCING, FAILED, DELETED = 'synced', 'syncing', 'failed', 'deleted'
+CLAIM_SECONDS = 120  # a book left 'syncing' longer than this was abandoned (a crash), so it may be pushed again
+RUN_MARGIN = timedelta(seconds=15)  # cron starts on the minute but a run reads the clock seconds later: without this, a run can land just inside the interval and be skipped
 K, R, A = ActivityLog.Kind, ActivityLog.Result, ActivityLog.ActorType
 
 # Live books whose stock Shopify does not have yet: never published, failed, or approved after the last push
@@ -65,13 +67,24 @@ def _sync_failed(book, error):
                body=f'{quoted(book)} could not be updated on Shopify: {error}')
 
 
+def _claim(book):
+    """Mark the book 'syncing' unless someone else is pushing it or changed it since we read it. -> True if it is ours.
+
+    Approving a book and the scheduled sync can reach the same book together; without this both would create a product.
+    """
+    now = timezone.now()
+    if book.sync_status == SYNCING and book.updated_at > now - timedelta(seconds=CLAIM_SECONDS):
+        return False
+    same = Book.objects.filter(pk=book.pk, sync_status=book.sync_status, product_id=book.product_id, last_sync_at=book.last_sync_at)
+    return same.update(sync_status=SYNCING, updated_at=now) == 1
+
+
 def publish_book(book_id):
     """Put one live book's stock on Shopify (create or link its product first). -> the book, or None if skipped / failed."""
     book = Book.objects.select_related('shelf').filter(pk=book_id, status=BookStatus.LIVE).first()
-    if book is None:
+    if book is None or not _claim(book):
         return None
     quantity = book.stock if book.stock is not None else book.quantity
-    Book.objects.filter(pk=book.pk).update(sync_status=SYNCING)
     try:
         if book.product_id and book.sync_status != DELETED:  # a deleted product cannot be reused: make or find a new one
             set_available(inventory_item_of(book.product_id), quantity)
@@ -210,7 +223,7 @@ def run_sync(force=False):
         return {'skipped': 'Shopify is not set up in .env'}
     app = AppSettings.load()
     now = timezone.now()
-    if not force and app.last_stock_check_at and now - app.last_stock_check_at < timedelta(minutes=app.stock_poll_minutes):
+    if not force and app.last_stock_check_at and now - app.last_stock_check_at < timedelta(minutes=app.stock_poll_minutes) - RUN_MARGIN:
         return {'skipped': 'checked less than stock_poll_minutes ago'}
     was_connected = app.shopify_connected
     try:

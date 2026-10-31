@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Download } from 'lucide-react'
 import { getAuthors, listItems } from '../../services/adminApi'
 import { useShopify } from '../../hooks/useShopify'
-import { useDebounce, useQuery, useTicker } from '../../hooks/useStore'
+import { useAutoRefresh, useDebounce, useQuery, useTicker } from '../../hooks/useStore'
 import { DataTable, Pagination } from '../../components/ui/Data'
 import { PageHeader } from '../../components/ui/Misc'
 import { SearchInput, Select } from '../../components/ui/Form'
@@ -26,11 +26,12 @@ export default function LiveInventory() {
   const dq = useDebounce(q)
   const shop = useShopify()
   const statuses = status.split(',')
-  const { data, loading, error, reload, refreshing } = useQuery(
+  const { data, loading, error, reload, refresh, refreshing } = useQuery(
     () => listItems({ statuses, q: dq, shelf, author, sort, page, pageSize }),
     [dq, status, shelf, author, sort, page, pageSize],
   )
   const { data: authors } = useQuery(() => getAuthors(['live', 'out_of_stock']), [])
+  useAutoRefresh(refresh)
   useTicker()
   const r1 = (fn) => (v) => {
     fn(v?.target ? v.target.value : v)

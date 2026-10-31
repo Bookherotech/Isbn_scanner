@@ -4,6 +4,7 @@ Each one runs in a single transaction that locks the rows it changes, so two adm
 staff submission) can never both act on the same book. The duplicate check is the shared one in inventory.services.
 """
 
+import logging
 from contextlib import ExitStack, contextmanager
 
 from django.db import transaction
@@ -16,6 +17,8 @@ from book_admin.services.flag_service import load_categories, match_flags, needs
 from inventory.constants import BookStatus
 from inventory.models import Book
 from inventory.services import DuplicateCheckBusy, duplicate_key, duplicate_key_lock, find_duplicates, match_summary
+
+logger = logging.getLogger(__name__)
 
 TEXT_FIELDS = ('title', 'author', 'publisher', 'year', 'pages', 'quantity')
 IDENTITY_FIELDS = ('title', 'author', 'shelf_id')
@@ -151,6 +154,19 @@ def review_flag(book_id, admin, note=''):
     return book
 
 
+def _push_to_shopify(book_id):
+    """Put a just-approved book on Shopify straight away. Runs once the approval is saved, so a Shopify problem
+    never undoes it: the book shows the failure, and the scheduled sync tries again."""
+    from integrations.shopify import is_configured, publish_book  # here, not at the top: integrations.shopify imports book_admin.services
+
+    if not is_configured():
+        return
+    try:
+        publish_book(book_id)
+    except Exception:
+        logger.exception('Could not push book %s to Shopify on approval', book_id)
+
+
 def approve_book(book_id, admin):
     """Pending -> live: stock starts at the counted quantity."""
     with transaction.atomic():
@@ -166,6 +182,7 @@ def approve_book(book_id, admin):
         log_activity(action='Approved', kind=ActivityLog.Kind.APPROVAL, target=quoted(book), detail=f'Shelf {book.shelf.code} · qty {book.quantity}', actor=admin, book=book)
         if book.submitted_by_id:
             notify(type=Notification.Type.APPROVED, title='Approved', body=f'{quoted(book)} is now live (shelf {book.shelf.code}).', recipient=book.submitted_by, book=book)
+        transaction.on_commit(lambda: _push_to_shopify(book.pk))
     return book
 
 
@@ -231,4 +248,5 @@ def approve_waiting_entry(entry_id, admin):
                body=f'{entry.title} is live again on {entry.shelf.code} — {entry.quantity} units added.')
         if entry.submitted_by_id:
             notify(type=Notification.Type.APPROVED, title='Approved', body=f'{quoted(entry)} is now live (shelf {entry.shelf.code}).', recipient=entry.submitted_by, book=entry)
+        transaction.on_commit(lambda: _push_to_shopify(entry.pk))
     return entry, primary
