@@ -60,6 +60,7 @@ class Book(models.Model):
     sync_status = models.CharField(max_length=10, blank=True)  # '', 'synced', 'syncing', 'failed'
     last_sync_at = models.DateTimeField(null=True, blank=True)
     sync_error = models.TextField(blank=True)
+    shopify_image = models.CharField(max_length=120, blank=True)  # the cover file (name) last handled for the Shopify product, so it is sent only once
     stock_out_at = models.DateTimeField(null=True, blank=True)
     closed_at = models.DateTimeField(null=True, blank=True)
     closed_reason = models.CharField(max_length=255, blank=True)

@@ -103,6 +103,18 @@ def graphql(query, variables=None):
     return data.get('data') or {}
 
 
+def put_file(url, raw, headers):
+    """PUT file bytes to a staged upload URL. Raises ShopifyError on failure."""
+    request = Request(url, data=raw, headers={'Content-Type': 'image/jpeg', **headers}, method='PUT')
+    try:
+        with urlopen(request, timeout=settings.SHOPIFY_TIMEOUT_SECONDS):  # noqa: S310 - the https URL Shopify returned
+            return
+    except HTTPError as error:
+        raise ShopifyError(f'Shopify refused the image upload (HTTP {error.code}).') from error
+    except (URLError, TimeoutError, OSError) as error:
+        raise ShopifyError(f'Could not upload the image to Shopify: {error}') from error
+
+
 def raise_user_errors(result):
     """A mutation's userErrors -> ShopifyError (no-op when there are none)."""
     errors = (result or {}).get('userErrors') or []
