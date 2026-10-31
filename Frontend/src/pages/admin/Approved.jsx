@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { listItems } from '../../services/adminApi'
-import { useDebounce, useQuery, useTicker } from '../../hooks/useStore'
+import { useAutoRefresh, useDebounce, useQuery, useTicker } from '../../hooks/useStore'
 import { DataTable, Pagination } from '../../components/ui/Data'
 import { PageHeader } from '../../components/ui/Misc'
 import { SearchInput } from '../../components/ui/Form'
@@ -18,10 +18,11 @@ export default function Approved() {
   const [staff, setStaff] = useState('')
   const [page, setPage] = useState(1)
   const dq = useDebounce(q)
-  const { data, loading, error, reload, refreshing } = useQuery(
+  const { data, loading, error, reload, refresh, refreshing } = useQuery(
     () => listItems({ statuses: ['live', 'out_of_stock', 'closed'], approvedOnly: true, q: dq, shelf, staff, sort: 'approved', page, pageSize: 20 }),
     [dq, shelf, staff, page],
   )
+  useAutoRefresh(refresh)
   useTicker()
   const r1 = (fn) => (v) => {
     fn(v)
