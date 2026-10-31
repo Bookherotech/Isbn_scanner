@@ -7,6 +7,7 @@ from django.utils import timezone
 
 from inventory.constants import BookSource, BookStatus
 from inventory.models import Book
+from inventory.services.cover_cache import cache_cover_soon
 from inventory.services.duplicate_check import find_duplicates, match_summary
 from inventory.services.locks import duplicate_key_lock
 from inventory.services.normalize import duplicate_key
@@ -84,6 +85,9 @@ def create_submission(*, user, shelf, isbn, title, author, publisher='', year=No
             book.status = BookStatus.PENDING
             book.save()
             outcome = SubmissionResult(PENDING, book)
+
+        if not book.cover_photo:
+            transaction.on_commit(lambda: cache_cover_soon(book.pk))
 
         # Hook: activity-log entries ("Submitted", "Auto-rejected", "Waiting list created") and admin
         # notifications go here once the team agrees on the activity_logs / notifications owner.
