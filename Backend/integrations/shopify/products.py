@@ -8,10 +8,11 @@ import uuid
 
 from django.conf import settings
 
-from integrations.shopify.client import graphql, location_gid, raise_user_errors
+from integrations.shopify.client import graphql, location_gid, put_file, raise_user_errors
 from integrations.shopify.exceptions import ProductGone, ShopifyError
 
 STOCK_BATCH = 50  # products per stock query (keeps the query cost well under Shopify's limit)
+BOOKHERO_TAG = 'BookHero'  # marks products we created: images are only ever added to these, never to the store's own products
 DEFAULT_OPTION = {'name': 'Title', 'values': [{'name': 'Default Title'}]}  # how Shopify names a product with no options
 DEFAULT_VALUE = [{'optionName': 'Title', 'name': 'Default Title'}]
 
@@ -96,7 +97,7 @@ def create_product(book, quantity):
         'vendor': book.publisher or book.author,
         'productType': 'Book',
         'status': settings.SHOPIFY_PRODUCT_STATUS,
-        'tags': ['BookHero'],
+        'tags': [BOOKHERO_TAG],
         'descriptionHtml': f'<p>By {book.author}</p>' if book.author else '',
         'productOptions': [DEFAULT_OPTION],
         'variants': [{
@@ -105,12 +106,62 @@ def create_product(book, quantity):
             'inventoryQuantities': [{'locationId': location_gid(), 'name': 'available', 'quantity': quantity}],
         }],
     }
-    if book.cover_url.startswith('https://'):
+    if book.cover_url.startswith('https://') and not (book.cover_photo or book.cached_cover):  # a file of ours is uploaded after this, see attach_image
         product['files'] = [{'originalSource': book.cover_url, 'alt': book.title[:255], 'contentType': 'IMAGE'}]
     result = graphql(CREATE_MUTATION, {'input': product})['productSet']
     raise_user_errors(result)
     created = result['product']
     return created['id'], created['variants']['nodes'][0]['inventoryItem']['id']
+
+
+MEDIA_QUERY = """
+query ProductMedia($id: ID!) {
+  product(id: $id) { tags media(first: 1) { nodes { id } } }
+}
+"""
+
+
+def product_media(product_id):
+    """{'ours': created by BookHero, 'has_media': has an image already}, or None when the product is gone."""
+    product = graphql(MEDIA_QUERY, {'id': product_gid(product_id)})['product']
+    if product is None:
+        return None
+    return {'ours': BOOKHERO_TAG in product['tags'], 'has_media': bool(product['media']['nodes'])}
+
+
+STAGED_MUTATION = """
+mutation StagedUpload($input: [StagedUploadInput!]!) {
+  stagedUploadsCreate(input: $input) {
+    stagedTargets { url resourceUrl parameters { name value } }
+    userErrors { field message }
+  }
+}
+"""
+
+ATTACH_MUTATION = """
+mutation AttachImage($product: ProductUpdateInput!, $media: [CreateMediaInput!]) {
+  productUpdate(product: $product, media: $media) {
+    product { id }
+    userErrors { field message }
+  }
+}
+"""
+
+
+def attach_image(product_id, raw, filename, alt=''):
+    """Upload JPEG bytes straight to Shopify and add them to the product. Needs no public URL on our side.
+
+    Shopify processes the image after this returns, so a bad image would show up in Shopify admin, not here.
+    """
+    staged = graphql(STAGED_MUTATION, {'input': [{'resource': 'PRODUCT_IMAGE', 'filename': filename, 'mimeType': 'image/jpeg', 'httpMethod': 'PUT'}]})['stagedUploadsCreate']
+    raise_user_errors(staged)
+    target = staged['stagedTargets'][0]
+    put_file(target['url'], raw, {p['name']: p['value'] for p in target['parameters']})
+    result = graphql(ATTACH_MUTATION, {
+        'product': {'id': product_gid(product_id)},
+        'media': [{'originalSource': target['resourceUrl'], 'alt': alt[:255], 'mediaContentType': 'IMAGE'}],
+    })['productUpdate']
+    raise_user_errors(result)
 
 
 SET_STOCK_MUTATION = """

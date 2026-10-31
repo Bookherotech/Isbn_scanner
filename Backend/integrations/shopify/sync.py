@@ -8,6 +8,8 @@
    out of stock with sync status 'deleted' (shown as "Deleted on Shopify"); it is not checked again, and a
    waiting-list entry approved after it gets a new product.
 3. Reminders: books still out of stock after AppSettings.reminder_after_hours get one more notification.
+4. Images: a staff photo or our copy of the cover is uploaded to products BookHero created. The store's own products
+   (linked by SKU) are left alone, and a saved cover copy is not added to a product that already has an image.
 
 Shopify is never called inside a database transaction, so a slow API never holds row locks.
 """
@@ -25,11 +27,14 @@ from inventory.constants import BookStatus
 from inventory.models import Book
 from integrations.shopify.client import is_configured
 from integrations.shopify.exceptions import ProductGone, ShopifyError, ShopifyNotConfigured
-from integrations.shopify.products import available_stock, create_product, find_by_isbn, inventory_item_of, numeric_id, set_available, shop_info
+from integrations.shopify.products import (
+    attach_image, available_stock, create_product, find_by_isbn, inventory_item_of, numeric_id, product_media, set_available, shop_info,
+)
 
 logger = logging.getLogger(__name__)
 
 PUBLISH_BATCH = 25  # books put on Shopify per run; the rest follow on the next runs
+IMAGE_BATCH = 10  # images uploaded per run
 STOCK_STATUSES = (BookStatus.LIVE, BookStatus.OUT_OF_STOCK)
 SYNCED, SYNCING, FAILED, DELETED = 'synced', 'syncing', 'failed', 'deleted'
 CLAIM_SECONDS = 120  # a book left 'syncing' longer than this was abandoned (a crash), so it may be pushed again
@@ -117,7 +122,44 @@ def publish_book(book_id):
         Book.objects.filter(pk=book.pk).update(product_id=product_id, sync_status=SYNCED, sync_error='', last_sync_at=now)
         log_activity(action=action, kind=K.SHOPIFY, target=quoted(book), detail=detail, actor_type=A.SHOPIFY, book=book)
     book.product_id, book.sync_status, book.sync_error, book.last_sync_at = product_id, SYNCED, '', now
+    push_image(book)
     return book
+
+
+def push_image(book):
+    """Send the book's photo or cover copy to its Shopify product, once per file. -> True if an image was uploaded.
+
+    A problem here never fails the book: stock and product stay synced, and the next run tries again.
+    """
+    image = book.cover_photo or book.cached_cover
+    if not image or not book.product_id or book.shopify_image == image.name:
+        return False
+    try:
+        media = product_media(book.product_id)
+        if media is None:
+            return False  # gone from Shopify: the stock check marks the book deleted
+        if not media['ours'] or (media['has_media'] and not book.cover_photo):
+            Book.objects.filter(pk=book.pk).update(shopify_image=image.name)  # nothing to send: do not ask again
+            return False
+        with image.open('rb') as file:
+            raw = file.read()
+        attach_image(book.product_id, raw, image.name.rsplit('/', 1)[-1], book.title)
+    except (ShopifyError, OSError) as error:
+        logger.warning('Could not send the image of book %s to Shopify: %s', book.pk, error)
+        if not ActivityLog.objects.filter(book=book, action='Image not sent').exists():
+            log_activity(action='Image not sent', kind=K.SHOPIFY, target=quoted(book), detail=str(error), actor_type=A.SHOPIFY, result=R.WARNING, book=book)
+        return False
+    Book.objects.filter(pk=book.pk).update(shopify_image=image.name)
+    log_activity(action='Image sent', kind=K.SHOPIFY, target=quoted(book), detail=f'Product {book.product_id}', actor_type=A.SHOPIFY, book=book)
+    return True
+
+
+def push_images(limit=IMAGE_BATCH):
+    """push_image for books whose photo or cover copy has not been handled yet, newest first. -> how many were uploaded."""
+    photo_waiting = ~Q(cover_photo='') & ~Q(shopify_image=F('cover_photo'))
+    copy_waiting = Q(cover_photo='') & ~Q(cached_cover='') & ~Q(shopify_image=F('cached_cover'))
+    books = Book.objects.filter(photo_waiting | copy_waiting, status__in=STOCK_STATUSES).exclude(product_id='').exclude(NEEDS_PUSH).exclude(sync_status=DELETED)
+    return sum(1 for book in books.order_by('-id')[:limit] if push_image(book))
 
 
 def publish_pending(limit=PUBLISH_BATCH):
@@ -237,7 +279,8 @@ def run_sync(force=False):
         AppSettings.objects.filter(pk=1).update(shopify_connected=False)
         return {'error': str(error)}
     reminders = send_reminders()
+    images = push_images()
     AppSettings.objects.filter(pk=1).update(last_stock_check_at=now)
     if not was_connected:
         log_activity(action='Connected', kind=K.SHOPIFY, target='Shopify', detail=f'Store {AppSettings.load().store_domain}', actor_type=A.SHOPIFY)
-    return {'published': published, **stock, 'reminders': reminders}
+    return {'published': published, **stock, 'reminders': reminders, 'images': images}
