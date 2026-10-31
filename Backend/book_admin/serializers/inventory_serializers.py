@@ -45,10 +45,12 @@ class BookSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
     def get_cover_photo_url(self, book):
-        if not book.cover_photo:
+        """The staff photo, else our copy of the provider cover."""
+        cover = book.cover_photo or book.cached_cover
+        if not cover:
             return ''
         request = self.context.get('request')
-        return request.build_absolute_uri(book.cover_photo.url) if request else book.cover_photo.url
+        return request.build_absolute_uri(cover.url) if request else cover.url
 
     def get_ready(self, book):
         """A waiting-list entry is ready once the entry it waits behind has sold out."""

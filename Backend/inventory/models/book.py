@@ -23,6 +23,8 @@ class Book(models.Model):
     subjects = models.JSONField(default=list, blank=True)  # subject / category names from the metadata provider
     cover_url = models.URLField(max_length=500, blank=True)  # from the metadata provider
     cover_photo = models.ImageField(upload_to='covers/%Y/%m/', blank=True)  # photo taken by staff; shown instead of the provider cover
+    cached_cover = models.ImageField(upload_to='covers/cached/%Y/%m/', blank=True)  # our copy of the provider cover, see inventory.services.cover_cache
+    cover_retry_at = models.DateTimeField(null=True, blank=True)  # no copy yet: when to try the download again (null = as soon as possible)
     fetched = models.JSONField(null=True, blank=True)  # metadata as fetched {title, author, publisher, year, pages}; null for manual entry
     edited_fields = models.JSONField(default=list, blank=True)  # what staff changed from the fetched book: metadata fields, 'isbn', 'photo'
     missing_fields = models.JSONField(default=list, blank=True)  # fields the metadata provider did not have
@@ -82,6 +84,8 @@ class Book(models.Model):
             models.Index(fields=['status', 'submitted_at'], name='book_status_time_idx'),
             # Duplicate check: WHERE duplicate_key = ? AND status IN (...)
             models.Index(fields=['duplicate_key', 'status'], name='book_dupkey_status_idx'),
+            # Books still needing a cover copy: WHERE cached_cover = '' AND (cover_retry_at IS NULL OR cover_retry_at <= ?)
+            models.Index(fields=['cached_cover', 'cover_retry_at'], name='book_cover_copy_idx'),
             # Dashboard "approved" chart, reports, the Approved sort: WHERE approved_at >= ? / ORDER BY approved_at DESC
             models.Index(fields=['approved_at'], name='book_approved_idx'),
             # Reports and the Rejected sort: WHERE rejected_at >= ? / ORDER BY rejected_at DESC

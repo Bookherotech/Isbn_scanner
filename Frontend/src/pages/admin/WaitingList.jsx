@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowDown, Check, Hourglass, Store, X } from 'lucide-react'
 import { approveWaitingEntry, getWaitingList, rejectItem } from '../../services/adminApi'
 import { useNavCounts } from '../../hooks/useNavCounts'
-import { useQuery, useTicker } from '../../hooks/useStore'
+import { useAutoRefresh, useQuery, useTicker } from '../../hooks/useStore'
 import { OutOfStockBoard } from '../../components/inventory/OutOfStockBoard'
 import { useToast } from '../../hooks/useToast'
 import { DataTable } from '../../components/ui/Data'
@@ -21,7 +21,8 @@ export default function WaitingList() {
   const [params, setParams] = useSearchParams()
   const tab = params.get('tab') || 'ready'
   const oosCount = useNavCounts().oos
-  const { data, loading, error, reload, refreshing } = useQuery(() => getWaitingList(), [])
+  const { data, loading, error, reload, refresh, refreshing } = useQuery(() => getWaitingList(), [])
+  useAutoRefresh(refresh)
   useTicker()
   const reviewId = params.get('review')
   const [picked, setPicked] = useState({}) // book key -> the waiting entry (shelf) chosen in its drop-down
