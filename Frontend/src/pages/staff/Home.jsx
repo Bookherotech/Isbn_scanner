@@ -3,17 +3,14 @@ import { ChevronRight, Keyboard, ScanLine } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useQuery, useTicker } from '../../hooks/useStore'
 import { getStaffHome } from '../../services/staffApi'
-import { useActiveLastShelf } from '../../hooks/useDraft'
 import { Avatar, Barcode } from '../../components/ui/Misc'
 import { EmptyState, ErrorState, Skeleton } from '../../components/ui/Feedback'
-import { ShelfTag } from '../../components/ui/Status'
 import { SubmissionCard } from '../../components/staff/StaffBits'
 import { clockNow, firstName, greeting, longDate } from '../../utils/format'
 
 export default function StaffHome() {
   const { user } = useAuth()
   const { data, loading, error, reload } = useQuery(() => getStaffHome(), [user.id], { mock: false })
-  const lastShelf = useActiveLastShelf()
   useTicker(60_000)
 
   return (
@@ -65,11 +62,6 @@ export default function StaffHome() {
           <span>Enter ISBN manually</span>
           <ChevronRight size={17} aria-hidden className="s-quick__chev" />
         </Link>
-        {lastShelf && (
-          <div className="s-quick__shelf">
-            <span className="muted">Working on</span> <ShelfTag id={lastShelf} size="sm" />
-          </div>
-        )}
       </div>
 
       <section className="s-section">
