@@ -30,7 +30,7 @@ class SubmissionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Book
         fields = [
-            'id', 'isbn', 'title', 'author', 'publisher', 'year', 'pages', 'source', 'subjects', 'cover_url', 'cover_photo_url',
+            'id', 'isbn', 'title', 'author', 'publisher', 'year', 'pages', 'source', 'subjects', 'description', 'cover_url', 'cover_photo_url',
             'edited_fields', 'missing_fields', 'shelf_id', 'quantity', 'stock', 'status', 'ready', 'linked', 'match',
             'submitted_at', 'submitted_by_name', 'approved_at', 'approved_by_name',
             'rejected_at', 'rejected_by_name', 'auto_rejected', 'reject_reason', 'reject_note',

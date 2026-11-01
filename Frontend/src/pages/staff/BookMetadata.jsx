@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { ArrowRight, Camera, Check, CircleAlert, Keyboard, Pencil, PencilLine, RotateCcw, Search, SearchX, ServerCrash, Trash2 } from 'lucide-react'
-import { loadShelves, lookupIsbn, searchBooks } from '../../services/staffApi'
+import { getDescription, loadShelves, lookupIsbn, searchBooks } from '../../services/staffApi'
 import { addRecentIsbn, setRecentIsbnTitle } from '../../services/recentIsbns'
 import { shrinkPhoto } from '../../services/photo'
 import { checkIsbn } from '../../services/isbn'
@@ -13,12 +13,12 @@ import { BookCover } from '../../components/books/BookCover'
 import { SourceBadge } from '../../components/books/BookBits'
 import { Barcode } from '../../components/ui/Misc'
 import { Button } from '../../components/ui/Button'
-import { Field, Input } from '../../components/ui/Form'
+import { Field, Input, Textarea } from '../../components/ui/Form'
 import { Skeleton } from '../../components/ui/Feedback'
 import { cn } from '../../utils/format'
 
-const FIELDS = ['title', 'author', 'publisher', 'year', 'pages']
-const EMPTY = { title: '', author: '', publisher: '', year: '', pages: '' }
+const FIELDS = ['title', 'author', 'publisher', 'year', 'pages', 'description']
+const EMPTY = { title: '', author: '', publisher: '', year: '', pages: '', description: '' }
 const pickValues = (m) => Object.fromEntries(FIELDS.map((k) => [k, m?.[k] ?? '']))
 const isEmpty = (v) => String(v ?? '').trim() === ''
 const MIN_SEARCH = 3 // letters of the title before Google matches are looked up
@@ -38,6 +38,8 @@ export default function BookMetadata() {
   const [manual, setManual] = useState(preset?.manual ?? false)
   const [values, setValues] = useState(() => preset?.values || (preset?.meta ? pickValues(preset.meta) : EMPTY))
   const [showErrors, setShowErrors] = useState(false)
+  const [descriptionChecked, setDescriptionChecked] = useState(preset?.descriptionChecked ?? null) // the ISBN already asked about: a box staff cleared stays empty
+  const [loadingDescription, setLoadingDescription] = useState(false)
   // Found details open locked: staff press Edit to change them. Manual entry is always editable.
   const [editing, setEditing] = useState(false)
   const locked = !manual && !editing
@@ -73,6 +75,29 @@ export default function BookMetadata() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // The description takes extra provider calls, so it arrives after the other details and only ever fills an empty box.
+  useEffect(() => {
+    if (state.status !== 'ready' || manual || descriptionChecked === isbn || !values.title.trim()) return undefined
+    let alive = true
+    const fill = (text) => (v) => (isEmpty(v.description) && text ? { ...v, description: text } : v)
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- show "looking" while the request runs
+    setLoadingDescription(true)
+    getDescription({ isbn, title: values.title.trim(), author: values.author.trim() })
+      .catch(() => '') // optional: staff can type one, or leave it empty
+      .then((text) => {
+        // Staff may have pressed Continue meanwhile: the draft gets it too.
+        setDraft((d) => (d?.isbn === isbn && d.values ? { ...d, descriptionChecked: isbn, values: fill(text)(d.values) } : d))
+        if (!alive) return
+        setValues(fill(text))
+        setDescriptionChecked(isbn)
+        setLoadingDescription(false)
+      })
+    return () => {
+      alive = false
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per book, when its details are on screen
+  }, [state.status, manual, isbn, descriptionChecked])
+
   const goManual = () => {
     setManual(true)
     setMeta(null)
@@ -94,7 +119,7 @@ export default function BookMetadata() {
   const bookEdited = isDraftEdited({ manual, meta, values, photo, isbn, originalIsbn })
   const lockedClass = locked && 'input--readonly'
 
-  const draftFor = (targetIsbn, extra) => ({ isbn: targetIsbn, originalIsbn, meta, manual, values, photo, ...extra })
+  const draftFor = (targetIsbn, extra) => ({ isbn: targetIsbn, originalIsbn, meta, manual, values, photo, descriptionChecked, ...extra })
 
   const choosePhoto = async (e) => {
     const file = e.target.files?.[0]
@@ -163,7 +188,7 @@ export default function BookMetadata() {
   const pickSuggestion = (s) => {
     const next = { ...values }
     if (manual || isEmpty(next.title)) next.title = s.title // a typed (maybe partial) title becomes the full one
-    for (const k of ['author', 'publisher', 'year', 'pages']) {
+    for (const k of ['author', 'publisher', 'year', 'pages', 'description']) {
       if (isEmpty(next[k]) && !isEmpty(s[k])) next[k] = String(s[k]) // only empty fields: found values are never overwritten
     }
     setValues(next)
@@ -380,6 +405,18 @@ export default function BookMetadata() {
                   )}
                 </div>
                 {!locked && !isbnError && isbnInput !== isbn && <p className="field__hint">{isbnCheck.message}</p>}
+              </Field>
+              <Field label="Description" htmlFor="m-description" optional className="meta-form__wide" hint={loadingDescription ? 'Looking for a description…' : undefined}>
+                <Textarea
+                  id="m-description"
+                  rows={5}
+                  maxLength={5000}
+                  value={values.description ?? ''}
+                  onChange={set('description')}
+                  readOnly={locked}
+                  className={cn(lockedClass)}
+                  placeholder={loadingDescription ? '' : locked ? 'No description found. Tap Edit to add one.' : 'What is this book about?'}
+                />
               </Field>
               <button type="submit" hidden />
             </form>

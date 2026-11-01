@@ -21,6 +21,7 @@ class Book(models.Model):
     pages = models.PositiveIntegerField(null=True, blank=True)
     source = models.CharField(max_length=12, choices=BookSource.choices, default=BookSource.MANUAL)
     subjects = models.JSONField(default=list, blank=True)  # subject / category names from the metadata provider
+    description = models.TextField(blank=True)  # from the metadata provider, edited by staff and admins; sent to Shopify
     cover_url = models.URLField(max_length=500, blank=True)  # from the metadata provider
     cover_photo = models.ImageField(upload_to='covers/%Y/%m/', blank=True)  # photo taken by staff; shown instead of the provider cover
     cached_cover = models.ImageField(upload_to='covers/cached/%Y/%m/', blank=True)  # our copy of the provider cover, see inventory.services.cover_cache

@@ -35,7 +35,7 @@ class BookSerializer(serializers.ModelSerializer):
     class Meta:
         model = Book
         fields = [
-            'id', 'isbn', 'title', 'author', 'publisher', 'year', 'pages', 'source', 'subjects', 'cover_url', 'cover_photo_url',
+            'id', 'isbn', 'title', 'author', 'publisher', 'year', 'pages', 'source', 'subjects', 'description', 'cover_url', 'cover_photo_url',
             'fetched', 'edited_fields', 'missing_fields', 'shelf_id', 'previous_shelf_id', 'quantity', 'stock', 'status', 'ready', 'linked', 'match',
             'submitted_by', 'submitted_by_name', 'submitted_at', 'approved_by', 'approved_by_name', 'approved_at',
             'rejected_by', 'rejected_by_name', 'rejected_at', 'auto_rejected', 'reject_reason', 'reject_note',
@@ -170,6 +170,7 @@ class BookUpdateSerializer(serializers.Serializer):
     publisher = serializers.CharField(max_length=255, allow_blank=True)
     year = serializers.CharField(allow_blank=True, allow_null=True)
     pages = serializers.CharField(allow_blank=True, allow_null=True)
+    description = serializers.CharField(max_length=5000, allow_blank=True)
     shelf_id = serializers.CharField(max_length=10)
     quantity = serializers.IntegerField(
         min_value=1, max_value=MAX_QUANTITY,

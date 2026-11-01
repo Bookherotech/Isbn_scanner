@@ -418,6 +418,9 @@
 .meta-hero__code { width: 100%; max-width: 190px; padding: 6px 8px 2px; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; }
 .meta-hero__code .barcode { width: 100%; }
 .meta-form { display: grid; gap: 14px; }
+.meta-form__wide { grid-column: 1 / -1; }
+.book-desc { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--muted); white-space: pre-line; overflow-wrap: anywhere; }
+.review-card > .book-desc { padding: 12px 14px; border-top: 1px solid var(--line); }
 .meta-form__row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .edited-tag { margin-left: auto; font-size: 10.5px; font-weight: 700; color: var(--hero-ink); background: var(--hero-subtle); border: 1px solid var(--hero-line); padding: 1px 6px; border-radius: 4px; letter-spacing: 0.03em; }
 .input--readonly { background: var(--sunken); color: var(--muted); }

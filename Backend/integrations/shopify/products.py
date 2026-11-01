@@ -4,6 +4,7 @@ A book is a single-variant product whose SKU is the ISBN-13, stocked at SHOPIFY_
 IDs are kept as plain numbers in the database (Book.product_id) and turned into GIDs here.
 """
 
+import html
 import uuid
 
 from django.conf import settings
@@ -15,6 +16,13 @@ STOCK_BATCH = 50  # products per stock query (keeps the query cost well under Sh
 BOOKHERO_TAG = 'BookHero'  # marks products we created: images are only ever added to these, never to the store's own products
 DEFAULT_OPTION = {'name': 'Title', 'values': [{'name': 'Default Title'}]}  # how Shopify names a product with no options
 DEFAULT_VALUE = [{'optionName': 'Title', 'name': 'Default Title'}]
+
+
+def _description_html(book):
+    """'By <author>', then the description, as safe HTML: the text comes from outside sources and from staff."""
+    lines = [f'By {book.author}'] if book.author else []
+    lines += [line.strip() for line in book.description.splitlines() if line.strip()]
+    return ''.join(f'<p>{html.escape(line)}</p>' for line in lines)
 
 
 def product_gid(product_id):
@@ -98,7 +106,7 @@ def create_product(book, quantity):
         'productType': 'Book',
         'status': settings.SHOPIFY_PRODUCT_STATUS,
         'tags': [BOOKHERO_TAG],
-        'descriptionHtml': f'<p>By {book.author}</p>' if book.author else '',
+        'descriptionHtml': _description_html(book),
         'productOptions': [DEFAULT_OPTION],
         'variants': [{
             'optionValues': DEFAULT_VALUE,

@@ -18,6 +18,7 @@ def _details(info):
         'pages': positive_int(info.get('pageCount')),
         'subjects': clean_subjects(info.get('categories') or []),
         'cover_url': https((info.get('imageLinks') or {}).get('thumbnail')),
+        'description': str(info.get('description') or '').strip(),
     }
 
 
