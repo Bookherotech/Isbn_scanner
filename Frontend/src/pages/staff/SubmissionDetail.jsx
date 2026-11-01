@@ -87,6 +87,7 @@ export default function SubmissionDetail() {
                 </dd>
               </div>
             </dl>
+            {it.description && <p className="book-desc">{it.description}</p>}
             {it.flags?.length > 0 && (
               <div className="result__flag result__flag--left">
                 <span className="result__flag-head">{it.flagHold ? 'Flagged for admin review' : 'Content labels'}</span>

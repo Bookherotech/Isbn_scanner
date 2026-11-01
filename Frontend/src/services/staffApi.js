@@ -58,6 +58,7 @@ function mapItem(r) {
     source: r.source,
     subjects: r.subjects,
     coverUrl: r.cover_url,
+    description: r.description || '',
     coverPhotoUrl: r.cover_photo_url || null, // staff photo; BookCover shows it instead of the Open Library cover
     editedFields: r.edited_fields,
     edited: (r.edited_fields || []).length > 0, // details, ISBN or photo changed from what was fetched
@@ -101,11 +102,18 @@ export async function lookupIsbn(isbn13) {
     year: m.year ?? '',
     pages: m.pages ?? '',
     subjects: m.subjects,
+    description: m.description || '',
     coverUrl: m.cover_url,
     source: m.source,
     fallback: m.fallback,
     missing: m.missing,
   }
+}
+
+/** GET /api/staff/isbn/<isbn>/description/ -> the book's description text, '' when there is none. Can take several seconds. */
+export async function getDescription({ isbn, title = '', author = '' }) {
+  const query = new URLSearchParams({ title, author })
+  return (await call(`/api/staff/isbn/${encodeURIComponent(isbn)}/description/?${query}`)).description
 }
 
 /**
@@ -121,6 +129,7 @@ export async function searchBooks({ title, author = '' }) {
     publisher: r.publisher,
     year: r.year ?? '',
     pages: r.pages ?? '',
+    description: r.description || '',
     coverUrl: r.cover_url,
   }))
 }
@@ -141,7 +150,7 @@ export async function loadShelves() {
 
 /**
  * POST /api/staff/submissions/ -> { result: 'pending' | 'waiting' | 'rejected', match, ready, flags, flagHold, item, key }
- * `draft` is what the Review screen sends: { isbn, title, author, publisher, year, pages, source, subjects, fetched, photo, shelfId, quantity }.
+ * `draft` is what the Review screen sends: { isbn, title, author, publisher, year, pages, source, subjects, description, fetched, photo, shelfId, quantity }.
  * `fetched.isbn` is the ISBN first scanned/typed (a corrected ISBN counts as an edit); `photo` is a JPEG data URL.
  */
 export async function submitBook(draft) {
@@ -156,6 +165,7 @@ export async function submitBook(draft) {
       pages: draft.pages ?? '',
       source: draft.source || 'manual',
       subjects: draft.subjects || [],
+      description: draft.description?.trim() || '',
       fetched: draft.fetched || null,
       cover_photo: draft.photo || '',
       shelf_id: draft.shelfId,
