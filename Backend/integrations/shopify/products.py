@@ -19,9 +19,12 @@ DEFAULT_VALUE = [{'optionName': 'Title', 'name': 'Default Title'}]
 
 
 def _description_html(book):
-    """'By <author>', then the description, as safe HTML: the text comes from outside sources and from staff."""
+    """'By <author>', the description, then ISBN and pages, as safe HTML: the text comes from outside sources and from staff."""
     lines = [f'By {book.author}'] if book.author else []
     lines += [line.strip() for line in book.description.splitlines() if line.strip()]
+    lines.append(f'ISBN: {book.isbn}')
+    if book.pages:
+        lines.append(f'Pages: {book.pages}')
     return ''.join(f'<p>{html.escape(line)}</p>' for line in lines)
 
 
