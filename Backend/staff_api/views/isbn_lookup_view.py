@@ -11,7 +11,7 @@ from staff_api.permissions import IsStaffRole
 class IsbnLookupView(APIView):
     """GET /api/staff/isbn/<isbn>/ -> book details for a scanned or typed ISBN (ISBN-10 is converted).
 
-    200 {isbn, title, author, publisher, year, pages, subjects, cover_url, source, fallback, missing}
+    200 {isbn, title, author, publisher, year, pages, subjects, cover_url, source, fallback, missing, filled}
     400 {code: 'invalid_isbn'} · 404 {code: 'not_found'} · 503 {code: 'service_unavailable'} (retry may work)
     """
 

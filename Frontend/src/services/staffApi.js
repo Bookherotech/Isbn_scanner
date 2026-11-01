@@ -88,7 +88,7 @@ function mapItem(r) {
 }
 
 /**
- * GET /api/staff/isbn/<isbn>/ -> { isbn, title, author, publisher, year, pages, subjects, coverUrl, source, fallback, missing }
+ * GET /api/staff/isbn/<isbn>/ -> { isbn, title, author, publisher, year, pages, subjects, coverUrl, source, fallback, missing, filled }
  * Errors carry `code`: 'invalid_isbn' | 'not_found' | 'service_unavailable' | 'network'.
  * (The second argument is accepted for the existing Retry calls; every call is a real lookup.)
  */
@@ -107,6 +107,7 @@ export async function lookupIsbn(isbn13) {
     source: m.source,
     fallback: m.fallback,
     missing: m.missing,
+    filled: m.filled || [], // fields from a Google Books title match: staff should verify them
   }
 }
 

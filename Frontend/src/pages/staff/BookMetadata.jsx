@@ -114,7 +114,9 @@ export default function BookMetadata() {
   }
   const invalid = Object.values(errors).some(Boolean)
   const missing = meta?.missing || []
+  const filled = meta?.filled || [] // from a Google Books title match, which may be another edition
   const edited = (k) => meta && String(meta[k] ?? '') !== String(values[k] ?? '') && String(meta[k] ?? '') !== ''
+  const fieldTag = (k) => (edited(k) ? <EditedTag /> : filled.includes(k) ? <VerifyTag /> : null)
   // Shown next to the source badge (and on Review / Submissions): details, ISBN or photo changed.
   const bookEdited = isDraftEdited({ manual, meta, values, photo, isbn, originalIsbn })
   const lockedClass = locked && 'input--readonly'
@@ -317,6 +319,14 @@ export default function BookMetadata() {
               </div>
             </div>
 
+            {!manual && filled.length > 0 && (
+              <div className="callout callout--warn" role="note">
+                <CircleAlert size={17} aria-hidden />
+                <p>
+                  <strong>Please verify {filled.join(', ')}.</strong> These came from a Google Books title match and may be from a different edition. Check them against the book.
+                </p>
+              </div>
+            )}
             {(missing.length > 0 || manual) && (
               <div className="callout callout--warn">
                 <CircleAlert size={17} aria-hidden />
@@ -367,17 +377,17 @@ export default function BookMetadata() {
                   </div>
                 )}
               </Field>
-              <Field label="Author" htmlFor="m-author" error={showErrors && errors.author} badge={edited('author') && <EditedTag />}>
+              <Field label="Author" htmlFor="m-author" error={showErrors && errors.author} badge={fieldTag('author')}>
                 <Input id="m-author" size="lg" value={values.author} onChange={set('author')} readOnly={locked} className={cn(missing.includes('author') && !values.author && 'is-missing', lockedClass)} />
               </Field>
-              <Field label="Publisher" htmlFor="m-pub" optional badge={edited('publisher') && <EditedTag />}>
+              <Field label="Publisher" htmlFor="m-pub" optional badge={fieldTag('publisher')}>
                 <Input id="m-pub" value={values.publisher} onChange={set('publisher')} readOnly={locked} className={cn(missing.includes('publisher') && !values.publisher && 'is-missing', lockedClass)} placeholder={missing.includes('publisher') ? 'Not found — add if printed on the book' : ''} />
               </Field>
               <div className="meta-form__row">
-                <Field label="Year" htmlFor="m-year" optional error={showErrors && errors.year} badge={edited('year') && <EditedTag />}>
+                <Field label="Year" htmlFor="m-year" optional error={showErrors && errors.year} badge={fieldTag('year')}>
                   <Input id="m-year" inputMode="numeric" value={values.year} onChange={set('year')} readOnly={locked} className={cn(missing.includes('year') && !values.year && 'is-missing', lockedClass)} />
                 </Field>
-                <Field label="Pages" htmlFor="m-pages" optional error={showErrors && errors.pages} badge={edited('pages') && <EditedTag />}>
+                <Field label="Pages" htmlFor="m-pages" optional error={showErrors && errors.pages} badge={fieldTag('pages')}>
                   <Input id="m-pages" inputMode="numeric" value={values.pages} onChange={set('pages')} readOnly={locked} className={cn(missing.includes('pages') && !values.pages && 'is-missing', lockedClass)} />
                 </Field>
               </div>
@@ -441,4 +451,8 @@ export default function BookMetadata() {
 
 function EditedTag() {
   return <span className="edited-tag">Edited</span>
+}
+
+function VerifyTag() {
+  return <span className="edited-tag edited-tag--verify">Verify</span>
 }
