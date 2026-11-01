@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from django.db.models import Exists, OuterRef, Q
 from django.utils.dateparse import parse_datetime
 from rest_framework.exceptions import NotFound, ValidationError
@@ -7,6 +9,7 @@ from rest_framework.views import APIView
 
 from book_admin.models import Notification, NotificationRead
 from book_admin.serializers import NotificationSerializer
+from book_admin.utils import start_of_day, store_today
 
 N = Notification.Type
 GROUPS = {
@@ -16,11 +19,13 @@ GROUPS = {
     'flags': [N.FLAGGED],
 }
 LIMIT = 100
+DAYS_SHOWN = 2  # today and yesterday, in the store's timezone; older rows stay in the database
 
 
 def visible_to(user):
-    """Notifications this person may see: for everyone, for their role, or addressed to them."""
-    return Notification.objects.filter(Q(audience='all') | Q(audience=user.role) | Q(recipient=user))
+    """Recent notifications this person may see: for everyone, for their role, or addressed to them."""
+    since = start_of_day(store_today() - timedelta(days=DAYS_SHOWN - 1))
+    return Notification.objects.filter(Q(audience='all') | Q(audience=user.role) | Q(recipient=user), created_at__gte=since)
 
 
 def with_read_flag(queryset, user):
@@ -30,7 +35,7 @@ def with_read_flag(queryset, user):
 class NotificationListView(APIView):
     """GET /api/notifications/?filter=all|unread|stock|waiting|submissions|flags&since=<iso time>&push=true
 
-    For the signed-in user, Admin or Staff (each sees their own audience). Newest first, at most 100.
+    For the signed-in user, Admin or Staff (each sees their own audience). Today and yesterday only, newest first, at most 100.
     `push=true&since=` returns only push notifications newer than that time (the in-app toasts).
     -> {results: [{id, type, title, body, push, created_at, item_id, read}], unread}
     """
