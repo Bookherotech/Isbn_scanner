@@ -11,6 +11,7 @@ from django.core.cache import cache
 from integrations.metadata import google_books, open_library
 from integrations.metadata.exceptions import ProviderError
 from integrations.metadata.lookup import GOOGLE, OPEN_LIBRARY, cached_metadata
+from integrations.metadata.parsing import same_title
 
 logger = logging.getLogger(__name__)
 
@@ -32,21 +33,11 @@ def clean_description(text):
     return text
 
 
-def _plain(title):
-    return re.sub(r'[^a-z0-9]', '', str(title or '').lower())
-
-
-def _same_title(a, b):
-    """A search can return other books: accept only the same title, with or without a subtitle."""
-    a, b = _plain(a), _plain(b)
-    return bool(a and b) and (a.startswith(b) or b.startswith(a))
-
-
 def _from_google(title, author):
     if not title:
         return ''
     results = google_books.search(f'{title} {author}'.strip(), api_key=settings.GOOGLE_BOOKS_API_KEY, timeout=settings.METADATA_TIMEOUT_SECONDS)
-    return next((r['description'] for r in results if r.get('description') and _same_title(r['title'], title)), '')
+    return next((r['description'] for r in results if r.get('description') and same_title(r['title'], title)), '')
 
 
 def find_description(isbn13, title='', author=''):

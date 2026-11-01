@@ -8,11 +8,13 @@ from django.core.exceptions import ImproperlyConfigured
 
 from integrations.metadata import google_books, open_library
 from integrations.metadata.exceptions import MetadataNotFound, MetadataUnavailable, ProviderError
+from integrations.metadata.parsing import same_author, same_title
 
 logger = logging.getLogger(__name__)
 
 CACHE_SECONDS = 24 * 60 * 60
 FIELDS = ('title', 'author', 'publisher', 'year', 'pages')
+FILLABLE = ('author', 'publisher', 'year', 'pages')
 
 GOOGLE = 'google'
 OPEN_LIBRARY = 'openlibrary'
@@ -27,6 +29,30 @@ def _fetch(provider, isbn13, timeout):
     raise ImproperlyConfigured(f'Unknown METADATA_PROVIDERS entry "{provider}". Use: {", ".join(PROVIDER_NAMES)}.')
 
 
+def _fill_from_google(record):
+    """Fill fields the provider did not have from a Google Books title search. -> the fields filled.
+
+    A title match can be another edition, so the screens ask staff to verify these. A failed search just leaves them empty.
+    """
+    empty = [k for k in FILLABLE if record.get(k) in ('', None)]
+    if not empty or GOOGLE not in settings.METADATA_PROVIDERS:
+        return []
+    query = f'{record["title"]} {record.get("author") or ""}'.strip()
+    try:
+        results = google_books.search(query, api_key=settings.GOOGLE_BOOKS_API_KEY, timeout=settings.METADATA_TIMEOUT_SECONDS)
+    except ProviderError as error:
+        logger.warning('Google Books fill-in failed for %s: %s', record['isbn'], error)
+        return []
+    matches = [r for r in results if same_title(r['title'], record['title']) and (not record.get('author') or same_author(r['author'], record['author']))]
+    filled = []
+    for field in empty:
+        value = next((r[field] for r in matches if r.get(field) not in ('', None)), None)
+        if value is not None:
+            record[field] = value
+            filled.append(field)
+    return filled
+
+
 def _cache_key(isbn13):
     return f'metadata:isbn:{isbn13}'
 
@@ -39,7 +65,8 @@ def cached_metadata(isbn13):
 def lookup_isbn(isbn13):
     """Book details for a valid ISBN-13.
 
-    Returns {isbn, title, author, publisher, year, pages, subjects, cover_url, source, fallback, missing}.
+    Returns {isbn, title, author, publisher, year, pages, subjects, cover_url, source, fallback, missing, filled}.
+    `filled` lists fields that came from a Google Books title match, which staff should verify.
     `fallback` is True when Google Books failed and another provider answered instead
     (the screens then say "Google Books unavailable").
     Raises MetadataNotFound (no record anywhere) or MetadataUnavailable (a provider failed; retry later).
@@ -67,6 +94,7 @@ def lookup_isbn(isbn13):
         raise MetadataNotFound
 
     record['fallback'] = GOOGLE in failed and record['source'] != GOOGLE
+    record['filled'] = _fill_from_google(record)
     record['missing'] = [k for k in FIELDS if record.get(k) in ('', None)]
     cache.set(_cache_key(isbn13), record, CACHE_SECONDS)
     return record

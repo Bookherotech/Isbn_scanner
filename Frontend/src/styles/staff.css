@@ -419,6 +419,7 @@
 .meta-hero__code .barcode { width: 100%; }
 .meta-form { display: grid; gap: 14px; }
 .meta-form__wide { grid-column: 1 / -1; }
+.edited-tag--verify { color: #8a3b06; background: #fbe1cc; border-color: #f0bf98; }
 .book-desc { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--muted); white-space: pre-line; overflow-wrap: anywhere; }
 .review-card > .book-desc { padding: 12px 14px; border-top: 1px solid var(--line); }
 .meta-form__row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
