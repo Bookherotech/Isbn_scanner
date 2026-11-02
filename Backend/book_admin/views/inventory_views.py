@@ -20,10 +20,10 @@ from inventory.models import Book
 
 
 class BookListView(ListAPIView):
-    """GET /api/admin/books/?status=&q=&shelf=&staff=&source=&author=&approved_only=&reason=&sort=&page=&page_size=
+    """GET /api/admin/books/?status=&q=&shelf=&staff=&source=&author=&approved_only=&hide_held=&reason=&sort=&page=&page_size=
 
     One list for Pending, Approved, Rejected and Live inventory: they differ only in the filters, e.g.
-      Pending          ?status=pending&sort=oldest
+      Pending          ?status=pending&hide_held=true&sort=oldest   (books held by a content flag show on the Flags screen until reviewed)
       Approved         ?status=live,out_of_stock,closed&approved_only=true&sort=approved
       Rejected         ?status=rejected&reason=Damaged book&sort=rejected   (reasons: GET rejection-reasons/)
       Live inventory   ?status=live,out_of_stock&sort=title

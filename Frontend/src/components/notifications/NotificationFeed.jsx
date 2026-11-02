@@ -23,8 +23,14 @@ export const NOTIF_META = {
   flagged: { icon: Flag, label: 'Content flag', tone: 'flag' },
 }
 
+const STOCK_ALERTS = ['stock_out', 'stock_out_reminder', 'waiting_approved']
+
 function linkFor(n, role) {
-  if (role === 'staff') return n.itemId ? `/staff/submissions/${n.itemId}` : '/staff/submissions'
+  if (role === 'staff') {
+    if (!n.itemId) return '/staff/submissions'
+    // Stock alerts go to all staff, and the book may be someone else's submission
+    return STOCK_ALERTS.includes(n.type) ? `/staff/books/${n.itemId}` : `/staff/submissions/${n.itemId}`
+  }
   switch (n.type) {
     case 'stock_out':
     case 'stock_out_reminder':
@@ -50,6 +56,11 @@ const ACTION = {
   new_submission: 'Review',
   flagged: 'Review',
   sync_failed: 'Check sync',
+}
+
+function actionFor(n, role) {
+  if (role === 'staff') return STOCK_ALERTS.includes(n.type) ? 'View book' : 'View submission'
+  return ACTION[n.type] || 'View book'
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -82,7 +93,7 @@ function richBody(text) {
   })
 }
 
-function AdminSummary({ marking, onMarkAll }) {
+function FeedSummary({ marking, onMarkAll }) {
   const unread = useUnreadCount()
   return (
     <div className="feed-summary">
@@ -102,7 +113,7 @@ function AdminSummary({ marking, onMarkAll }) {
   )
 }
 
-function AdminCard({ n, onOpen }) {
+function FeedCard({ n, role, onOpen }) {
   const meta = NOTIF_META[n.type] || NOTIF_META.new_submission
   const Icon = meta.icon
   return (
@@ -123,7 +134,7 @@ function AdminCard({ n, onOpen }) {
             {timeAgo(n.at)}
           </time>
           <span className="feed-card__action">
-            {ACTION[n.type] || 'View book'} <ChevronRight size={14} aria-hidden strokeWidth={2.4} />
+            {actionFor(n, role)} <ChevronRight size={14} aria-hidden strokeWidth={2.4} />
           </span>
         </span>
       </button>
@@ -138,7 +149,6 @@ export function NotificationFeed({ user, variant = 'admin' }) {
   const [marking, setMarking] = useState(false)
   useTicker()
 
-  const unread = data?.filter((n) => !n.read).length ?? 0
   const markAll = async () => {
     setMarking(true)
     await markAllNotificationsRead(user)
@@ -162,14 +172,9 @@ export function NotificationFeed({ user, variant = 'admin' }) {
 
   return (
     <div className={cn('feed', `feed--${variant}`)}>
-      {variant === 'admin' && <AdminSummary marking={marking} onMarkAll={markAll} />}
+      <FeedSummary marking={marking} onMarkAll={markAll} />
       <div className="feed__bar">
         <Segmented options={options} value={filter} onChange={setFilter} label="Filter notifications" />
-        {variant !== 'admin' && (
-          <Button variant="ghost" size="sm" icon={CheckCheck} loading={marking} onClick={markAll}>
-            Mark all read
-          </Button>
-        )}
       </div>
       {loading ? (
         <ul className="feed__list" aria-busy="true">
@@ -186,19 +191,20 @@ export function NotificationFeed({ user, variant = 'admin' }) {
       ) : error ? (
         <ErrorState error={error} onRetry={reload} />
       ) : data.length === 0 ? (
-        <EmptyState art="bell" title={filter === 'unread' ? 'You’re all caught up' : 'No notifications'} compact={variant === 'staff'}>
+        <EmptyState art="bell" title={filter === 'unread' ? 'You’re all caught up' : 'No notifications'}>
           {filter === 'unread' ? 'Every notification has been read.' : 'Stock-outs, waiting-list updates and review results will appear here.'}
         </EmptyState>
-      ) : variant === 'admin' ? (
+      ) : (
         <div className="feed-days">
           {byDay(data).map((group) => (
             <section key={group.label} className="feed-day" aria-label={group.label}>
               <h2 className="feed-day__label">{group.label}</h2>
               <ul className="feed-day__list">
                 {group.items.map((n) => (
-                  <AdminCard
+                  <FeedCard
                     key={n.id}
                     n={n}
+                    role={user.role}
                     onOpen={() => {
                       markNotificationRead(user, n.id)
                       navigate(linkFor(n, user.role))
@@ -209,42 +215,6 @@ export function NotificationFeed({ user, variant = 'admin' }) {
             </section>
           ))}
         </div>
-      ) : (
-        <>
-          {unread > 0 && filter !== 'unread' && <p className="feed__count">{unread} unread</p>}
-          <ul className="feed__list">
-            {data.map((n) => {
-              const meta = NOTIF_META[n.type] || NOTIF_META.new_submission
-              const Icon = meta.icon
-              return (
-                <li key={n.id}>
-                  <button
-                    className={cn('feed__item', !n.read && 'is-unread')}
-                    onClick={() => {
-                      markNotificationRead(user, n.id)
-                      navigate(linkFor(n, user.role))
-                    }}
-                  >
-                    <span className={cn('feed__icon', `feed__icon--${meta.tone}`)}>
-                      <Icon size={17} aria-hidden />
-                    </span>
-                    <span className="feed__text">
-                      <span className="feed__meta">
-                        <span className="feed__type">{meta.label}</span>
-                        {n.push && <span className="feed__push">Push</span>}
-                        <time dateTime={new Date(n.at).toISOString()} title={formatDateTime(n.at)}>
-                          {timeAgo(n.at)}
-                        </time>
-                      </span>
-                      <span className="feed__body">{n.body}</span>
-                    </span>
-                    {!n.read && <span className="feed__dot" aria-label="Unread" />}
-                  </button>
-                </li>
-              )
-            })}
-          </ul>
-        </>
       )}
     </div>
   )

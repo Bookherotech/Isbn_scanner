@@ -24,7 +24,7 @@ export default function Pending() {
   const [page, setPage] = useState(1)
   const dq = useDebounce(q)
   const { data, loading, error, reload, refresh, refreshing } = useQuery(
-    () => listItems({ statuses: ['pending'], q: dq, shelf, staff, source, sort, page, pageSize: 15 }),
+    () => listItems({ statuses: ['pending'], hideHeld: true, q: dq, shelf, staff, source, sort, page, pageSize: 15 }),
     [dq, shelf, staff, source, sort, page],
   )
   useAutoRefresh(refresh)
