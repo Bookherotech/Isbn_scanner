@@ -167,8 +167,8 @@ def _push_to_shopify(book_id):
         logger.exception('Could not push book %s to Shopify on approval', book_id)
 
 
-def approve_book(book_id, admin):
-    """Pending -> live: stock starts at the counted quantity."""
+def approve_book(book_id, admin, push=True):
+    """Pending -> live: stock starts at the counted quantity. `push=False` leaves Shopify to the scheduled sync."""
     with transaction.atomic():
         book = _locked(book_id)
         if book.status != BookStatus.PENDING:
@@ -182,7 +182,8 @@ def approve_book(book_id, admin):
         log_activity(action='Approved', kind=ActivityLog.Kind.APPROVAL, target=quoted(book), detail=f'Shelf {book.shelf.code} · qty {book.quantity}', actor=admin, book=book)
         if book.submitted_by_id:
             notify(type=Notification.Type.APPROVED, title='Approved', body=f'{quoted(book)} is now live (shelf {book.shelf.code}).', recipient=book.submitted_by, book=book)
-        transaction.on_commit(lambda: _push_to_shopify(book.pk))
+        if push:
+            transaction.on_commit(lambda: _push_to_shopify(book.pk))
     return book
 
 

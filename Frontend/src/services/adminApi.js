@@ -215,6 +215,16 @@ export async function approveItem(id) {
   return mapItem(await change(`/api/admin/books/${id}/approve/`, { method: 'POST' }))
 }
 
+/** Approve every book the Pending screen lists with these filters. -> { done, skipped, remaining } */
+export async function approveAllPending(filters) {
+  return change('/api/admin/books/approve-all/', { method: 'POST', body: filters })
+}
+
+/** Reject every book the Pending screen lists with these filters, all with the same reason. -> { done, skipped, remaining } */
+export async function rejectAllPending(filters, { reason, note = '' }) {
+  return change('/api/admin/books/reject-all/', { method: 'POST', body: { ...filters, reason, note } })
+}
+
 export async function rejectItem(id, { reason, note = '' }) {
   return mapItem(await change(`/api/admin/books/${id}/reject/`, { method: 'POST', body: { reason, note } }))
 }
