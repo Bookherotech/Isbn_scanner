@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Check, Flag, Pencil, Plus, ShieldCheck, Tag, X } from 'lucide-react'
 import { getFlagCategories, getFlaggedItems, reviewFlag, saveFlagCategory, setFlagCategoryEnabled } from '../../services/adminApi'
@@ -185,7 +185,7 @@ function Categories({ query }) {
                 <span aria-hidden />
               </label>
             </header>
-            {c.description && <p className="flagcat__desc">{c.description}</p>}
+            {c.description && <FlagDescription text={c.description} />}
             <ul className="flagcat__keys" aria-label="Keywords">
               {c.keywords.map((k) => (
                 <li key={k}>{k}</li>
@@ -212,6 +212,29 @@ function Categories({ query }) {
         {editing && <CategoryForm key={editing.id || 'new'} cat={editing} onClose={() => setEditing(null)} onSaved={(name) => toast({ title: editing.id ? 'Category updated' : `${name} added`, description: 'Applied to all current and new books.' })} />}
       </Modal>
     </>
+  )
+}
+
+/** The description, cut to a few lines with More / Less so a long one does not stretch the card. */
+function FlagDescription({ text }) {
+  const ref = useRef(null)
+  const [open, setOpen] = useState(false)
+  const [long, setLong] = useState(false)
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (el && !open) setLong(el.scrollHeight > el.clientHeight + 1)
+  }, [text, open])
+  return (
+    <div className="flagcat__descwrap">
+      <p ref={ref} className={`flagcat__desc${open ? '' : ' is-clamped'}`}>
+        {text}
+      </p>
+      {(long || open) && (
+        <button type="button" className="flagcat__more" onClick={() => setOpen((v) => !v)} aria-expanded={open}>
+          {open ? 'Less' : 'More'}
+        </button>
+      )}
+    </div>
   )
 }
 

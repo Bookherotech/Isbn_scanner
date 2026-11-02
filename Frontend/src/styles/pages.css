@@ -916,8 +916,12 @@
 .flagcat__mode { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; font-weight: 600; margin-top: 2px; }
 .flagcat__mode.is-hold { color: #6b3590; }
 .flagcat__mode.is-label { color: var(--muted); }
-.flagcat__desc { font-size: 13px; color: var(--ink-2); }
-.flagcat__keys { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px; }
+.flagcat__desc { font-size: 13px; color: var(--ink-2); overflow-wrap: anywhere; }
+.flagcat__desc.is-clamped { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; }
+.flagcat__descwrap { display: grid; gap: 2px; justify-items: start; }
+.flagcat__more { padding: 0; border: 0; background: none; font-size: 12.5px; font-weight: 600; color: var(--ink); text-decoration: underline; cursor: pointer; }
+.flagcat__more:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; border-radius: 2px; }
+.flagcat__keys { list-style: none; margin: 0; padding: 0 4px 0 0; display: flex; flex-wrap: wrap; gap: 4px; align-content: flex-start; max-height: 112px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
 .flagcat__keys li { font-family: var(--font-mono); font-size: 11px; padding: 2px 6px; border-radius: 3px; background: var(--sunken); color: var(--ink-2); }
 .flagcat__foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding-top: 8px; border-top: 1px solid var(--line-soft); font-size: 12.5px; color: var(--muted); }
 .flagcat__foot strong { color: #6b3590; }
@@ -933,7 +937,7 @@
 .switch input:checked + span::after { transform: translateX(16px); background: var(--hero); }
 .switch input:focus-visible + span { outline: 2px solid var(--ink); outline-offset: 2px; box-shadow: 0 0 0 5px rgba(255, 210, 31, 0.55); }
 
-.keyinput { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; min-height: 40px; padding: 5px 8px; border: 1px solid var(--line-strong); border-radius: var(--r); background: var(--surface); }
+.keyinput { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; align-content: flex-start; min-height: 40px; max-height: 220px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; padding: 5px 8px; border: 1px solid var(--line-strong); border-radius: var(--r); background: var(--surface); }
 .keyinput:focus-within { border-color: var(--ink); box-shadow: 0 0 0 3px rgba(255, 210, 31, 0.55); }
 .keyinput input { flex: 1; min-width: 120px; border: 0; background: none; font-size: 13.5px; height: 28px; }
 .keyinput input:focus { outline: none; }

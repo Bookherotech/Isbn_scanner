@@ -16,7 +16,7 @@ class FlagCategory(CreatedAtModel):
         LABEL = 'label', 'Label only'  # the book is only tagged
 
     name = models.CharField(max_length=80, unique=True)
-    description = models.CharField(max_length=255, blank=True)
+    description = models.TextField(blank=True)
     keywords = models.JSONField(default=list)  # lower-case words or phrases, matched as whole words
     mode = models.CharField(max_length=5, choices=Mode.choices, default=Mode.HOLD)
     enabled = models.BooleanField(default=True)
