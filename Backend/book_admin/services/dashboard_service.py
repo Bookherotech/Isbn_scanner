@@ -6,7 +6,7 @@ from django.utils import timezone
 from book_admin.models import ActivityLog
 from book_admin.serializers import ActivitySerializer, BookSerializer
 from book_admin.services.book_queries import book_queryset
-from book_admin.services.flag_service import load_categories, review_count, review_ids
+from book_admin.services.flag_service import held_pending_ids, load_categories, review_ids
 from book_admin.utils import count_by_day, display_name, last_days, start_of_day, store_today
 from authentication.constants import Role
 from authentication.models import User
@@ -35,12 +35,13 @@ def ready_count():
 
 def nav_counts():
     counts = status_counts()
+    categories = load_categories()
     return {
-        'pending': counts.get(BookStatus.PENDING, 0),
+        'pending': counts.get(BookStatus.PENDING, 0) - len(held_pending_ids(categories)),
         'waiting': counts.get(BookStatus.WAITING, 0),
         'ready': ready_count(),
         'oos': counts.get(BookStatus.OUT_OF_STOCK, 0),
-        'flagged': review_count(),
+        'flagged': len(review_ids(categories)),
     }
 
 
@@ -65,7 +66,8 @@ def build_dashboard(request):
     ready = attention_books.filter(status=BookStatus.WAITING, linked_item__status=BookStatus.OUT_OF_STOCK).order_by('submitted_at')
     failed = attention_books.filter(sync_status='failed', status__in=(BookStatus.LIVE, BookStatus.OUT_OF_STOCK)).order_by('-last_sync_at')
     held = attention_books.filter(id__in=review_ids(categories)).order_by('submitted_at', 'id')[:ATTENTION_FLAGGED]
-    oldest = attention_books.filter(status=BookStatus.PENDING).order_by('submitted_at', 'id')[:ATTENTION_PENDING]
+    held_pending = held_pending_ids(categories)
+    oldest = attention_books.filter(status=BookStatus.PENDING).exclude(id__in=held_pending).order_by('submitted_at', 'id')[:ATTENTION_PENDING]
 
     staff_today = [
         {'id': u.id, 'name': display_name(u), 'submitted': u.submitted, 'approved': u.approved}
@@ -78,7 +80,7 @@ def build_dashboard(request):
     ready_list = BookSerializer(ready, many=True, context=context).data
     return {
         'kpis': {
-            'pending': counts.get(BookStatus.PENDING, 0),
+            'pending': counts.get(BookStatus.PENDING, 0) - len(held_pending),
             'waiting': counts.get(BookStatus.WAITING, 0),
             'ready': ready_count(),  # books, like the sidebar badge and the Waiting page
             'live_titles': live['titles'],

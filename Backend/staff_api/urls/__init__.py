@@ -2,7 +2,7 @@
 
 from django.urls import path
 
-from staff_api.views import BookSearchView, IsbnDescriptionView, IsbnLookupView, ShelfListView, StaffHomeView, SubmissionDetailView, SubmissionListView
+from staff_api.views import BookSearchView, BookView, IsbnDescriptionView, IsbnLookupView, ShelfListView, StaffHomeView, SubmissionDetailView, SubmissionListView
 
 app_name = 'staff_api'
 
@@ -11,6 +11,7 @@ urlpatterns = [
     path('isbn/<str:isbn>/', IsbnLookupView.as_view(), name='isbn-lookup'),
     path('isbn/<str:isbn>/description/', IsbnDescriptionView.as_view(), name='isbn-description'),
     path('book-search/', BookSearchView.as_view(), name='book-search'),
+    path('books/<int:pk>/', BookView.as_view(), name='book'),
     path('shelves/', ShelfListView.as_view(), name='shelves'),
     path('submissions/', SubmissionListView.as_view(), name='submissions'),
     path('submissions/<int:pk>/', SubmissionDetailView.as_view(), name='submission-detail'),

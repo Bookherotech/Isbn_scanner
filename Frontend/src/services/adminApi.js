@@ -181,9 +181,9 @@ export function getFilterOptions() {
 // Books
 // --------------------------------------------------------------------------
 /** `statuses`: array of statuses. Returns { rows, total, page, pages, pageSize }. */
-export async function listItems({ statuses, q = '', shelf = '', staff = '', source = '', author = '', approvedOnly = false, reason = '', sort = 'newest', page = 1, pageSize = 20 } = {}) {
+export async function listItems({ statuses, q = '', shelf = '', staff = '', source = '', author = '', approvedOnly = false, hideHeld = false, reason = '', sort = 'newest', page = 1, pageSize = 20 } = {}) {
   const res = await call(
-    `/api/admin/books/${query({ status: statuses?.join(','), q, shelf, staff, source, author, approved_only: approvedOnly, reason, sort, page, page_size: pageSize })}`,
+    `/api/admin/books/${query({ status: statuses?.join(','), q, shelf, staff, source, author, approved_only: approvedOnly, hide_held: hideHeld, reason, sort, page, page_size: pageSize })}`,
   )
   return { rows: res.results.map(mapItem), total: res.total, page: res.page, pages: res.pages, pageSize: res.page_size }
 }

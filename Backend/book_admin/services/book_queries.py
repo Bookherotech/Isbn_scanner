@@ -6,6 +6,7 @@ from django.db.models import Count, Prefetch, Q, Sum
 from django.db.models.functions import Coalesce
 from rest_framework.exceptions import ValidationError
 
+from book_admin.services.flag_service import held_pending_ids
 from book_admin.services.rejection_reasons import REJECTION_REASONS
 from inventory.constants import BookSource, BookStatus
 from inventory.models import Book, Shelf
@@ -56,12 +57,14 @@ def search_filter(text):
 
 
 def filter_books(queryset, params):
-    """?status=a,b &q= &shelf=A-03 &staff=<id> &source= &author= &approved_only= &reason=<rejection reason> &sort="""
+    """?status=a,b &q= &shelf=A-03 &staff=<id> &source= &author= &approved_only= &hide_held= &reason=<rejection reason> &sort="""
     statuses = parse_statuses(params.get('status'))
     if statuses:
         queryset = queryset.filter(status__in=statuses)
     if params.get('approved_only', '').lower() == 'true':
         queryset = queryset.filter(approved_at__isnull=False)
+    if params.get('hide_held', '').lower() == 'true':
+        queryset = queryset.exclude(id__in=held_pending_ids())
     queryset = queryset.filter(search_filter(params.get('q')))
 
     shelf = params.get('shelf', '').strip().upper()

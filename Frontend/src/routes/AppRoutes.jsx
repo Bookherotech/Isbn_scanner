@@ -30,6 +30,7 @@ const ShelfQuantity = lazy(() => import('../pages/staff/ShelfQuantity'))
 const ReviewSubmit = lazy(() => import('../pages/staff/ReviewSubmit'))
 const Submissions = lazy(() => import('../pages/staff/Submissions'))
 const SubmissionDetail = lazy(() => import('../pages/staff/SubmissionDetail'))
+const BookView = lazy(() => import('../pages/staff/BookView'))
 const StaffNotifications = lazy(() => import('../pages/staff/Notifications'))
 const Profile = lazy(() => import('../pages/staff/Profile'))
 
@@ -96,6 +97,7 @@ export function AppRoutes() {
         <Route path="review" element={<ReviewSubmit />} />
         <Route path="submissions" element={<Submissions />} />
         <Route path="submissions/:id" element={<SubmissionDetail />} />
+        <Route path="books/:id" element={<BookView />} />
         <Route path="notifications" element={<StaffNotifications />} />
         <Route path="profile" element={<Profile />} />
         <Route path="*" element={<Navigate to="/staff" replace />} />

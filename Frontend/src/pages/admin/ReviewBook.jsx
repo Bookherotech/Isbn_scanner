@@ -53,7 +53,7 @@ function ReviewBody({ item }) {
   }
 
   useEffect(() => {
-    listItems({ statuses: ['pending'], sort: 'oldest', pageSize: 50 }).then((r) => setNextId(r.rows.find((x) => x.id !== item.id)?.id ?? null))
+    listItems({ statuses: ['pending'], hideHeld: true, sort: 'oldest', pageSize: 50 }).then((r) => setNextId(r.rows.find((x) => x.id !== item.id)?.id ?? null))
   }, [item.id, done])
 
   const patch = () => Object.fromEntries(dirtyKeys.map((k) => [k, k === 'quantity' || k === 'year' || k === 'pages' ? (values[k] === '' ? '' : Number(values[k])) : String(values[k]).trim()]))

@@ -193,3 +193,23 @@ export async function getMySubmissions({ status = 'all', pageSize = 12 } = {}) {
 export async function getSubmission(id) {
   return mapItem(await call(`/api/staff/submissions/${encodeURIComponent(id)}/`))
 }
+
+/** GET /api/staff/books/<id>/ -> a read-only approved book, which may be another staff member's. */
+export async function getBook(id) {
+  const b = await call(`/api/staff/books/${encodeURIComponent(id)}/`)
+  return {
+    id: b.id,
+    isbn: b.isbn,
+    title: b.title,
+    author: b.author,
+    publisher: b.publisher,
+    year: b.year ?? '',
+    pages: b.pages ?? '',
+    description: b.description || '',
+    coverPhotoUrl: b.cover_photo_url || null,
+    shelfId: b.shelf_id,
+    quantity: b.quantity,
+    stock: b.stock,
+    status: b.status,
+  }
+}
