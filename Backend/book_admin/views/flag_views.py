@@ -32,7 +32,7 @@ class FlagCategoryListView(APIView):
         serializer.is_valid(raise_exception=True)
         category = serializer.save()
         log_activity(action='Added flag category', kind=ActivityLog.Kind.FLAG, target=category.name, actor=request.user,
-                     detail=f'{category.get_mode_display()} · {", ".join(category.keywords)}')
+                     detail=f'{category.get_mode_display()} · {len(category.keywords)} keywords')
         return Response(FlagCategorySerializer(category, context=_with_stats(request)).data, status=status.HTTP_201_CREATED)
 
 

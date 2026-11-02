@@ -5,7 +5,7 @@ import { useDebounce, useQuery } from '../../hooks/useStore'
 import { useToast } from '../../hooks/useToast'
 import { DataTable } from '../../components/ui/Data'
 import { PageHeader } from '../../components/ui/Misc'
-import { Field, Input, SearchInput, Segmented } from '../../components/ui/Form'
+import { Field, Input, SearchInput, Segmented, Textarea } from '../../components/ui/Form'
 import { Button, IconButton } from '../../components/ui/Button'
 import { EmptyState, ErrorState, Skeleton } from '../../components/ui/Feedback'
 import { Modal } from '../../components/ui/Overlay'
@@ -211,7 +211,7 @@ function ShelfForm({ shelf, isNew, onClose, onSaved, onToggle }) {
         <Input id="shelf-code" mono value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} disabled={!isNew} placeholder="A-13" maxLength={4} data-autofocus />
       </Field>
       <Field label="Note" optional htmlFor="shelf-note" hint="Visible to admins only.">
-        <Input id="shelf-note" value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. Bottom row, near packing desk" />
+        <Textarea id="shelf-note" className="textarea--scroll" rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. Bottom row, near packing desk" />
       </Field>
       {!isNew && (
         <dl className="kv kv--inline">

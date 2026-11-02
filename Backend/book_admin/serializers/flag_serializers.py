@@ -4,13 +4,11 @@ from rest_framework import serializers
 
 from book_admin.models import FlagCategory
 
-MAX_KEYWORDS = 50
-
 
 class FlagCategorySerializer(serializers.ModelSerializer):
     """GET / POST / PATCH of a flag category. Reads add `matches` and `awaiting` from context['stats'] ({id: {matches, awaiting}})."""
 
-    keywords = serializers.ListField(child=serializers.CharField(max_length=60, allow_blank=True), max_length=MAX_KEYWORDS)
+    keywords = serializers.ListField(child=serializers.CharField(allow_blank=True))
     matches = serializers.SerializerMethodField()
     awaiting = serializers.SerializerMethodField()
 

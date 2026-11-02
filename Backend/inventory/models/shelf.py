@@ -13,7 +13,7 @@ class Shelf(models.Model):
     code = models.CharField(max_length=4, unique=True, validators=[validate_shelf_code])
     zone = models.CharField(max_length=1, editable=False)  # first letter of the code, set on save
     status = models.CharField(max_length=10, choices=ShelfStatus.choices, default=ShelfStatus.ACTIVE)
-    note = models.CharField(max_length=255, blank=True)
+    note = models.TextField(blank=True)
     created_at = models.DateTimeField(default=timezone.now)
 
     class Meta:
