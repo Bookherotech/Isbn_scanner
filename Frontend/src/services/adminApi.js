@@ -379,6 +379,11 @@ export async function getFlaggedItems({ tab = 'review', category = '' } = {}) {
   return { rows: res.results.map(mapItem), counts: res.counts }
 }
 
+/** Reject every book in the Flags "Needs review" list (one category's with `category`), all with the same reason. -> { done, skipped, remaining } */
+export async function rejectAllFlagged(category, { reason, note = '' }) {
+  return change('/api/admin/flagged/reject-all/', { method: 'POST', body: { category, reason, note } })
+}
+
 export async function reviewFlag(id, note = '') {
   return mapItem(await change(`/api/admin/books/${id}/flag-review/`, { method: 'POST', body: { note } }))
 }

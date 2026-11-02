@@ -1,6 +1,6 @@
 from .activity_views import ActivityListView
 from .dashboard_views import DashboardView, FilterOptionsView, NavCountsView, SearchView
-from .flag_views import BookFlagReviewView, FlagCategoryDetailView, FlagCategoryListView, FlaggedBookListView
+from .flag_views import BookFlagReviewView, FlagCategoryDetailView, FlagCategoryListView, FlaggedBookListView, FlaggedRejectAllView
 from .inventory_views import (
     AuthorListView, BookApproveAllView, BookApproveView, BookDetailView, BookListView, BookRejectAllView, BookRejectView, OutOfStockView, RejectionReasonListView, WaitingApproveView, WaitingListView,
 )
@@ -10,7 +10,7 @@ from .settings_views import SettingsView
 from .shelf_views import ShelfDetailView, ShelfListView
 
 __all__ = [
-    'ActivityListView', 'AuthorListView', 'BookApproveAllView', 'BookApproveView', 'BookFlagReviewView', 'FlagCategoryDetailView', 'FlagCategoryListView', 'FlaggedBookListView', 'BookDetailView', 'BookListView', 'BookRejectAllView', 'BookRejectView', 'DashboardView', 'FilterOptionsView',
+    'ActivityListView', 'AuthorListView', 'BookApproveAllView', 'BookApproveView', 'BookFlagReviewView', 'FlagCategoryDetailView', 'FlagCategoryListView', 'FlaggedBookListView', 'FlaggedRejectAllView', 'BookDetailView', 'BookListView', 'BookRejectAllView', 'BookRejectView', 'DashboardView', 'FilterOptionsView',
     'MarkAllReadView', 'MarkReadView', 'NavCountsView', 'NotificationListView', 'OutOfStockView', 'RejectionReasonListView', 'ReportView', 'SearchView', 'SettingsView',
     'ShelfDetailView', 'ShelfListView', 'UnreadCountView', 'WaitingApproveView', 'WaitingListView',
 ]
