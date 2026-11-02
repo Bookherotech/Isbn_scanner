@@ -212,7 +212,7 @@ query Stock($ids: [ID!]!, $location: ID!) {
 def available_stock(product_ids):
     """{product_id: available units at our location} for the given numeric IDs.
 
-    Products that are gone from Shopify, or not stocked at our location, are left out.
+    A product that exists but is not stocked at our location maps to None. Products gone from Shopify are left out.
     """
     found = {}
     ids = list(dict.fromkeys(str(p) for p in product_ids))
@@ -220,8 +220,9 @@ def available_stock(product_ids):
         batch = ids[start:start + STOCK_BATCH]
         nodes = graphql(STOCK_QUERY, {'ids': [product_gid(p) for p in batch], 'location': location_gid()})['nodes']
         for node in nodes:
-            variants = (node or {}).get('variants', {}).get('nodes') or []
+            if node is None:
+                continue  # Shopify has no such product
+            variants = node.get('variants', {}).get('nodes') or []
             level = variants[0]['inventoryItem']['inventoryLevel'] if variants else None
-            if level and level['quantities']:
-                found[numeric_id(node['id'])] = max(int(level['quantities'][0]['quantity']), 0)
+            found[numeric_id(node['id'])] = max(int(level['quantities'][0]['quantity']), 0) if level and level['quantities'] else None
     return found

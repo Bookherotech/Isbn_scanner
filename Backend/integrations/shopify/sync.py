@@ -6,7 +6,8 @@
 2. Stock check: Shopify's 'available' count is read back. 0 -> out of stock (waiting-list entries become ready,
    everyone is notified); back above 0 (restocked in Shopify) -> live again. A product deleted in Shopify ->
    out of stock with sync status 'deleted' (shown as "Deleted on Shopify"); it is not checked again, and a
-   waiting-list entry approved after it gets a new product.
+   waiting-list entry approved after it gets a new product. A product not stocked at our location is left as it is,
+   admins are told once, and it is checked again on every run.
 3. Reminders: books still out of stock after AppSettings.reminder_after_hours get one more notification.
 4. Images: a staff photo or our copy of the cover is uploaded to products BookHero created. The store's own products
    (linked by SKU) are left alone, and a saved cover copy is not added to a product that already has an image.
@@ -37,6 +38,7 @@ PUBLISH_BATCH = 25  # books put on Shopify per run; the rest follow on the next 
 IMAGE_BATCH = 10  # images uploaded per run
 STOCK_STATUSES = (BookStatus.LIVE, BookStatus.OUT_OF_STOCK)
 SYNCED, SYNCING, FAILED, DELETED = 'synced', 'syncing', 'failed', 'deleted'
+NOT_STOCKED = 'The product exists on Shopify but is not stocked at our location, so its stock could not be read.'
 CLAIM_SECONDS = 120  # a book left 'syncing' longer than this was abandoned (a crash), so it may be pushed again
 RUN_MARGIN = timedelta(seconds=15)  # cron starts on the minute but a run reads the clock seconds later: without this, a run can land just inside the interval and be skipped
 K, R, A = ActivityLog.Kind, ActivityLog.Result, ActivityLog.ActorType
@@ -227,15 +229,30 @@ def _mark_deleted(book_id, now, force=False):
     return True
 
 
+def _note_not_stocked(book):
+    """The product exists but has no stock level at our location: keep the book as it is and tell admins once.
+    The note clears by itself once a later check can read the stock."""
+    if book.sync_error == NOT_STOCKED:
+        return
+    Book.objects.filter(pk=book.pk).update(sync_error=NOT_STOCKED)
+    log_activity(action='Not stocked at location', kind=K.SHOPIFY, target=quoted(book), detail=f'Product {book.product_id}', actor_type=A.SHOPIFY, result=R.WARNING, book=book)
+    notify(type=Notification.Type.SYNC_FAILED, title='Shopify stock not readable', audience=Notification.Audience.ADMIN, book=book,
+           body=f'{quoted(book)} is on Shopify but not stocked at our location, so its stock could not be checked.')
+
+
 def check_stock():
-    """Read Shopify's stock for every live / out-of-stock book. -> {'checked', 'sold_out', 'restocked', 'deleted'}."""
+    """Read Shopify's stock for every live / out-of-stock book. -> {'checked', 'sold_out', 'restocked', 'deleted', 'not_stocked'}."""
     books = list(Book.objects.filter(status__in=STOCK_STATUSES).exclude(NEEDS_PUSH).exclude(sync_status=DELETED).select_related('shelf'))
     stock = available_stock(b.product_id for b in books)
     now = timezone.now()
-    counts = {'checked': len(books), 'sold_out': 0, 'restocked': 0, 'deleted': 0}
+    counts = {'checked': len(books), 'sold_out': 0, 'restocked': 0, 'deleted': 0, 'not_stocked': 0}
     for book in books:
         if book.product_id not in stock:
             counts['deleted'] += _mark_deleted(book.pk, now)
+            continue
+        if stock[book.product_id] is None:
+            counts['not_stocked'] += 1
+            _note_not_stocked(book)
             continue
         change = _apply_stock(book.pk, stock[book.product_id], now)
         if change:
