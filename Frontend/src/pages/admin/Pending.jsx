@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowRight } from 'lucide-react'
+import { ArrowRight, Check, X } from 'lucide-react'
 import { listItems } from '../../services/adminApi'
 import { useAutoRefresh, useDebounce, useQuery, useTicker } from '../../hooks/useStore'
 import { DataTable, Pagination } from '../../components/ui/Data'
@@ -13,6 +13,7 @@ import { BookCell } from '../../components/books/BookCover'
 import { SourceBadge } from '../../components/books/BookBits'
 import { Person, ShelfFilter, StaffFilter } from '../../components/inventory/Filters'
 import { formatDateTime, timeAgo } from '../../utils/format'
+import { ApproveAllDialog, RejectAllDialog } from './BulkReviewDialogs'
 
 export default function Pending() {
   const navigate = useNavigate()
@@ -22,6 +23,7 @@ export default function Pending() {
   const [source, setSource] = useState('')
   const [sort, setSort] = useState('oldest')
   const [page, setPage] = useState(1)
+  const [bulk, setBulk] = useState(null) // 'approve' | 'reject': the open dialog
   const dq = useDebounce(q)
   const { data, loading, error, reload, refresh, refreshing } = useQuery(
     () => listItems({ statuses: ['pending'], hideHeld: true, q: dq, shelf, staff, source, sort, page, pageSize: 15 }),
@@ -30,6 +32,8 @@ export default function Pending() {
   useAutoRefresh(refresh)
   useTicker()
   const filtered = dq || shelf || staff || source
+  const total = data?.total ?? 0
+  const filters = { q: dq, shelf, staff, source }
   const reset = (fn) => (v) => {
     fn(v)
     setPage(1)
@@ -72,6 +76,18 @@ export default function Pending() {
       <PageHeader
         title="Pending review"
         description="Submitted by staff and passed the duplicate check (no same title + author on any shelf). Verify each book, edit if needed, then approve to create the Shopify product."
+        actions={
+          total > 0 && (
+            <>
+              <Button variant="danger-ghost" icon={X} onClick={() => setBulk('reject')}>
+                Reject all
+              </Button>
+              <Button variant="primary" icon={Check} onClick={() => setBulk('approve')}>
+                Approve all
+              </Button>
+            </>
+          )
+        }
       />
       <div className="toolbar">
         <SearchInput value={q} onChange={reset(setQ)} placeholder="Search title, author, ISBN or shelf" />
@@ -112,6 +128,8 @@ export default function Pending() {
         }
       />
       {data && <Pagination page={data.page} pages={data.pages} total={data.total} pageSize={data.pageSize} onPage={setPage} noun="pending books" />}
+      {bulk === 'approve' && <ApproveAllDialog open onClose={() => setBulk(null)} total={total} filtered={Boolean(filtered)} filters={filters} />}
+      {bulk === 'reject' && <RejectAllDialog open onClose={() => setBulk(null)} total={total} filtered={Boolean(filtered)} filters={filters} />}
     </div>
   )
 }
