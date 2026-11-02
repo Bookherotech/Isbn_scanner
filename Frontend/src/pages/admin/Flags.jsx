@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Check, Flag, Pencil, Plus, ShieldCheck, Tag, X } from 'lucide-react'
-import { getFlagCategories, getFlaggedItems, reviewFlag, saveFlagCategory, setFlagCategoryEnabled } from '../../services/adminApi'
+import { getFlagCategories, getFlaggedItems, rejectAllFlagged, reviewFlag, saveFlagCategory, setFlagCategoryEnabled } from '../../services/adminApi'
 import { useQuery, useTicker } from '../../hooks/useStore'
 import { useToast } from '../../hooks/useToast'
 import { DataTable } from '../../components/ui/Data'
@@ -14,6 +14,7 @@ import { FlagChips, ShelfTag, StatusChip } from '../../components/ui/Status'
 import { BookCell } from '../../components/books/BookCover'
 import { Person } from '../../components/inventory/Filters'
 import { cn, timeAgo } from '../../utils/format'
+import { RejectAllDialog } from './BulkReviewDialogs'
 
 export default function Flags() {
   const [tab, setTab] = useState('review')
@@ -21,6 +22,9 @@ export default function Flags() {
   const cats = useQuery(() => getFlagCategories(), [])
   const items = useQuery(() => getFlaggedItems({ tab: tab === 'categories' ? 'all' : tab, category }), [tab, category])
   const counts = items.data?.counts
+  const [rejecting, setRejecting] = useState(false)
+  const held = counts?.review ?? 0
+  const heldBooks = `${held} ${held === 1 ? 'book' : 'books'}`
 
   return (
     <div>
@@ -28,6 +32,14 @@ export default function Flags() {
         title="Content flags"
         eyebrow="Inventory"
         description="Admin-defined categories matched against each book’s subjects and title. “Hold for review” sends matching books here before approval; “Label only” just tags them. A flag never rejects a book — the admin decides."
+        actions={
+          tab === 'review' &&
+          held > 0 && (
+            <Button variant="danger-ghost" icon={X} onClick={() => setRejecting(true)}>
+              Reject all
+            </Button>
+          )
+        }
       />
       <div className="toolbar">
         <Segmented
@@ -52,6 +64,15 @@ export default function Flags() {
         )}
       </div>
       {tab === 'categories' ? <Categories query={cats} /> : <FlaggedBooks query={items} tab={tab} />}
+      {rejecting && (
+        <RejectAllDialog
+          open
+          onClose={() => setRejecting(false)}
+          total={held}
+          onReject={(decision) => rejectAllFlagged(category, decision)}
+          description={`This rejects the ${heldBooks} waiting for review${category ? ' in this category' : ''} with the same reason, including any waiting-list entries, and notifies the staff who submitted them. Rejection can’t be undone.`}
+        />
+      )}
     </div>
   )
 }

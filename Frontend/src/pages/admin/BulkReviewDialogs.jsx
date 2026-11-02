@@ -57,7 +57,8 @@ export function ApproveAllDialog({ open, onClose, total, filtered, filters }) {
   )
 }
 
-export function RejectAllDialog({ open, onClose, total, filtered, filters }) {
+/** Rejects the Pending list with `filters`; the Flags screen passes its own `onReject` and `description` instead. */
+export function RejectAllDialog({ open, onClose, total, filtered, filters, onReject, description }) {
   const { toast } = useToast()
   const [reason, setReason] = useState(REASONS[0])
   const [note, setNote] = useState('')
@@ -66,7 +67,8 @@ export function RejectAllDialog({ open, onClose, total, filtered, filters }) {
   const confirm = async () => {
     setBusy(true)
     try {
-      toast(report('rejected', await rejectAllPending(filters, { reason, note: note.trim() })))
+      const decision = { reason, note: note.trim() }
+      toast(report('rejected', await (onReject ? onReject(decision) : rejectAllPending(filters, decision))))
       setNote('')
       onClose()
     } catch (e) {
@@ -80,7 +82,7 @@ export function RejectAllDialog({ open, onClose, total, filtered, filters }) {
       open={open}
       onClose={busy ? undefined : onClose}
       title={`Reject ${books(total)}?`}
-      description={`This rejects ${scope(filtered, total)} with the same reason, and notifies the staff who submitted them. Rejection can’t be undone.`}
+      description={description || `This rejects ${scope(filtered, total)} with the same reason, and notifies the staff who submitted them. Rejection can’t be undone.`}
       footer={
         <>
           <Button onClick={onClose} disabled={busy}>
