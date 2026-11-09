@@ -233,7 +233,7 @@ function WaitingDrawer({ entry, onClose }) {
     >
       <div className="wl">
         <div className="wl__book">
-          <BookCover title={e.title} author={e.author} isbn={e.isbn} size="md" />
+          <BookCover title={e.title} author={e.author} isbn={e.isbn} photo={e.coverPhotoUrl} size="md" />
           <div>
             <strong className="serif">{e.title}</strong>
             <span>{e.author}</span>
