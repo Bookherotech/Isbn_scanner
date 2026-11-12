@@ -160,7 +160,7 @@ function Attention({ data }) {
     <ul className="attn">
       {ready.map((w) => (
         <li key={w.id} className="attn__item attn__item--ready">
-          <BookCover title={w.title} author={w.author} isbn={w.isbn} size="xs" />
+          <BookCover title={w.title} author={w.author} isbn={w.isbn} photo={w.coverPhotoUrl} size="xs" />
           <div className="attn__text">
             <strong>{w.title}</strong>
             <span>

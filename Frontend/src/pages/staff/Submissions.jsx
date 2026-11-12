@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useAuth } from '../../hooks/useAuth'
-import { useQuery, useTicker } from '../../hooks/useStore'
+import { useAutoRefresh, useQuery, useTicker } from '../../hooks/useStore'
 import { getMySubmissions } from '../../services/staffApi'
 import { SubmissionCard } from '../../components/staff/StaffBits'
 import { EmptyState, ErrorState, Skeleton } from '../../components/ui/Feedback'
@@ -22,7 +22,8 @@ export default function Submissions() {
   const { user } = useAuth()
   const [status, setStatus] = useState('all')
   const [pageSize, setPageSize] = useState(12)
-  const { data, loading, error, reload } = useQuery(() => getMySubmissions({ status, pageSize }), [user.id, status, pageSize], { mock: false })
+  const { data, loading, error, reload, refresh } = useQuery(() => getMySubmissions({ status, pageSize }), [user.id, status, pageSize], { mock: false })
+  useAutoRefresh(refresh)
   useTicker()
 
   return (

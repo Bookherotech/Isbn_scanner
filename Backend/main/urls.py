@@ -20,6 +20,8 @@ from django.contrib import admin
 from django.urls import include, path
 from decouple import config
 
+from integrations.shopify.webhook_view import shopify_webhook
+
 # Django's own admin panel. Not /admin/: that address belongs to the Super Admin pages of the React app.
 DJANGO_ADMIN_PATH = config('DJANGO_ADMIN_PATH', default='django-admin/').strip('/') + '/'
 
@@ -29,6 +31,7 @@ urlpatterns = [
     path('api/staff/', include('staff_api.urls')),
     path('api/admin/', include('book_admin.urls')),
     path('api/notifications/', include(('book_admin.urls.notification_urls', 'notifications'))),
+    path('api/shopify/webhook/', shopify_webhook, name='shopify-webhook'),  # Shopify calls this; it checks the signature itself
 ]
 
 # Cover photos while developing (static() adds nothing when DEBUG is off; production serves /media/ itself)

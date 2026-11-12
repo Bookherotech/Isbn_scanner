@@ -80,6 +80,7 @@ function mapItem(r) {
     pages: r.pages ?? '',
     source: r.source,
     subjects: r.subjects,
+    description: r.description || '',
     coverUrl: r.cover_url,
     coverPhotoUrl: r.cover_photo_url || null,
     fetched: r.fetched,
@@ -180,9 +181,9 @@ export function getFilterOptions() {
 // Books
 // --------------------------------------------------------------------------
 /** `statuses`: array of statuses. Returns { rows, total, page, pages, pageSize }. */
-export async function listItems({ statuses, q = '', shelf = '', staff = '', source = '', author = '', approvedOnly = false, reason = '', sort = 'newest', page = 1, pageSize = 20 } = {}) {
+export async function listItems({ statuses, q = '', shelf = '', staff = '', source = '', author = '', approvedOnly = false, edited = false, hideHeld = false, reason = '', sort = 'newest', page = 1, pageSize = 20 } = {}) {
   const res = await call(
-    `/api/admin/books/${query({ status: statuses?.join(','), q, shelf, staff, source, author, approved_only: approvedOnly, reason, sort, page, page_size: pageSize })}`,
+    `/api/admin/books/${query({ status: statuses?.join(','), q, shelf, staff, source, author, approved_only: approvedOnly, edited, hide_held: hideHeld, reason, sort, page, page_size: pageSize })}`,
   )
   return { rows: res.results.map(mapItem), total: res.total, page: res.page, pages: res.pages, pageSize: res.page_size }
 }
@@ -203,7 +204,7 @@ export async function getItem(id) {
 const PATCH_KEYS = { shelfId: 'shelf_id' }
 const CHANGE_KEYS = { shelf_id: 'shelfId' }
 
-/** Saves edits (title, author, publisher, year, pages, shelfId, quantity). -> { outcome, match, changes, item }; a clash on the same shelf throws code 'duplicate_same_shelf'. */
+/** Saves edits (title, author, publisher, year, pages, description, shelfId, quantity). -> { outcome, match, changes, item }; a clash on the same shelf throws code 'duplicate_same_shelf'. */
 export async function updateItem(id, patch) {
   const body = Object.fromEntries(Object.entries(patch).map(([k, v]) => [PATCH_KEYS[k] || k, v]))
   const res = await change(`/api/admin/books/${id}/`, { method: 'PATCH', body })
@@ -212,6 +213,16 @@ export async function updateItem(id, patch) {
 
 export async function approveItem(id) {
   return mapItem(await change(`/api/admin/books/${id}/approve/`, { method: 'POST' }))
+}
+
+/** Approve every book the Pending screen lists with these filters. -> { done, skipped, remaining } */
+export async function approveAllPending(filters) {
+  return change('/api/admin/books/approve-all/', { method: 'POST', body: filters })
+}
+
+/** Reject every book the Pending screen lists with these filters, all with the same reason. -> { done, skipped, remaining } */
+export async function rejectAllPending(filters, { reason, note = '' }) {
+  return change('/api/admin/books/reject-all/', { method: 'POST', body: { ...filters, reason, note } })
 }
 
 export async function rejectItem(id, { reason, note = '' }) {
@@ -366,6 +377,11 @@ export async function setFlagCategoryEnabled(id, enabled) {
 export async function getFlaggedItems({ tab = 'review', category = '' } = {}) {
   const res = await call(`/api/admin/flagged/${query({ tab, category })}`)
   return { rows: res.results.map(mapItem), counts: res.counts }
+}
+
+/** Reject every book in the Flags "Needs review" list (one category's with `category`), all with the same reason. -> { done, skipped, remaining } */
+export async function rejectAllFlagged(category, { reason, note = '' }) {
+  return change('/api/admin/flagged/reject-all/', { method: 'POST', body: { category, reason, note } })
 }
 
 export async function reviewFlag(id, note = '') {

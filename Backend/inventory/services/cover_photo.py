@@ -31,6 +31,11 @@ def clean_cover_photo(data_url):
         raw = base64.b64decode(match['data'], validate=False)
     except (binascii.Error, ValueError):
         raise InvalidCoverPhoto('The photo could not be read. Take it again.') from None
+    return clean_image(raw)
+
+
+def clean_image(raw):
+    """Image bytes -> a ContentFile holding a fresh JPEG. Raises InvalidCoverPhoto."""
     if len(raw) > MAX_BYTES:
         raise InvalidCoverPhoto('The photo is too large (max 1.5 MB).')
 

@@ -29,7 +29,7 @@ class ShelfWriteSerializer(serializers.Serializer):
     """POST /shelves/ {code, note?, status?} and PATCH /shelves/<code>/ {note?, status?}. The code never changes once created."""
 
     code = serializers.CharField(max_length=4, required=False)
-    note = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    note = serializers.CharField(required=False, allow_blank=True)
     status = serializers.ChoiceField(choices=ShelfStatus.choices, required=False)
 
     def validate_code(self, value):

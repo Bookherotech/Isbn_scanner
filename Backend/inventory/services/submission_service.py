@@ -7,6 +7,7 @@ from django.utils import timezone
 
 from inventory.constants import BookSource, BookStatus
 from inventory.models import Book
+from inventory.services.cover_cache import cache_cover_soon
 from inventory.services.duplicate_check import find_duplicates, match_summary
 from inventory.services.locks import duplicate_key_lock
 from inventory.services.normalize import duplicate_key
@@ -32,7 +33,7 @@ def _text(value):
 
 
 def create_submission(*, user, shelf, isbn, title, author, publisher='', year=None, pages=None,
-                      source=BookSource.MANUAL, subjects=None, fetched=None, cover_url='', cover_photo=None, quantity):
+                      source=BookSource.MANUAL, subjects=None, fetched=None, cover_url='', cover_photo=None, description='', quantity):
     """Save one submission and apply the duplicate rule, all in one transaction.
 
     Arguments are already validated (see staff_api SubmissionCreateSerializer).
@@ -51,7 +52,7 @@ def create_submission(*, user, shelf, isbn, title, author, publisher='', year=No
 
     book = Book(
         isbn=isbn, title=title, author=author, publisher=publisher, year=year, pages=pages,
-        source=source, subjects=subjects or [], cover_url=cover_url, fetched=fetched,
+        source=source, subjects=subjects or [], cover_url=cover_url, fetched=fetched, description=description,
         edited_fields=edited_fields, missing_fields=missing_fields, duplicate_key=duplicate_key(title, author),
         shelf=shelf, quantity=quantity, submitted_by=user, submitted_at=now,
     )
@@ -84,6 +85,9 @@ def create_submission(*, user, shelf, isbn, title, author, publisher='', year=No
             book.status = BookStatus.PENDING
             book.save()
             outcome = SubmissionResult(PENDING, book)
+
+        if not book.cover_photo:
+            transaction.on_commit(lambda: cache_cover_soon(book.pk))
 
         # Hook: activity-log entries ("Submitted", "Auto-rejected", "Waiting list created") and admin
         # notifications go here once the team agrees on the activity_logs / notifications owner.

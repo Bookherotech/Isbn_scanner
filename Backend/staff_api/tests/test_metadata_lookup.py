@@ -106,7 +106,8 @@ class OpenLibraryFirstTests(SimpleTestCase):
         cache.clear()
 
     def test_open_library_answers_first_and_google_is_not_called(self):
-        with mock.patch(GOOGLE) as google, mock.patch(OPEN_LIBRARY, return_value=OPEN_LIBRARY_HIT):
+        complete = {f'ISBN:{ISBN}': {**OPEN_LIBRARY_HIT[f'ISBN:{ISBN}'], 'publishers': [{'name': 'Ace'}], 'publish_date': '1990', 'number_of_pages': 412}}  # a missing field would ask Google to fill it
+        with mock.patch(GOOGLE) as google, mock.patch(OPEN_LIBRARY, return_value=complete):
             record = lookup_isbn(ISBN)
         google.assert_not_called()
         self.assertEqual(record['source'], 'openlibrary')

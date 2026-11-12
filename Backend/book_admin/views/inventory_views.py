@@ -11,7 +11,7 @@ from book_admin.serializers import (
     BookDetailSerializer, BookRejectSerializer, BookSerializer, BookUpdateSerializer, BookWithWaitingSerializer,
 )
 from book_admin.services import (
-    approve_book, approve_waiting_entry, book_queryset, filter_books, reject_book, update_book, with_open_waiting,
+    approve_all, approve_book, approve_waiting_entry, book_queryset, filter_books, reject_all, reject_book, update_book, with_open_waiting,
 )
 from book_admin.services import REJECTION_REASONS
 from book_admin.services.book_queries import parse_statuses
@@ -20,10 +20,10 @@ from inventory.models import Book
 
 
 class BookListView(ListAPIView):
-    """GET /api/admin/books/?status=&q=&shelf=&staff=&source=&author=&approved_only=&reason=&sort=&page=&page_size=
+    """GET /api/admin/books/?status=&q=&shelf=&staff=&source=&author=&approved_only=&hide_held=&reason=&sort=&page=&page_size=
 
     One list for Pending, Approved, Rejected and Live inventory: they differ only in the filters, e.g.
-      Pending          ?status=pending&sort=oldest
+      Pending          ?status=pending&hide_held=true&sort=oldest   (books held by a content flag show on the Flags screen until reviewed)
       Approved         ?status=live,out_of_stock,closed&approved_only=true&sort=approved
       Rejected         ?status=rejected&reason=Damaged book&sort=rejected   (reasons: GET rejection-reasons/)
       Live inventory   ?status=live,out_of_stock&sort=title
@@ -84,6 +84,32 @@ class BookRejectView(APIView):
         serializer.is_valid(raise_exception=True)
         reject_book(pk, request.user, **serializer.validated_data)
         return Response(BookSerializer(book_queryset().get(pk=pk), context={'request': request}).data)
+
+
+class BookApproveAllView(APIView):
+    """POST /api/admin/books/approve-all/ {q?, shelf?, staff?, source?} -> {done, skipped, remaining}
+
+    Every book the Pending screen lists with those filters. Books held by a content flag are not included.
+    """
+
+    permission_classes = [IsAdminRole]
+
+    def post(self, request):
+        return Response(approve_all(request.data, request.user))
+
+
+class BookRejectAllView(APIView):
+    """POST /api/admin/books/reject-all/ {reason, note?, q?, shelf?, staff?, source?} -> {done, skipped, remaining}
+
+    Every book the Pending screen lists with those filters, all with the same reason. Held books are not included.
+    """
+
+    permission_classes = [IsAdminRole]
+
+    def post(self, request):
+        serializer = BookRejectSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        return Response(reject_all(request.data, request.user, **serializer.validated_data))
 
 
 class RejectionReasonListView(APIView):

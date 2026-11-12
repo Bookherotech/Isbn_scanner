@@ -7,6 +7,19 @@ URL = 'https://openlibrary.org/api/books'
 SOURCE = 'openlibrary'
 
 
+def fetch_description(isbn13, *, timeout=5):
+    """The description on the edition, else on its work; '' when there is none. Raises ProviderError on failure (a book
+    Open Library does not know is a 404, so also ProviderError: the caller then tries the next provider)."""
+    edition = get_json(f'https://openlibrary.org/isbn/{isbn13}.json', {}, timeout)
+    description = edition.get('description')
+    if not description:
+        works = edition.get('works') or []
+        if not works:
+            return ''
+        description = get_json(f'https://openlibrary.org{works[0]["key"]}.json', {}, timeout).get('description')
+    return description.get('value', '') if isinstance(description, dict) else str(description or '')  # either a string or {type, value}
+
+
 def fetch(isbn13, *, timeout=5):
     """The record for an ISBN-13, or None when Open Library has none. Raises ProviderError on failure."""
     key = f'ISBN:{isbn13}'

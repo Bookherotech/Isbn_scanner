@@ -30,7 +30,7 @@ class SubmissionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Book
         fields = [
-            'id', 'isbn', 'title', 'author', 'publisher', 'year', 'pages', 'source', 'subjects', 'cover_url', 'cover_photo_url',
+            'id', 'isbn', 'title', 'author', 'publisher', 'year', 'pages', 'source', 'subjects', 'description', 'cover_url', 'cover_photo_url',
             'edited_fields', 'missing_fields', 'shelf_id', 'quantity', 'stock', 'status', 'ready', 'linked', 'match',
             'submitted_at', 'submitted_by_name', 'approved_at', 'approved_by_name',
             'rejected_at', 'rejected_by_name', 'auto_rejected', 'reject_reason', 'reject_note',
@@ -39,11 +39,12 @@ class SubmissionSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
     def get_cover_photo_url(self, book):
-        """Full URL of the staff photo ('' when there is none). Needs the request in the serializer context."""
-        if not book.cover_photo:
+        """Full URL of the staff photo, else our copy of the provider cover ('' when there is neither). Needs the request in the serializer context."""
+        cover = book.cover_photo or book.cached_cover
+        if not cover:
             return ''
         request = self.context.get('request')
-        return request.build_absolute_uri(book.cover_photo.url) if request else book.cover_photo.url
+        return request.build_absolute_uri(cover.url) if request else cover.url
 
     def get_ready(self, book):
         """A waiting-list entry is ready for approval once the entry it waits behind has sold out."""

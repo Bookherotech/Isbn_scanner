@@ -5,8 +5,8 @@ from rest_framework.views import APIView
 
 from authentication.permissions import IsAdminRole
 from book_admin.models import ActivityLog, FlagCategory
-from book_admin.serializers import BookSerializer, FlagCategorySerializer
-from book_admin.services import book_queryset, review_flag
+from book_admin.serializers import BookRejectSerializer, BookSerializer, FlagCategorySerializer
+from book_admin.services import book_queryset, reject_all_flagged, review_flag
 from book_admin.services.activity_service import log_activity
 from book_admin.services.flag_service import overview
 
@@ -32,7 +32,7 @@ class FlagCategoryListView(APIView):
         serializer.is_valid(raise_exception=True)
         category = serializer.save()
         log_activity(action='Added flag category', kind=ActivityLog.Kind.FLAG, target=category.name, actor=request.user,
-                     detail=f'{category.get_mode_display()} · {", ".join(category.keywords)}')
+                     detail=f'{category.get_mode_display()} · {len(category.keywords)} keywords')
         return Response(FlagCategorySerializer(category, context=_with_stats(request)).data, status=status.HTTP_201_CREATED)
 
 
@@ -87,6 +87,23 @@ class FlaggedBookListView(APIView):
             'results': BookSerializer(rows, many=True, context=context).data,
             'counts': {'review': len(review), 'reviewed': len(reviewed), 'all': len(review) + len(reviewed)},
         })
+
+
+class FlaggedRejectAllView(APIView):
+    """POST /api/admin/flagged/reject-all/ {reason, note?, category?} -> {done, skipped, remaining}
+
+    Rejects every book in the "Needs review" list (one category's with `category`), all with the same reason.
+    """
+
+    permission_classes = [IsAdminRole]
+
+    def post(self, request):
+        serializer = BookRejectSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        category = str(request.data.get('category') or '')
+        if category and not category.isdigit():
+            raise ValidationError({'category': 'Must be a category id.'})
+        return Response(reject_all_flagged(category, request.user, **serializer.validated_data))
 
 
 class BookFlagReviewView(APIView):

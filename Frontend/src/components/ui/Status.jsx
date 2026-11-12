@@ -1,4 +1,4 @@
-import { AlertTriangle, Archive, BellRing, CheckCircle2, Clock3, Flag, Hourglass, PackageX, RefreshCw, XCircle } from 'lucide-react'
+import { AlertTriangle, Archive, BellRing, CheckCircle2, Clock3, Flag, Hourglass, PackageX, RefreshCw, Trash2, XCircle } from 'lucide-react'
 import { cn } from '../../utils/format'
 
 /**
@@ -14,10 +14,13 @@ export const STATUS = {
   rejected: { label: 'Rejected', icon: XCircle, tone: 'rejected' },
   out_of_stock: { label: 'Out of stock', icon: PackageX, tone: 'oos' },
   closed: { label: 'Shelf closed', icon: Archive, tone: 'closed' },
+  deleted: { label: 'Deleted on Shopify', icon: Trash2, tone: 'rejected' },
 }
 
-export function StatusChip({ status, ready, size = 'md', className, label }) {
-  const key = status === 'waiting' && ready ? 'ready' : status
+/** Pass `syncStatus` where the row has it: a live / out-of-stock book whose Shopify product was deleted shows "Deleted on Shopify". */
+export function StatusChip({ status, ready, syncStatus, size = 'md', className, label }) {
+  const deleted = syncStatus === 'deleted' && (status === 'live' || status === 'out_of_stock')
+  const key = deleted ? 'deleted' : status === 'waiting' && ready ? 'ready' : status
   const cfg = STATUS[key] || STATUS.pending
   const Icon = cfg.icon
   return (
@@ -39,6 +42,12 @@ export function ShelfTag({ id, variant = 'solid', size = 'md', className, strike
 }
 
 export function SyncChip({ status }) {
+  if (status === 'deleted')
+    return (
+      <span className="sync sync--failed">
+        <Trash2 size={13} aria-hidden /> Deleted on Shopify
+      </span>
+    )
   if (status === 'failed')
     return (
       <span className="sync sync--failed">

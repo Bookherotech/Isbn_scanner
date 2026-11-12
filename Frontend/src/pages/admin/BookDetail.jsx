@@ -1,5 +1,5 @@
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Store } from 'lucide-react'
+import { ArrowLeft, PencilLine, Store } from 'lucide-react'
 import { getItem } from '../../services/adminApi'
 import { useQuery, useTicker } from '../../hooks/useStore'
 import { BookCover } from '../../components/books/BookCover'
@@ -12,6 +12,33 @@ import { ShelfTag, StatusChip, SyncChip } from '../../components/ui/Status'
 import { ActivityRow } from '../../components/dashboard/ActivityRow'
 import { Person } from '../../components/inventory/Filters'
 import { formatDateTime, timeAgo } from '../../utils/format'
+
+const EDIT_LABEL = { title: 'title', author: 'author', publisher: 'publisher', year: 'year', pages: 'pages', isbn: 'ISBN' }
+
+/** What staff changed from the looked-up book when they submitted it (kept after approval). */
+function StaffEdits({ item }) {
+  return (
+    <ul className="review__edits">
+      {item.editedFields.map((k) => (
+        <li key={k}>
+          <PencilLine size={13} aria-hidden />
+          {k === 'photo' ? (
+            'Staff replaced the cover with their own photo'
+          ) : (
+            <>
+              Staff changed {EDIT_LABEL[k] ?? k}
+              {item.fetched?.[k] != null && item.fetched[k] !== '' && (
+                <>
+                  : <s>{String(item.fetched[k])}</s> → <strong>{String(item[k] ?? '')}</strong>
+                </>
+              )}
+            </>
+          )}
+        </li>
+      ))}
+    </ul>
+  )
+}
 
 export default function BookDetail() {
   const { id } = useParams()
@@ -34,10 +61,10 @@ export default function BookDetail() {
         <ArrowLeft size={16} aria-hidden /> Back
       </button>
       <div className="bookd__hero">
-        <BookCover title={it.title} author={it.author} isbn={it.isbn} size="xl" />
+        <BookCover title={it.title} author={it.author} isbn={it.isbn} photo={it.coverPhotoUrl} size="xl" />
         <div className="bookd__ident">
           <div className="bookd__chips">
-            <StatusChip status={it.status} ready={it.ready} />
+            <StatusChip status={it.status} ready={it.ready} syncStatus={it.syncStatus} />
             <SourceBadge source={it.source} />
           </div>
           <h1 className="review__title">{it.title}</h1>
@@ -46,6 +73,7 @@ export default function BookDetail() {
           <div className="review__barcode">
             <Barcode value={it.isbn} height={30} />
           </div>
+          {it.editedFields?.length > 0 && <StaffEdits item={it} />}
           {it.status === 'pending' && (
             <Button variant="primary" to={`/admin/pending/${it.id}`}>
               Review this submission
@@ -82,6 +110,11 @@ export default function BookDetail() {
       </div>
 
       <div className="bookd__grid">
+        {it.description && (
+          <Panel title="Description">
+            <p className="book-desc">{it.description}</p>
+          </Panel>
+        )}
         {it.flags?.length > 0 && <FlagReviewCard item={it} />}
         {it.productId && (
           <Panel title="Shopify product">

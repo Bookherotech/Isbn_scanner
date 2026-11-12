@@ -22,7 +22,7 @@ class SubmissionListView(APIView):
     GET  /api/staff/submissions/?status=all|pending|waiting|live|out_of_stock|rejected|closed&limit=12
          -> {results, count, counts: {all, pending, ...}}   newest first; "Show more" asks for a bigger limit
             (capped at MAX_LIMIT rows)
-    POST /api/staff/submissions/ {isbn, title, author, publisher?, year?, pages?, source, subjects?, fetched?, cover_photo?, shelf_id, quantity}
+    POST /api/staff/submissions/ {isbn, title, author, publisher?, year?, pages?, source, subjects?, description?, fetched?, cover_photo?, shelf_id, quantity}
          (fetched may include the first ISBN; cover_photo is a data URL, re-encoded to JPEG)
          -> 201 {result: pending|waiting|rejected, match, ready, flags, flag_hold, item, key: {title, author}}
     """
@@ -68,7 +68,7 @@ class SubmissionListView(APIView):
             outcome = create_submission(
                 user=request.user, shelf=data['shelf_id'], isbn=data['isbn'], title=data['title'], author=data['author'],
                 publisher=data['publisher'], year=data['year'], pages=data['pages'], source=data['source'],
-                subjects=data['subjects'], fetched=data['fetched'], cover_url=cover_url, cover_photo=data['cover_photo'],
+                subjects=data['subjects'], fetched=data['fetched'], cover_url=cover_url, cover_photo=data['cover_photo'], description=data['description'],
                 quantity=data['quantity'],
             )
         except DuplicateCheckBusy:

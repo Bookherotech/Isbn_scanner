@@ -16,9 +16,9 @@ import { ShelfTag, StatusChip } from '../../components/ui/Status'
 import { Person } from '../../components/inventory/Filters'
 import { cn, formatDateTime, timeAgo } from '../../utils/format'
 
-const FIELDS = ['title', 'author', 'publisher', 'year', 'pages', 'shelfId', 'quantity']
+const FIELDS = ['title', 'author', 'publisher', 'year', 'pages', 'description', 'shelfId', 'quantity']
 const REASONS = ['Incorrect metadata', 'Damaged book', 'Invalid shelf', 'Other']
-const LABEL = { title: 'Title', author: 'Author', publisher: 'Publisher', year: 'Year', pages: 'Pages' }
+const LABEL = { title: 'Title', author: 'Author', publisher: 'Publisher', year: 'Year', pages: 'Pages', description: 'Description' }
 
 export default function ReviewBook() {
   const { id } = useParams()
@@ -53,7 +53,7 @@ function ReviewBody({ item }) {
   }
 
   useEffect(() => {
-    listItems({ statuses: ['pending'], sort: 'oldest', pageSize: 50 }).then((r) => setNextId(r.rows.find((x) => x.id !== item.id)?.id ?? null))
+    listItems({ statuses: ['pending'], hideHeld: true, sort: 'oldest', pageSize: 50 }).then((r) => setNextId(r.rows.find((x) => x.id !== item.id)?.id ?? null))
   }, [item.id, done])
 
   const patch = () => Object.fromEntries(dirtyKeys.map((k) => [k, k === 'quantity' || k === 'year' || k === 'pages' ? (values[k] === '' ? '' : Number(values[k])) : String(values[k]).trim()]))
@@ -126,7 +126,7 @@ function ReviewBody({ item }) {
         {/* ---------- Editorial: the book as fetched/submitted ---------- */}
         <article className="review__book">
           <div className="review__cover">
-            <BookCover title={values.title || item.title} author={values.author || item.author} isbn={item.isbn} size="xl" />
+            <BookCover title={values.title || item.title} author={values.author || item.author} isbn={item.isbn} photo={item.coverPhotoUrl} size="xl" />
           </div>
           <div className="review__ident">
             <SourceBadge source={item.source} />
@@ -255,6 +255,9 @@ function ReviewBody({ item }) {
                     <Input id="r-pages" inputMode="numeric" value={values.pages} onChange={set('pages')} className={cn(dirtyKeys.includes('pages') && 'is-dirty')} />
                   </Field>
                 </div>
+                <Field label="Description" htmlFor="r-description" optional>
+                  <Textarea id="r-description" rows={5} maxLength={5000} value={values.description} onChange={set('description')} className={cn(dirtyKeys.includes('description') && 'is-dirty')} />
+                </Field>
                 <div className="review__row2 review__row2--inv">
                   <Field label="Shelf" htmlFor="r-shelf" hint="From the Shelf master">
                     <ShelfPicker id="r-shelf" shelves={shelves} value={values.shelfId} onChange={set('shelfId')} invalid={!!conflict} />

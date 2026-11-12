@@ -93,6 +93,7 @@ export default function ReviewSubmit() {
               </dd>
             </div>
           </dl>
+          {d.values.description && <p className="book-desc">{d.values.description}</p>}
           <div className="review-card__edit">
             <Link to={`/staff/book/${d.isbn}`}>Edit details</Link>
             <Link to="/staff/shelf">Change shelf or quantity</Link>

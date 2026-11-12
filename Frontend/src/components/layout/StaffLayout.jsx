@@ -5,12 +5,11 @@ import { Logo } from './Logo'
 import { SidebarCredit } from './PoweredBy'
 import { useAuth } from '../../hooks/useAuth'
 import { useMediaQuery } from '../../hooks/useStore'
-import { useActiveLastShelf } from '../../hooks/useDraft'
 import { useUnreadCount } from '../../hooks/useUnreadCount'
 import { Skeleton } from '../ui/Feedback'
 import { Avatar, Menu, MenuItem } from '../ui/Misc'
 import { IconButton } from '../ui/Button'
-import { CountBadge, ShelfTag } from '../ui/Status'
+import { CountBadge } from '../ui/Status'
 import { cn } from '../../utils/format'
 
 const FLOW = ['/staff/scan', '/staff/manual-isbn', '/staff/book', '/staff/shelf', '/staff/review']
@@ -51,7 +50,6 @@ function StaffDesktop() {
   const unread = useUnreadCount()
   const inFlow = FLOW.some((p) => pathname.startsWith(p))
   const title = TITLES.find(([p]) => pathname.startsWith(p))?.[1] ?? 'BookHero'
-  const lastShelf = useActiveLastShelf()
   const [drawer, setDrawer] = useState(false) // 900-1024px: the sidebar opens from the ☰ button
   const nav = (to, label, Icon, extra) => (
     <li>
@@ -86,12 +84,6 @@ function StaffDesktop() {
               </ul>
             </div>
           </nav>
-          {lastShelf && (
-            <div className="sidebar__shop sidebar__shop--static">
-              <span className="sidebar__shop-sub">Working on shelf</span>
-              <ShelfTag id={lastShelf} />
-            </div>
-          )}
           <SidebarCredit />
         </div>
   )

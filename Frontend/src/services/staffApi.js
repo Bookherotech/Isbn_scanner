@@ -58,6 +58,7 @@ function mapItem(r) {
     source: r.source,
     subjects: r.subjects,
     coverUrl: r.cover_url,
+    description: r.description || '',
     coverPhotoUrl: r.cover_photo_url || null, // staff photo; BookCover shows it instead of the Open Library cover
     editedFields: r.edited_fields,
     edited: (r.edited_fields || []).length > 0, // details, ISBN or photo changed from what was fetched
@@ -87,7 +88,7 @@ function mapItem(r) {
 }
 
 /**
- * GET /api/staff/isbn/<isbn>/ -> { isbn, title, author, publisher, year, pages, subjects, coverUrl, source, fallback, missing }
+ * GET /api/staff/isbn/<isbn>/ -> { isbn, title, author, publisher, year, pages, subjects, coverUrl, source, fallback, missing, filled }
  * Errors carry `code`: 'invalid_isbn' | 'not_found' | 'service_unavailable' | 'network'.
  * (The second argument is accepted for the existing Retry calls; every call is a real lookup.)
  */
@@ -101,11 +102,19 @@ export async function lookupIsbn(isbn13) {
     year: m.year ?? '',
     pages: m.pages ?? '',
     subjects: m.subjects,
+    description: m.description || '',
     coverUrl: m.cover_url,
     source: m.source,
     fallback: m.fallback,
     missing: m.missing,
+    filled: m.filled || [], // fields from a Google Books title match: staff should verify them
   }
+}
+
+/** GET /api/staff/isbn/<isbn>/description/ -> the book's description text, '' when there is none. Can take several seconds. */
+export async function getDescription({ isbn, title = '', author = '' }) {
+  const query = new URLSearchParams({ title, author })
+  return (await call(`/api/staff/isbn/${encodeURIComponent(isbn)}/description/?${query}`)).description
 }
 
 /**
@@ -121,6 +130,7 @@ export async function searchBooks({ title, author = '' }) {
     publisher: r.publisher,
     year: r.year ?? '',
     pages: r.pages ?? '',
+    description: r.description || '',
     coverUrl: r.cover_url,
   }))
 }
@@ -141,7 +151,7 @@ export async function loadShelves() {
 
 /**
  * POST /api/staff/submissions/ -> { result: 'pending' | 'waiting' | 'rejected', match, ready, flags, flagHold, item, key }
- * `draft` is what the Review screen sends: { isbn, title, author, publisher, year, pages, source, subjects, fetched, photo, shelfId, quantity }.
+ * `draft` is what the Review screen sends: { isbn, title, author, publisher, year, pages, source, subjects, description, fetched, photo, shelfId, quantity }.
  * `fetched.isbn` is the ISBN first scanned/typed (a corrected ISBN counts as an edit); `photo` is a JPEG data URL.
  */
 export async function submitBook(draft) {
@@ -156,6 +166,7 @@ export async function submitBook(draft) {
       pages: draft.pages ?? '',
       source: draft.source || 'manual',
       subjects: draft.subjects || [],
+      description: draft.description?.trim() || '',
       fetched: draft.fetched || null,
       cover_photo: draft.photo || '',
       shelf_id: draft.shelfId,
@@ -181,4 +192,24 @@ export async function getMySubmissions({ status = 'all', pageSize = 12 } = {}) {
 /** GET /api/staff/submissions/<id>/ -> one of your own submissions. */
 export async function getSubmission(id) {
   return mapItem(await call(`/api/staff/submissions/${encodeURIComponent(id)}/`))
+}
+
+/** GET /api/staff/books/<id>/ -> a read-only approved book, which may be another staff member's. */
+export async function getBook(id) {
+  const b = await call(`/api/staff/books/${encodeURIComponent(id)}/`)
+  return {
+    id: b.id,
+    isbn: b.isbn,
+    title: b.title,
+    author: b.author,
+    publisher: b.publisher,
+    year: b.year ?? '',
+    pages: b.pages ?? '',
+    description: b.description || '',
+    coverPhotoUrl: b.cover_photo_url || null,
+    shelfId: b.shelf_id,
+    quantity: b.quantity,
+    stock: b.stock,
+    status: b.status,
+  }
 }

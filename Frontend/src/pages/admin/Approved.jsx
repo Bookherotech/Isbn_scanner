@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { listItems } from '../../services/adminApi'
-import { useDebounce, useQuery, useTicker } from '../../hooks/useStore'
+import { useAutoRefresh, useDebounce, useQuery, useTicker } from '../../hooks/useStore'
 import { DataTable, Pagination } from '../../components/ui/Data'
 import { PageHeader } from '../../components/ui/Misc'
-import { SearchInput } from '../../components/ui/Form'
+import { SearchInput, Select } from '../../components/ui/Form'
 import { EmptyState } from '../../components/ui/Feedback'
 import { ShelfTag, StatusChip } from '../../components/ui/Status'
 import { BookCell } from '../../components/books/BookCover'
@@ -16,12 +16,14 @@ export default function Approved() {
   const [q, setQ] = useState('')
   const [shelf, setShelf] = useState('')
   const [staff, setStaff] = useState('')
+  const [edited, setEdited] = useState('')
   const [page, setPage] = useState(1)
   const dq = useDebounce(q)
-  const { data, loading, error, reload, refreshing } = useQuery(
-    () => listItems({ statuses: ['live', 'out_of_stock', 'closed'], approvedOnly: true, q: dq, shelf, staff, sort: 'approved', page, pageSize: 20 }),
-    [dq, shelf, staff, page],
+  const { data, loading, error, reload, refresh, refreshing } = useQuery(
+    () => listItems({ statuses: ['live', 'out_of_stock', 'closed'], approvedOnly: true, edited: edited === 'yes', q: dq, shelf, staff, sort: 'approved', page, pageSize: 20 }),
+    [dq, shelf, staff, edited, page],
   )
+  useAutoRefresh(refresh)
   useTicker()
   const r1 = (fn) => (v) => {
     fn(v)
@@ -29,13 +31,13 @@ export default function Approved() {
   }
 
   const columns = [
-    { key: 'book', header: 'Book', card: 'title', render: (r) => <BookCell item={r} /> },
+    { key: 'book', header: 'Book', card: 'title', render: (r) => <BookCell item={r} sub={r.editedFields?.length ? `Staff edited ${r.editedFields.join(', ')}` : undefined} /> },
     { key: 'shelf', header: 'Shelf', card: 'meta', render: (r) => <ShelfTag id={r.shelfId} size="sm" variant={r.status === 'closed' ? 'muted' : 'solid'} /> },
     { key: 'qty', header: 'Approved qty', align: 'right', card: 'meta', render: (r) => <span className="num td-strong">{r.quantity}</span> },
     { key: 'by', header: 'Submitted by', card: 'meta', render: (r) => <Person id={r.submittedBy} name={r.submittedByName} /> },
     { key: 'approved', header: 'Approved', card: 'meta', render: (r) => <span className="td-muted" title={formatDateTime(r.approvedAt)}>{timeAgo(r.approvedAt)}</span> },
     { key: 'product', header: 'Shopify product', card: 'meta', render: (r) => <span className="td-mono">{r.productId ? `#${r.productId}` : '—'}</span> },
-    { key: 'status', header: 'Now', card: 'badge', render: (r) => <StatusChip status={r.status} size="sm" /> },
+    { key: 'status', header: 'Now', card: 'badge', render: (r) => <StatusChip status={r.status} syncStatus={r.syncStatus} size="sm" /> },
   ]
 
   return (
@@ -45,6 +47,10 @@ export default function Approved() {
         <SearchInput value={q} onChange={r1(setQ)} placeholder="Search title, author, ISBN or shelf" />
         <ShelfFilter value={shelf} onChange={r1(setShelf)} />
         <StaffFilter value={staff} onChange={r1(setStaff)} />
+        <Select value={edited} onChange={(e) => r1(setEdited)(e.target.value)} aria-label="Staff edits">
+          <option value="">Any book</option>
+          <option value="yes">Edited by staff</option>
+        </Select>
       </div>
       <DataTable
         columns={columns}
