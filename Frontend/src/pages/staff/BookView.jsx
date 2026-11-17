@@ -29,7 +29,7 @@ export default function BookView() {
             <div className="subdetail__hero">
               <BookCover title={it.title} author={it.author} isbn={it.isbn} photo={it.coverPhotoUrl} size="lg" />
               <div>
-                <StatusChip status={it.status} />
+                <StatusChip status={it.status} syncStatus={it.syncStatus} />
                 <h2 className="serif">{it.title}</h2>
                 <p>{it.author}</p>
                 {(it.publisher || it.year || it.pages) && <p className="muted">{[it.publisher, it.year, it.pages && `${it.pages} pages`].filter(Boolean).join(' · ')}</p>}

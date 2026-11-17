@@ -164,7 +164,7 @@ function Attention({ data }) {
           <div className="attn__text">
             <strong>{w.title}</strong>
             <span>
-              <ShelfTag id={w.linked.shelfId} size="sm" variant="muted" /> sold out · entry on <ShelfTag id={w.shelfId} size="sm" variant="outline" /> ready
+              <ShelfTag id={w.linked.shelfId} size="sm" variant="muted" /> {w.linked.syncStatus === 'deleted' ? 'deleted on Shopify' : 'sold out'} · entry on <ShelfTag id={w.shelfId} size="sm" variant="outline" /> ready
             </span>
           </div>
           <Button size="sm" variant="primary" onClick={() => navigate(`/admin/waiting-list?review=${w.id}`)}>

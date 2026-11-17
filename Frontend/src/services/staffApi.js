@@ -42,7 +42,7 @@ async function call(path, options) {
 
 function mapMatch(m) {
   if (!m) return null
-  return { itemId: m.item_id, title: m.title, author: m.author, isbn: m.isbn, shelfId: m.shelf_id, quantity: m.quantity, status: m.status }
+  return { itemId: m.item_id, title: m.title, author: m.author, isbn: m.isbn, shelfId: m.shelf_id, quantity: m.quantity, status: m.status, syncStatus: m.sync_status }
 }
 
 /** A submission row from the backend -> the item shape used by SubmissionCard / SubmissionDetail. */
@@ -67,8 +67,9 @@ function mapItem(r) {
     quantity: r.quantity,
     stock: r.stock,
     status: r.status,
+    syncStatus: r.sync_status,
     ready: r.ready,
-    linked: r.linked ? { id: r.linked.id, shelfId: r.linked.shelf_id, status: r.linked.status, stock: r.linked.stock, quantity: r.linked.quantity } : null,
+    linked: r.linked ? { id: r.linked.id, shelfId: r.linked.shelf_id, status: r.linked.status, syncStatus: r.linked.sync_status, stock: r.linked.stock, quantity: r.linked.quantity } : null,
     match: mapMatch(r.match),
     submittedAt: ms(r.submitted_at),
     submittedByName: r.submitted_by_name,

@@ -122,12 +122,16 @@ const RESULT = {
   pending: { icon: Clock3, tone: 'pending', title: 'Submitted for approval', text: 'Submitted for admin approval.' },
   waiting: { icon: Hourglass, tone: 'waiting', title: 'Added to the waiting list', text: 'This book already exists on another shelf. Your entry has been added to the waiting list.' },
   rejected: { icon: XCircle, tone: 'rejected', title: 'Already on this shelf', text: 'This book is already registered on this shelf.' },
+  restockDeleted: { icon: Hourglass, tone: 'waiting', title: 'Sent for restock approval', text: 'This book was deleted on Shopify. Your new copies are on the waiting list for the admin to approve.' },
+  restock: { icon: Hourglass, tone: 'waiting', title: 'Sent for restock approval', text: 'This book is sold out on this shelf. Your new copies are on the waiting list for the admin to approve.' },
 }
 
 function SubmitResult({ result }) {
-  const cfg = RESULT[result.result]
-  const Icon = cfg.icon
   const d = result.draft
+  const restock = result.result === 'waiting' && result.match?.shelfId === d.shelfId // sold out on this same shelf
+  const deleted = result.match?.syncStatus === 'deleted'
+  const cfg = RESULT[restock ? (deleted ? 'restockDeleted' : 'restock') : result.result]
+  const Icon = cfg.icon
   const mine = { title: d.values.title, author: d.values.author, isbn: d.isbn }
   return (
     <div className={`flow result result--${cfg.tone}`}>
@@ -158,9 +162,13 @@ function SubmitResult({ result }) {
         )}
         {result.result === 'waiting' && (
           <div className="result__waiting">
-            <ShelfMove from={result.match.shelfId} to={d.shelfId} fromLabel="Current stock" toLabel="Your shelf" />
-            <p>Waiting for the current stock to sell out before this shelf can become active. The admin approves it then.</p>
-            {result.ready && <p className="result__ready">Current stock is already sold out — the admin can approve this right away.</p>}
+            {!restock && (
+              <>
+                <ShelfMove from={result.match.shelfId} to={d.shelfId} fromLabel="Current stock" toLabel="Your shelf" />
+                <p>Waiting for the current stock to sell out before this shelf can become active. The admin approves it then.</p>
+              </>
+            )}
+            {result.ready && <p className="result__ready">{deleted ? 'The current listing was deleted on Shopify' : 'Current stock is already sold out'} — the admin can approve this right away.</p>}
           </div>
         )}
         {result.flagHold && (

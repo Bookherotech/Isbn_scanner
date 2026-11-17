@@ -45,7 +45,7 @@ export function SubmissionCard({ item }) {
           <span>{timeAgo(item.submittedAt)}</span>
         </span>
         <span className="subcard__status">
-          <StatusChip status={item.status} ready={item.ready} size="sm" />
+          <StatusChip status={item.status} ready={item.ready} syncStatus={item.syncStatus} size="sm" />
           {item.edited && <span className="edited-tag subcard__edited">Edited</span>}
           {item.flagHold && (
             <span className="subcard__flag">

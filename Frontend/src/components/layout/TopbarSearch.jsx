@@ -115,7 +115,7 @@ export function TopbarSearch({ inputRef, onOpenDialog }) {
                         </span>
                       </span>
                       <ShelfTag id={r.shelfId} size="sm" />
-                      <StatusChip status={r.status} ready={r.ready} size="sm" />
+                      <StatusChip status={r.status} ready={r.ready} syncStatus={r.syncStatus} size="sm" />
                       {i === active && <CornerDownLeft size={15} className="cmd__enter" aria-hidden />}
                     </button>
                   </li>

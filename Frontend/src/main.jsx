@@ -16,6 +16,7 @@ import { AppRoutes } from './routes/AppRoutes'
 import { PushToasts } from './components/layout/PushToasts'
 import { Splash } from './components/layout/Splash'
 import { ScrollToTop } from './components/layout/ScrollToTop'
+import { UpdateGuard } from './components/layout/UpdateGuard'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
@@ -25,9 +26,11 @@ createRoot(document.getElementById('root')).render(
       <AuthProvider>
         <ToastProvider>
           <DraftProvider>
-            <Suspense fallback={<div className="boot" aria-busy="true" />}>
-              <AppRoutes />
-            </Suspense>
+            <UpdateGuard>
+              <Suspense fallback={<div className="boot" aria-busy="true" />}>
+                <AppRoutes />
+              </Suspense>
+            </UpdateGuard>
             <PushToasts />
           </DraftProvider>
         </ToastProvider>

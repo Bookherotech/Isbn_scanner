@@ -63,7 +63,7 @@ export function hueOf(key = '') {
 
 function mapMatch(m) {
   if (!m) return null
-  return { itemId: m.item_id, title: m.title, author: m.author, isbn: m.isbn, shelfId: m.shelf_id, quantity: m.quantity, status: m.status }
+  return { itemId: m.item_id, title: m.title, author: m.author, isbn: m.isbn, shelfId: m.shelf_id, quantity: m.quantity, status: m.status, syncStatus: m.sync_status }
 }
 
 const mapWaitingEntry = (w) => ({ id: w.id, shelfId: w.shelf_id, quantity: w.quantity, submittedBy: w.submitted_by, submittedByName: w.submitted_by_name, submittedAt: ms(w.submitted_at) })
@@ -92,7 +92,7 @@ function mapItem(r) {
     stock: r.stock,
     status: r.status,
     ready: r.ready,
-    linked: r.linked ? { id: r.linked.id, shelfId: r.linked.shelf_id, status: r.linked.status, stock: r.linked.stock, quantity: r.linked.quantity, productId: r.linked.product_id, stockOutAt: ms(r.linked.stock_out_at) } : null,
+    linked: r.linked ? { id: r.linked.id, shelfId: r.linked.shelf_id, status: r.linked.status, syncStatus: r.linked.sync_status, stock: r.linked.stock, quantity: r.linked.quantity, productId: r.linked.product_id, stockOutAt: ms(r.linked.stock_out_at) } : null,
     match: mapMatch(r.match),
     submittedBy: r.submitted_by,
     submittedByName: r.submitted_by_name,
