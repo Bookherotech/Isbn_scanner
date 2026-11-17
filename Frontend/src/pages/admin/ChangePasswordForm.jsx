@@ -8,15 +8,10 @@ import { Button } from '../../components/ui/Button'
 const first = (messages) => (Array.isArray(messages) ? messages[0] : messages)
 
 // Live password checks while typing (the server checks again on save, incl. very common passwords).
-function passwordChecks(password, { full_name: fullName = '', email = '' }) {
-  const lower = password.toLowerCase()
-  const nameParts = (fullName || '').toLowerCase().split(/\s+/).filter((p) => p.length >= 3)
-  const emailName = (email || '').toLowerCase().split('@')[0]
-  const similar = (emailName.length >= 3 && lower.includes(emailName)) || nameParts.some((p) => lower.includes(p))
+function passwordChecks(password) {
   return [
     { ok: password.length >= 8, label: 'At least 8 characters' },
     { ok: password.length > 0 && !/^\d+$/.test(password), label: 'Not only numbers' },
-    { ok: password.length > 0 && !similar, label: 'Not similar to their name or email' },
   ]
 }
 
@@ -36,7 +31,7 @@ export default function ChangePasswordForm({ staff, onDone, onClose }) {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [errors, setErrors] = useState({})
   const [busy, setBusy] = useState(false)
-  const checks = passwordChecks(password, staff)
+  const checks = passwordChecks(password)
   const matches = confirmPassword.length > 0 && password === confirmPassword
 
   const submit = async (e) => {

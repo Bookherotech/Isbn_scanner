@@ -37,7 +37,7 @@ class StaffCreateSerializer(serializers.Serializer):
     def validate(self, attrs):
         if attrs['password'] != attrs['confirm_password']:
             raise serializers.ValidationError({'confirm_password': ['Passwords do not match.']})
-        candidate = User(email=attrs['email'], full_name=attrs['full_name'])  # lets the "too similar" check see them
+        candidate = User(email=attrs['email'], full_name=attrs['full_name'])
         try:
             validate_password(attrs['password'], user=candidate)
         except DjangoValidationError as error:
