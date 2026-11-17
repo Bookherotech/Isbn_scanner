@@ -110,7 +110,7 @@ function FlaggedBooks({ query, tab }) {
           <span className="td-muted">Label only</span>
         ),
     },
-    { key: 'status', header: 'Status', card: 'badge', render: (r) => <StatusChip status={r.status} ready={r.ready} size="sm" /> },
+    { key: 'status', header: 'Status', card: 'badge', render: (r) => <StatusChip status={r.status} ready={r.ready} syncStatus={r.syncStatus} size="sm" /> },
     {
       key: 'action',
       header: '',

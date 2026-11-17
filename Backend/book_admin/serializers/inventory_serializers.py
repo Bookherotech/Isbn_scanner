@@ -61,7 +61,7 @@ class BookSerializer(serializers.ModelSerializer):
         if linked is None:
             return None
         return {
-            'id': linked.id, 'shelf_id': linked.shelf.code, 'status': linked.status, 'stock': linked.stock,
+            'id': linked.id, 'shelf_id': linked.shelf.code, 'status': linked.status, 'sync_status': linked.sync_status, 'stock': linked.stock,
             'quantity': linked.quantity, 'product_id': linked.product_id, 'stock_out_at': linked.stock_out_at,
         }
 

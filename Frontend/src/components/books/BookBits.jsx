@@ -89,7 +89,7 @@ export function MatchLine({ match }) {
   if (!match) return null
   return (
     <span className="matchline">
-      <ShelfTag id={match.shelfId} size="sm" /> qty <strong className="num">{match.quantity}</strong> <StatusChip status={match.status} size="sm" />
+      <ShelfTag id={match.shelfId} size="sm" /> qty <strong className="num">{match.quantity}</strong> <StatusChip status={match.status} syncStatus={match.syncStatus} size="sm" />
     </span>
   )
 }
