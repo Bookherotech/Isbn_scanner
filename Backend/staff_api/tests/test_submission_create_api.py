@@ -57,7 +57,7 @@ class SubmissionCreateApiTests(StaffApiTestCase):
         self.assertFalse(response.data['ready'])
         self.assertEqual(response.data['match']['shelf_id'], 'A-02')
         item = response.data['item']
-        self.assertEqual(item['linked'], {'id': live.id, 'shelf_id': 'A-02', 'status': 'live', 'stock': 4, 'quantity': 3})
+        self.assertEqual(item['linked'], {'id': live.id, 'shelf_id': 'A-02', 'status': 'live', 'sync_status': '', 'stock': 4, 'quantity': 3})
         self.assertFalse(item['ready'])
         self.assertIsNone(Book.objects.get(pk=item['id']).waiting_ready_at)
 

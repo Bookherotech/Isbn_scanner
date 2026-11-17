@@ -31,7 +31,7 @@ class SubmissionSerializer(serializers.ModelSerializer):
         model = Book
         fields = [
             'id', 'isbn', 'title', 'author', 'publisher', 'year', 'pages', 'source', 'subjects', 'description', 'cover_url', 'cover_photo_url',
-            'edited_fields', 'missing_fields', 'shelf_id', 'quantity', 'stock', 'status', 'ready', 'linked', 'match',
+            'edited_fields', 'missing_fields', 'shelf_id', 'quantity', 'stock', 'status', 'sync_status', 'ready', 'linked', 'match',
             'submitted_at', 'submitted_by_name', 'approved_at', 'approved_by_name',
             'rejected_at', 'rejected_by_name', 'auto_rejected', 'reject_reason', 'reject_note',
             'waiting_ready_at', 'stock_out_at', 'closed_at', 'flags', 'flag_hold',
@@ -54,7 +54,7 @@ class SubmissionSerializer(serializers.ModelSerializer):
         linked = book.linked_item
         if linked is None:
             return None
-        return {'id': linked.id, 'shelf_id': linked.shelf.code, 'status': linked.status, 'stock': linked.stock, 'quantity': linked.quantity}
+        return {'id': linked.id, 'shelf_id': linked.shelf.code, 'status': linked.status, 'sync_status': linked.sync_status, 'stock': linked.stock, 'quantity': linked.quantity}
 
     def get_submitted_by_name(self, book):
         return display_name(book.submitted_by)

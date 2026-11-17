@@ -28,7 +28,7 @@ function timeline(it) {
   }
   steps.push({ label: `Approved by ${it.approvedByName || 'admin'}`, at: it.approvedAt, state: 'done' })
   steps.push({ label: 'Live on Shopify', at: it.approvedAt, state: 'done' })
-  if (it.status === 'out_of_stock') steps.push({ label: 'Sold out on Shopify', at: it.stockOutAt, state: 'warn' })
+  if (it.status === 'out_of_stock') steps.push({ label: it.syncStatus === 'deleted' ? 'Deleted on Shopify' : 'Sold out on Shopify', at: it.stockOutAt, state: 'warn' })
   if (it.status === 'closed') steps.push({ label: 'Sold out — shelf closed', at: it.closedAt, state: 'warn' })
   return steps
 }
@@ -54,7 +54,7 @@ export default function SubmissionDetail() {
             <div className="subdetail__hero">
               <BookCover title={it.title} author={it.author} isbn={it.isbn} photo={it.coverPhotoUrl} size="lg" />
               <div>
-                <StatusChip status={it.status} ready={it.ready} />
+                <StatusChip status={it.status} ready={it.ready} syncStatus={it.syncStatus} />
                 <h2 className="serif">{it.title}</h2>
                 <p>{it.author}</p>
                 <span className="meta-hero__badges">

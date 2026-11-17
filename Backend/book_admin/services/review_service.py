@@ -232,7 +232,8 @@ def approve_waiting_entry(entry_id, admin):
 
         now = timezone.now()
         primary.status, primary.closed_at = BookStatus.CLOSED, now
-        primary.closed_reason = f'Sold out — active shelf switched to {entry.shelf.code}'
+        restock = primary.shelf_id == entry.shelf_id  # new copies counted on the same shelf
+        primary.closed_reason = f'Sold out — restocked on {entry.shelf.code}' if restock else f'Sold out — active shelf switched to {entry.shelf.code}'
         primary.save()
 
         entry.status, entry.stock = BookStatus.LIVE, entry.quantity
@@ -244,7 +245,8 @@ def approve_waiting_entry(entry_id, admin):
 
         Book.objects.filter(status=BookStatus.WAITING, linked_item=primary).update(linked_item=entry, waiting_ready_at=None)
         log_activity(action='Approved waiting entry', kind=ActivityLog.Kind.APPROVAL, target=quoted(entry), detail=f'Shelf {entry.shelf.code} · qty {entry.quantity}', actor=admin, book=entry)
-        log_activity(action='Active shelf switched', kind=ActivityLog.Kind.SHELF, target=quoted(entry), detail=f'{primary.shelf.code} closed → {entry.shelf.code} active', actor=admin, book=entry)
+        if not restock:
+            log_activity(action='Active shelf switched', kind=ActivityLog.Kind.SHELF, target=quoted(entry), detail=f'{primary.shelf.code} closed → {entry.shelf.code} active', actor=admin, book=entry)
         notify(type=Notification.Type.WAITING_APPROVED, title='Back in stock', audience=Notification.Audience.ALL, book=entry, push=False,
                body=f'{entry.title} is live again on {entry.shelf.code} — {entry.quantity} units added.')
         if entry.submitted_by_id:

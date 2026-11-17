@@ -50,7 +50,7 @@ export default function WaitingList() {
       render: (r) => (
         <span className="cell-stack">
           <ShelfTag id={r.linked.shelfId} size="sm" variant={r.ready ? 'muted' : 'solid'} />
-          <span className={cn('cell-note num', r.ready && 'is-warn')}>{r.ready ? 'Sold out' : `${r.linked.stock} left`}</span>
+          <span className={cn('cell-note num', r.ready && 'is-warn')}>{r.ready ? (r.linked.syncStatus === 'deleted' ? 'Deleted on Shopify' : 'Sold out') : `${r.linked.stock} left`}</span>
         </span>
       ),
     },
@@ -181,11 +181,14 @@ function WaitingDrawer({ entry, onClose }) {
   const from = result ? result.previousShelfId : e.linked?.shelfId
   const productId = result ? result.productId : e.linked?.productId
   const phase = result ? 'done' : stages.active ? 'running' : 'idle'
+  const restock = from === e.shelfId // new copies counted on the shelf that sold out
 
   const approve = async () => {
     try {
       const res = await stages.run(
-        [`Adding ${e.quantity} units to Shopify product${productId ? ` #${productId}` : ''}`, `Switching active shelf ${from} → ${e.shelfId}`, `Closing shelf ${from} entry`, `Live on ${e.shelfId}`],
+        restock
+          ? [`Adding ${e.quantity} units to Shopify product${productId ? ` #${productId}` : ''}`, `Closing sold-out ${from} entry`, `Live on ${e.shelfId}`]
+          : [`Adding ${e.quantity} units to Shopify product${productId ? ` #${productId}` : ''}`, `Switching active shelf ${from} → ${e.shelfId}`, `Closing shelf ${from} entry`, `Live on ${e.shelfId}`],
         () => approveWaitingEntry(e.id),
         { stepMs: 380 },
       )
@@ -225,7 +228,7 @@ function WaitingDrawer({ entry, onClose }) {
             </Button>
             <span style={{ flex: 1 }} />
             <Button variant="primary" icon={Check} onClick={approve} disabled={!e.ready || stages.active} loading={stages.active}>
-              Approve &amp; switch shelf
+              {restock ? 'Approve restock' : <>Approve &amp; switch shelf</>}
             </Button>
           </>
         )
@@ -254,7 +257,7 @@ function WaitingDrawer({ entry, onClose }) {
             <div className="transfer__shelf transfer__shelf--from">
               <span className="transfer__lbl">{phase === 'done' ? 'Closed' : 'Current shelf'}</span>
               <ShelfTag id={from} size="lg" variant={phase === 'done' || e.ready ? 'muted' : 'solid'} strike={phase === 'done'} />
-              <span className="transfer__qty num">{e.ready || phase === 'done' ? '0 left · sold out' : `${e.linked.stock} left on Shopify`}</span>
+              <span className="transfer__qty num">{e.ready || phase === 'done' ? (e.linked?.syncStatus === 'deleted' ? 'Deleted on Shopify' : '0 left · sold out') : `${e.linked.stock} left on Shopify`}</span>
             </div>
             <div className="transfer__arrow" aria-hidden>
               <ArrowDown size={18} />
@@ -277,7 +280,11 @@ function WaitingDrawer({ entry, onClose }) {
           <div className="callout callout--ok">
             <Check size={16} aria-hidden />
             <p>
-              Quantity added to the <strong>same Shopify product</strong>. Shelf <strong>{from}</strong> is closed and <strong>{e.shelfId}</strong> is now the active shelf. The 24-hour reminder is cancelled.
+              {restock ? (
+                <>Shelf <strong>{e.shelfId}</strong> is restocked with {e.quantity} units on Shopify. The sold-out entry is closed and the 24-hour reminder is cancelled.</>
+              ) : (
+                <>Quantity added to the <strong>same Shopify product</strong>. Shelf <strong>{from}</strong> is closed and <strong>{e.shelfId}</strong> is now the active shelf. The 24-hour reminder is cancelled.</>
+              )}
             </p>
           </div>
         ) : !e.ready ? (

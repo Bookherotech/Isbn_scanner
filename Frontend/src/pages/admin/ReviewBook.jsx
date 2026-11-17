@@ -195,7 +195,7 @@ function ReviewBody({ item }) {
               <ul className="review__matches">
                 {item.duplicateCheck.matches.map((m) => (
                   <li key={m.itemId}>
-                    <ShelfTag id={m.shelfId} size="sm" /> <StatusChip status={m.status} size="sm" /> qty <span className="num">{m.quantity}</span>
+                    <ShelfTag id={m.shelfId} size="sm" /> <StatusChip status={m.status} syncStatus={m.syncStatus} size="sm" /> qty <span className="num">{m.quantity}</span>
                   </li>
                 ))}
               </ul>
@@ -213,7 +213,7 @@ function ReviewBody({ item }) {
             <ApprovedCard item={done} nextId={nextId} />
           ) : notPending ? (
             <div className="review__closed">
-              <StatusChip status={item.status} ready={item.ready} />
+              <StatusChip status={item.status} ready={item.ready} syncStatus={item.syncStatus} />
               <p>This submission is no longer pending.</p>
               <Button to={`/admin/books/${item.id}`}>Open book detail</Button>
             </div>
