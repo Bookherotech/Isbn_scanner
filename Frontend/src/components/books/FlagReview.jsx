@@ -28,8 +28,14 @@ export function FlagReviewCard({ item, onReviewed }) {
             loading={busy}
             onClick={async () => {
               setBusy(true)
-              await reviewFlag(item.id, note.trim())
-              setBusy(false)
+              try {
+                await reviewFlag(item.id, note.trim())
+              } catch (err) {
+                toast({ title: 'Couldn’t mark reviewed', description: err.message, tone: 'error' })
+                return
+              } finally {
+                setBusy(false)
+              }
               toast({ title: 'Flag reviewed', description: 'Noted in the activity log.' })
               onReviewed?.()
             }}

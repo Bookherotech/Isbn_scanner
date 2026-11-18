@@ -336,7 +336,12 @@ function ApprovedCard({ item, nextId }) {
         </div>
       </dl>
       <p className="approved__note">
-        <Store size={14} aria-hidden /> The book is live with its counted quantity. The Shopify listing is not connected yet.
+        <Store size={14} aria-hidden />{' '}
+        {item.syncStatus === 'synced'
+          ? 'Listed on Shopify with its counted quantity.'
+          : item.syncStatus === 'failed'
+            ? 'Couldn’t update Shopify. The scheduled sync will try again.'
+            : 'Live with its counted quantity. Not on Shopify yet.'}
       </p>
       <div className="approved__actions">
         {nextId ? (
@@ -358,6 +363,7 @@ function RejectDialog({ open, onClose, onConfirm, title }) {
   const [reason, setReason] = useState(REASONS[0])
   const [note, setNote] = useState('')
   const [busy, setBusy] = useState(false)
+  const { toast } = useToast()
   const needsNote = reason === 'Other'
   return (
     <Modal
@@ -375,8 +381,13 @@ function RejectDialog({ open, onClose, onConfirm, title }) {
             disabled={needsNote && !note.trim()}
             onClick={async () => {
               setBusy(true)
-              await onConfirm(reason, note.trim())
-              setBusy(false)
+              try {
+                await onConfirm(reason, note.trim())
+              } catch (err) {
+                toast({ title: 'Couldn’t reject', description: err.message, tone: 'error' })
+              } finally {
+                setBusy(false)
+              }
             }}
           >
             Reject

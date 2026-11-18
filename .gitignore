@@ -28,6 +28,7 @@ build/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+Backend/.cache/
 .coverage
 htmlcov/
 .tox/
