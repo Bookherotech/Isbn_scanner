@@ -54,6 +54,12 @@ export async function resendOtp({ challenge }) {
   }
 }
 
+/** POST /api/auth/logout/ {refresh}: ends the sign-in on the server too. Never throws: signing out always works locally. */
+export function logout(refresh) {
+  if (!refresh) return Promise.resolve()
+  return request('/api/auth/logout/', { method: 'POST', body: { refresh }, auth: false }).catch(() => {})
+}
+
 /**
  * GET /api/auth/users/?role=staff -> { results: [user], next } (Admin only).
  * Pass the `next` link from the previous page to get the following page.

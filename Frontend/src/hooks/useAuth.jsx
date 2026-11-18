@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { hueOf } from '../services/adminApi'
 import { setAuthLostHandler } from '../services/apiClient'
-import { fetchMe, loginWithPassword, saveProfile, verifyOtp } from '../services/authApi'
+import { fetchMe, loginWithPassword, logout, saveProfile, verifyOtp } from '../services/authApi'
 import { clearAuth, readAuth, touchAuth, updateAuth, writeAuth } from '../services/authStorage'
 
 const AuthContext = createContext(null)
@@ -76,6 +76,7 @@ export function AuthProvider({ children }) {
   }, [])
 
   const signOut = useCallback(() => {
+    logout(readAuth()?.refresh) // the server revokes the sign-in; the local session is cleared right away either way
     clearAuth()
     setUser(null)
   }, [])
