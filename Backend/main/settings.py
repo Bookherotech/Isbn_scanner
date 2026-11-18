@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.1/ref/settings/
 """
 
+import sys
 from datetime import timedelta
 from pathlib import Path
 
@@ -198,6 +199,18 @@ DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default=f'BookHero <{_email_us
 # Django REST framework
 # https://www.django-rest-framework.org/api-guide/settings/
 
+# Shared by every gunicorn worker (locmem is per worker): the ISBN lookup's cover URL read back at submit,
+# login / OTP throttles, Shopify webhook de-duplication and the Shopify token. Each site (live / test) has its own
+# folder. Tests keep an in-memory cache so runs never see each other's throttle counts.
+TESTING = len(sys.argv) > 1 and sys.argv[1] == 'test'
+CACHES = {
+    'default': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache'} if TESTING else {
+        'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
+        'LOCATION': config('CACHE_DIR', default=str(BASE_DIR / '.cache')),
+        'OPTIONS': {'MAX_ENTRIES': 5000},
+    },
+}
+
 REST_FRAMEWORK = {
     # Stateless JWT auth: no server-side session store, so the API scales across many workers
     'DEFAULT_AUTHENTICATION_CLASSES': (
@@ -210,7 +223,7 @@ REST_FRAMEWORK = {
         'rest_framework.renderers.JSONRenderer',
     ),
     'DEFAULT_THROTTLE_RATES': {
-        'login': '10/min',  # per IP. Uses the cache: switch CACHES to Redis when running several workers
+        'login': '10/min',  # per IP. Counted in the shared CACHES above, so all workers share one limit
         'isbn_lookup': '60/min',  # per staff user; protects the Google Books / Open Library quota
         'book_search': '30/min',  # per staff user; title suggestions while typing (Google Books daily quota)
     },
