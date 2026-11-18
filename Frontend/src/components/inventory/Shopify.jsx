@@ -78,7 +78,9 @@ function ShopifyBody({ shopify }) {
         <span className="num">{cd.label}</span>
       </div>
       )}
-      <p className="shopcard__note">Scheduled polling — no Shopify webhooks in this release.</p>
+      {shopify.connected && (
+        <p className="shopcard__note">Shopify webhooks update stock straight away. The scheduled check catches anything missed.</p>
+      )}
     </>
   )
 }

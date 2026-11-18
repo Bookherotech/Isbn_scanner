@@ -219,8 +219,14 @@ function WaitingDrawer({ entry, onClose }) {
           <>
             <Button variant="danger-ghost" icon={X} loading={rejecting} disabled={stages.active} onClick={async () => {
               setRejecting(true)
-              await rejectItem(e.id, { reason: 'Other', note: 'Waiting-list entry removed by admin.' })
-              setRejecting(false)
+              try {
+                await rejectItem(e.id, { reason: 'Other', note: 'Waiting-list entry removed by admin.' })
+              } catch (err) {
+                toast({ title: 'Couldn’t reject', description: err.message, tone: 'error' })
+                return
+              } finally {
+                setRejecting(false)
+              }
               toast({ title: 'Waiting-list entry rejected', tone: 'info' })
               close()
             }}>
