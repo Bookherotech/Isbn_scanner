@@ -17,6 +17,10 @@ import { PushToasts } from './components/layout/PushToasts'
 import { Splash } from './components/layout/Splash'
 import { ScrollToTop } from './components/layout/ScrollToTop'
 import { UpdateGuard } from './components/layout/UpdateGuard'
+import { UpdatePrompt } from './components/layout/UpdatePrompt'
+import { registerServiceWorker } from './pwa/register'
+
+registerServiceWorker()
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
@@ -32,6 +36,7 @@ createRoot(document.getElementById('root')).render(
               </Suspense>
             </UpdateGuard>
             <PushToasts />
+            <UpdatePrompt />
           </DraftProvider>
         </ToastProvider>
       </AuthProvider>
