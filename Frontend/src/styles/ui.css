@@ -630,6 +630,30 @@
 .toast__close { color: #8d8676; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 4px; }
 .toast__close:hover { background: rgba(255, 255, 255, 0.08); color: #fff; }
 
+/* New version on the server (PWA update) */
+.update-prompt {
+  position: fixed;
+  z-index: 96;
+  top: calc(12px + env(safe-area-inset-top));
+  left: 0;
+  right: 0;
+  width: fit-content;
+  margin: 0 auto; /* centred without transform: the pop-in animation uses transform */
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(100vw - 24px);
+  padding: 8px 8px 8px 14px;
+  background: var(--night);
+  color: #f2eee4;
+  font-size: 13.5px;
+  white-space: nowrap;
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-3);
+  animation: pop-in var(--t-3) var(--ease-out);
+}
+.update-prompt__icon { flex: none; color: var(--hero); }
+
 /* Simulated browser push */
 .push-region {
   position: fixed;
