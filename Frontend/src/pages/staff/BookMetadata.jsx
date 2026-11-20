@@ -417,7 +417,11 @@ export default function BookMetadata() {
                 idPrefix="m"
                 className="meta-form__wide"
                 value={values}
-                onChange={(patch) => setValues((v) => ({ ...v, ...patch }))}
+                onChange={(patch) => {
+                  // Kids chosen by hand: tick the age groups guessed from the book data (staff can untick them)
+                  const ages = patch.genre && patch.genre.toLowerCase() === 'kids' ? meta?.ages || [] : null
+                  setValues((v) => ({ ...v, ...patch, ...(ages?.length ? { subgenres: ages } : {}) }))
+                }}
                 badge={meta?.genre && values.genre === meta.genre && <GenreTag source={meta.genreSource} />}
               />
               <Field label="ISBN" htmlFor="m-isbn" error={isbnError} badge={isbnCheck.isbn13 && isbnCheck.isbn13 !== originalIsbn && !manual && <EditedTag />}>

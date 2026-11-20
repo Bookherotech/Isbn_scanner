@@ -163,15 +163,20 @@ def shopify_genre_of(isbn13):
 
 
 def store_guess(record, isbn=None):
-    """A copy of a lookup / search result with genre, subgenres, language and genre_source:
+    """A copy of a lookup / search result with genre, subgenres, language, ages (Kids age groups) and genre_source:
     'shopify' = from the store's own product with this ISBN, 'guess' = from the book data, '' = nothing found.
     Guessed on every call (not cached with the record), always in the store's spelling."""
     record = dict(record)
+    guessed = add_guesses(dict(record))
+    kids = canonical_genre('Kids')
+    record['ages'] = canonical_subgenres(kids, guessed['ages'])[0] if kids else []  # for when staff pick Kids by hand
     found = shopify_genre_of(isbn) if isbn else None
     if found and (found['genre'] or found['language']):
         record.update(found, genre_source='shopify')
+        if record['genre'] == kids and not record['subgenres']:
+            record['subgenres'] = list(record['ages'])  # the store's product has no age yet: suggest one
         return record
-    add_guesses(record)
+    record.update({k: guessed[k] for k in ('genre', 'subgenres', 'language')})
     record['genre'] = canonical_genre(record['genre'])
     record['subgenres'] = canonical_subgenres(record['genre'], record['subgenres'])[0] if record['genre'] else []
     record['language'] = canonical_language(record['language'])
