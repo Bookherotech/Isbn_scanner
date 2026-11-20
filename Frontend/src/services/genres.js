@@ -43,3 +43,6 @@ export function useGenres(load) {
 export function withCurrent(list, value) {
   return value && !list.includes(value) ? [...list, value] : list
 }
+
+/** Suggestions for the book format field (any text is allowed). */
+export const FORMATS = ['Paperback', 'Hardcover', 'Board Book', 'Mass Market Paperback', 'Spiral-bound']

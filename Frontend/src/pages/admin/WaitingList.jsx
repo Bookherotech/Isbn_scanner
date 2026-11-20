@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { ArrowDown, Check, Hourglass, Store, X } from 'lucide-react'
+import { ArrowDown, Check, Hourglass, PencilLine, Store, X } from 'lucide-react'
 import { approveWaitingEntry, getWaitingList, rejectItem } from '../../services/adminApi'
 import { useNavCounts } from '../../hooks/useNavCounts'
 import { useAutoRefresh, useQuery, useTicker } from '../../hooks/useStore'
@@ -13,6 +13,7 @@ import { Button } from '../../components/ui/Button'
 import { EmptyState, StageList, useStages } from '../../components/ui/Feedback'
 import { Drawer } from '../../components/ui/Overlay'
 import { ShelfTag, StatusChip } from '../../components/ui/Status'
+import { GenreFact } from '../../components/books/BookBits'
 import { BookCell, BookCover } from '../../components/books/BookCover'
 import { Person } from '../../components/inventory/Filters'
 import { cn, formatDateTime, formatTime, timeAgo } from '../../utils/format'
@@ -232,6 +233,9 @@ function WaitingDrawer({ entry, onClose }) {
             }}>
               Reject entry
             </Button>
+            <Button icon={PencilLine} disabled={stages.active} onClick={() => navigate(`/admin/books/${e.id}/edit`)}>
+              Edit details
+            </Button>
             <span style={{ flex: 1 }} />
             <Button variant="primary" icon={Check} onClick={approve} disabled={!e.ready || stages.active} loading={stages.active}>
               {restock ? 'Approve restock' : <>Approve &amp; switch shelf</>}
@@ -303,6 +307,7 @@ function WaitingDrawer({ entry, onClose }) {
         ) : null}
 
         <dl className="wl__facts">
+          <GenreFact item={e} />
           <div>
             <dt>Submitted by</dt>
             <dd>

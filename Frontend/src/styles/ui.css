@@ -150,6 +150,13 @@
 .genre-chip.is-on:hover { background: var(--hero); border-color: var(--ink); }
 .genre-picker__subs.is-dirty .genre-chips { padding: 6px; border-radius: 6px; background: #fffdf2; }
 
+/* Genre shown on book details */
+.genre-tags { display: inline-flex; flex-wrap: wrap; gap: 4px; vertical-align: middle; }
+.genre-tag { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 99px; border: 1px solid var(--line-strong); background: var(--surface); font-size: 12px; font-weight: 500; color: var(--ink-2); white-space: nowrap; }
+.genre-tag--main { background: var(--hero); border-color: #e2b500; color: var(--ink); font-weight: 650; }
+.genre-tag--lang { border-style: dashed; }
+dl .fact--wide { grid-column: 1 / -1; }
+
 /* =========================================================================
    Status chips + shelf tags
    ========================================================================= */

@@ -48,3 +48,33 @@ def same_author(a, b):
 def https(url):
     url = str(url or '')
     return 'https://' + url[len('http://'):] if url.startswith('http://') else url
+
+
+_UNIT_MM = {'mm': 1, 'millimeter': 1, 'millimeters': 1, 'millimetres': 1, 'cm': 10, 'centimeter': 10, 'centimeters': 10, 'centimetres': 10,
+            'in': 25.4, 'inch': 25.4, 'inches': 25.4}
+
+
+def book_format(value):
+    """Open Library's physical_format ('paperback', 'Hardcover', 'Mass Market Paperback'...) -> a tidy label, '' when unknown."""
+    text = re.sub(r'\s+', ' ', str(value or '')).strip()
+    low = text.lower()
+    if not low:
+        return ''
+    if 'hard' in low:
+        return 'Hardcover'
+    if 'board' in low:
+        return 'Board Book'
+    if 'paper' in low or 'soft' in low:
+        return 'Paperback'
+    return text[:40].title()
+
+
+def dimensions_mm(value):
+    """'19.8 x 12.9 x 2.1 centimeters' -> '129 x 198 x 21' (mm; width x height x thickness), '' when it cannot be read."""
+    text = str(value or '').lower()
+    numbers = [float(n) for n in re.findall(r'\d+(?:\.\d+)?', text)]
+    unit = next((mm for name, mm in sorted(_UNIT_MM.items(), key=lambda kv: -len(kv[0])) if re.search(rf'\b{name}\b', text)), None)
+    if len(numbers) != 3 or unit is None:
+        return ''
+    thickness, width, height = sorted(round(n * unit) for n in numbers)
+    return f'{width} x {height} x {thickness}'

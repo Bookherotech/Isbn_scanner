@@ -19,6 +19,8 @@ class Book(models.Model):
     publisher = models.CharField(max_length=255, blank=True)
     year = models.PositiveSmallIntegerField(null=True, blank=True)
     pages = models.PositiveIntegerField(null=True, blank=True)
+    format = models.CharField(max_length=40, blank=True)  # e.g. Paperback, Hardcover; from Open Library or typed by staff
+    dimensions = models.CharField(max_length=60, blank=True)  # e.g. '126 x 176 x 21' (mm: width x height x thickness)
     source = models.CharField(max_length=12, choices=BookSource.choices, default=BookSource.MANUAL)
     subjects = models.JSONField(default=list, blank=True)  # subject / category names from the metadata provider
     genre = models.CharField(max_length=40, blank=True)  # a main genre of inventory.constants.GENRE_TREE, in the store's spelling; a Shopify tag

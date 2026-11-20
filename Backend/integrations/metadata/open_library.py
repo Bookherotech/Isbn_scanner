@@ -1,7 +1,8 @@
 """Open Library Books API: https://openlibrary.org/dev/docs/api/books (free, no key)."""
 
 from integrations.metadata.http import get_json
-from integrations.metadata.parsing import clean_subjects, positive_int, year_from
+from integrations.metadata.exceptions import ProviderError
+from integrations.metadata.parsing import book_format, clean_subjects, dimensions_mm, positive_int, year_from
 
 URL = 'https://openlibrary.org/api/books'
 SOURCE = 'openlibrary'
@@ -18,6 +19,15 @@ def fetch_description(isbn13, *, timeout=5):
             return ''
         description = get_json(f'https://openlibrary.org{works[0]["key"]}.json', {}, timeout).get('description')
     return description.get('value', '') if isinstance(description, dict) else str(description or '')  # either a string or {type, value}
+
+
+def _physical(isbn13, timeout):
+    """(format, dimensions) from the edition record; the Books API data view does not have them. ('', '') on any failure."""
+    try:
+        edition = get_json(f'https://openlibrary.org/isbn/{isbn13}.json', {}, timeout)
+    except ProviderError:
+        return '', ''
+    return book_format(edition.get('physical_format')), dimensions_mm(edition.get('physical_dimensions'))
 
 
 def fetch(isbn13, *, timeout=5):
@@ -40,4 +50,5 @@ def fetch(isbn13, *, timeout=5):
         'subjects': clean_subjects(s.get('name') for s in info.get('subjects') or []),
         'cover_url': str((info.get('cover') or {}).get('medium') or ''),
         'source': SOURCE,
+        **dict(zip(('format', 'dimensions'), _physical(isbn13, timeout))),
     }

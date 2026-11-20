@@ -7,6 +7,7 @@ import { SearchInput, Select } from '../../components/ui/Form'
 import { EmptyState } from '../../components/ui/Feedback'
 import { Drawer } from '../../components/ui/Overlay'
 import { ShelfTag } from '../../components/ui/Status'
+import { GenreFact } from '../../components/books/BookBits'
 import { BookCell } from '../../components/books/BookCover'
 import { Person } from '../../components/inventory/Filters'
 import { formatDateTime, timeAgo } from '../../utils/format'
@@ -114,6 +115,7 @@ export default function Rejected() {
                   <Person id={open.submittedBy} name={open.submittedByName} />
                 </dd>
               </div>
+              <GenreFact item={open} />
             </dl>
             {open.rejectNote && <p className="rej__note">“{open.rejectNote}”</p>}
           </div>

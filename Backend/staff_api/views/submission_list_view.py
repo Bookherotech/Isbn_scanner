@@ -67,7 +67,7 @@ class SubmissionListView(APIView):
         try:
             outcome = create_submission(
                 user=request.user, shelf=data['shelf_id'], isbn=data['isbn'], title=data['title'], author=data['author'],
-                publisher=data['publisher'], year=data['year'], pages=data['pages'], source=data['source'],
+                publisher=data['publisher'], year=data['year'], pages=data['pages'], format=data['format'], dimensions=data['dimensions'], source=data['source'],
                 subjects=data['subjects'], fetched=data['fetched'], cover_url=cover_url, cover_photo=data['cover_photo'], description=data['description'],
                 genre=data['genre'], subgenres=data['subgenres'], language=data['language'],
                 quantity=data['quantity'],

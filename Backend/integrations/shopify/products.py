@@ -1,30 +1,34 @@
 """The Shopify calls BookHero needs: find / create a book's product, set its stock, read stock back.
 
-A book is a single-variant product whose SKU is the ISBN-13, stocked at SHOPIFY_LOCATION_ID.
+A book is a single-variant product whose SKU (and barcode) is the ISBN-13, stocked at SHOPIFY_LOCATION_ID.
+Its shelf is kept in the product's "Shelf location" field (metafield custom.shelf_location).
 IDs are kept as plain numbers in the database (Book.product_id) and turned into GIDs here.
 """
 
 import html
+import logging
 import uuid
 
 from django.conf import settings
+from django.core.cache import cache
 
 from integrations.shopify.client import graphql, location_gid, put_file, raise_user_errors
 from integrations.shopify.exceptions import ProductGone, ShopifyError
 
 STOCK_BATCH = 50  # products per stock query (keeps the query cost well under Shopify's limit)
+logger = logging.getLogger(__name__)
+
 BOOKHERO_TAG = 'BookHero'  # marks products we created: images are only ever added to these, never to the store's own products
 DEFAULT_OPTION = {'name': 'Title', 'values': [{'name': 'Default Title'}]}  # how Shopify names a product with no options
 DEFAULT_VALUE = [{'optionName': 'Title', 'name': 'Default Title'}]
 
 
 def _description_html(book):
-    """'By <author>', the description, then ISBN and pages, as safe HTML: the text comes from outside sources and from staff."""
-    lines = [f'By {book.author}'] if book.author else []
-    lines += [line.strip() for line in book.description.splitlines() if line.strip()]
-    lines.append(f'ISBN: {book.isbn}')
-    if book.pages:
-        lines.append(f'Pages: {book.pages}')
+    """The description, then the details the store lists under it (Dimensions, Author, ISBN, Format, Pages; empty ones
+    left out), as safe HTML: the text comes from outside sources and from staff."""
+    lines = [line.strip() for line in book.description.splitlines() if line.strip()]
+    details = [('Dimensions', book.dimensions), ('Author', book.author), ('ISBN', book.isbn), ('Format', book.format), ('Pages', book.pages)]
+    lines += [f'{label}: {value}' for label, value in details if value]
     return ''.join(f'<p>{html.escape(line)}</p>' for line in lines)
 
 
@@ -118,9 +122,11 @@ def create_product(book, quantity):
         'productOptions': [DEFAULT_OPTION],
         'variants': [{
             'optionValues': DEFAULT_VALUE,
+            'barcode': book.isbn,  # the same number as the SKU
             'inventoryItem': {'sku': book.isbn, 'tracked': True},
             'inventoryQuantities': [{'locationId': location_gid(), 'name': 'available', 'quantity': quantity}],
         }],
+        'metafields': [{**SHELF_FIELD, 'value': book.shelf.code}],
     }
     if book.cover_url.startswith('https://') and not (book.cover_photo or book.cached_cover):  # a file of ours is uploaded after this, see attach_image
         product['files'] = [{'originalSource': book.cover_url, 'alt': book.title[:255], 'contentType': 'IMAGE'}]
@@ -128,6 +134,53 @@ def create_product(book, quantity):
     raise_user_errors(result)
     created = result['product']
     return created['id'], created['variants']['nodes'][0]['inventoryItem']['id']
+
+
+SHELF_FIELD = {'namespace': 'custom', 'key': 'shelf_location', 'type': 'single_line_text_field'}
+SHELF_DEFINITION_CACHE_KEY = 'shopify:shelf-definition'
+
+SHELF_DEFINITION_MUTATION = """
+mutation ShelfDefinition($definition: MetafieldDefinitionInput!) {
+  metafieldDefinitionCreate(definition: $definition) { createdDefinition { id } userErrors { field message code } }
+}
+"""
+
+SHELF_SET_MUTATION = """
+mutation SetShelf($metafields: [MetafieldsSetInput!]!) {
+  metafieldsSet(metafields: $metafields) { userErrors { field message } }
+}
+"""
+
+
+def ensure_shelf_definition():
+    """Make the "Shelf location" field a named, pinned field on the product page (once; remembered for a day).
+    Without it the value is still saved, just listed among the product's other metafields."""
+    if cache.get(SHELF_DEFINITION_CACHE_KEY):
+        return
+    definition = {
+        **{k: SHELF_FIELD[k] for k in ('namespace', 'key', 'type')}, 'name': 'Shelf location', 'ownerType': 'PRODUCT', 'pin': True,
+        'description': 'The shelf the book is on in the store (set by BookHero).',
+    }
+    try:
+        errors = graphql(SHELF_DEFINITION_MUTATION, {'definition': definition})['metafieldDefinitionCreate']['userErrors']
+    except ShopifyError as error:
+        logger.warning('Could not create the Shelf location field in Shopify: %s', error)
+        return
+    if errors and not all(e.get('code') == 'TAKEN' for e in errors):  # TAKEN = it exists already
+        logger.warning('Could not create the Shelf location field in Shopify: %s', errors)
+        return
+    cache.set(SHELF_DEFINITION_CACHE_KEY, True, 24 * 60 * 60)
+
+
+def set_shelf_location(product_gid_or_id, shelf_code):
+    """Write the book's current shelf on its product. A failure is logged, never raised: stock matters more."""
+    gid = product_gid_or_id if str(product_gid_or_id).startswith('gid://') else product_gid(product_gid_or_id)
+    ensure_shelf_definition()
+    try:
+        result = graphql(SHELF_SET_MUTATION, {'metafields': [{**SHELF_FIELD, 'ownerId': gid, 'value': shelf_code}]})['metafieldsSet']
+        raise_user_errors(result)
+    except ShopifyError as error:
+        logger.warning('Could not set the shelf location of %s: %s', gid, error)
 
 
 TAGS_MUTATION = """
