@@ -95,12 +95,16 @@ def update_book(book_id, data, admin=None):
             if book.status not in (BookStatus.PENDING, BookStatus.WAITING):
                 raise InvalidState('Only pending or waiting-list books can be edited.')
 
-            new = {k: v for k, v in data.items() if k != 'shelf_id'}
+            photo = data.get('cover_photo')  # a new file, '' = remove, None = unchanged
+            new = {k: v for k, v in data.items() if k not in ('shelf_id', 'cover_photo')}
             changes = [k for k, v in new.items() if _text(getattr(book, k)) != _text(v)]
             if 'shelf_id' in data and data['shelf_id'].id != book.shelf_id:
                 changes.append('shelf_id')
             for field in new:
                 setattr(book, field, new[field])
+            if photo or (photo == '' and book.cover_photo):
+                book.cover_photo = photo  # a new file is written to MEDIA_ROOT when the row is saved
+                changes.append('photo')
             book.shelf = shelf
 
             outcome, match = 'saved', None
@@ -125,7 +129,7 @@ def update_book(book_id, data, admin=None):
                     book.status, book.linked_item, book.match, book.waiting_ready_at = BookStatus.PENDING, None, None, None
             if changes:
                 book.save()
-                names = {'shelf_id': 'shelf', 'quantity': 'quantity'}
+                names = {'shelf_id': 'shelf', 'quantity': 'quantity', 'isbn': 'ISBN', 'photo': 'photo', 'subgenres': 'categories'}
                 log_activity(action='Edited', kind=ActivityLog.Kind.EDIT, target=quoted(book), actor=admin, book=book, result=ActivityLog.Result.INFO,
                              detail='Updated ' + ', '.join(names.get(c, c) for c in changes))
                 if outcome == 'moved_to_waiting':

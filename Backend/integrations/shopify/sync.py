@@ -29,7 +29,8 @@ from inventory.models import Book
 from integrations.shopify.client import is_configured
 from integrations.shopify.exceptions import ProductGone, ShopifyError, ShopifyNotConfigured
 from integrations.shopify.products import (
-    add_tags, attach_image, available_stock, book_tags, create_product, find_by_isbn, inventory_item_of, numeric_id, product_media, set_available, shop_info,
+    add_tags, attach_image, available_stock, book_tags, create_product, ensure_shelf_definition, find_by_isbn, inventory_item_of, numeric_id,
+    product_media, set_available, set_shelf_location, shop_info,
 )
 
 logger = logging.getLogger(__name__)
@@ -96,6 +97,7 @@ def publish_book(book_id):
         if book.product_id and book.sync_status != DELETED:  # a deleted product cannot be reused: make or find a new one
             set_available(inventory_item_of(book.product_id), quantity)
             add_tags(book.product_id, book_tags(book))  # e.g. a waiting-list entry: its genre goes on the shared product too
+            set_shelf_location(book.product_id, book.shelf.code)  # a waiting-list entry may be on another shelf
             product_id, action, detail = book.product_id, 'Stock pushed', f'Shelf {book.shelf.code} · {quantity} available'
         else:
             existing = find_by_isbn(book.isbn)
@@ -103,8 +105,10 @@ def publish_book(book_id):
                 gid, item = existing
                 set_available(item, quantity)
                 add_tags(gid, book_tags(book))  # the store's own product joins the genre collections too
+                set_shelf_location(gid, book.shelf.code)
                 action = 'Linked to product'
             else:
+                ensure_shelf_definition()  # so the new product shows "Shelf location" as a named field
                 gid, item = create_product(book, quantity)
                 action = 'Product created'
             product_id, detail = numeric_id(gid), f'Product {numeric_id(gid)} · {quantity} available'

@@ -70,7 +70,7 @@ export default function ReviewSubmit() {
               <p>{d.values.author}</p>
               {(d.values.publisher || d.values.year) && (
                 <p className="muted">
-                  {[d.values.publisher, d.values.year, d.values.pages && `${d.values.pages} pages`].filter(Boolean).join(' · ')}
+                  {[d.values.publisher, d.values.year, d.values.pages && `${d.values.pages} pages`, d.values.format, d.values.dimensions && `${d.values.dimensions} mm`].filter(Boolean).join(' · ')}
                 </p>
               )}
             </div>

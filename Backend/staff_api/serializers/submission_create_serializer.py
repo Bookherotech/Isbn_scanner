@@ -30,6 +30,8 @@ class SubmissionCreateSerializer(serializers.Serializer):
     publisher = serializers.CharField(max_length=255, required=False, allow_blank=True, default='')
     year = serializers.CharField(required=False, allow_blank=True, allow_null=True, default=None)
     pages = serializers.CharField(required=False, allow_blank=True, allow_null=True, default=None)
+    format = serializers.CharField(max_length=40, required=False, allow_blank=True, default='')
+    dimensions = serializers.CharField(max_length=60, required=False, allow_blank=True, default='')
     source = serializers.ChoiceField(choices=BookSource.choices, default=BookSource.MANUAL)
     subjects = serializers.ListField(child=serializers.CharField(max_length=100), required=False, default=list, max_length=50)
     description = serializers.CharField(max_length=5000, required=False, allow_blank=True, default='')

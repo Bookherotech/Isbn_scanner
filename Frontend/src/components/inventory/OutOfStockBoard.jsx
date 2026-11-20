@@ -6,6 +6,7 @@ import { useQuery, useTicker } from '../../hooks/useStore'
 import { Button } from '../ui/Button'
 import { EmptyState, ErrorState, Skeleton } from '../ui/Feedback'
 import { ShelfTag, StatusChip, SyncChip } from '../ui/Status'
+import { GenreFact } from '../books/BookBits'
 import { BookCover } from '../books/BookCover'
 import { cn, formatTime, timeAgo } from '../../utils/format'
 
@@ -81,6 +82,7 @@ function OosDetail({ d }) {
       </header>
 
       <dl className="oos__facts">
+        <GenreFact item={d} />
         <div>
           <dt>Current shelf</dt>
           <dd>

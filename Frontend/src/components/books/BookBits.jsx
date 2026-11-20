@@ -93,3 +93,30 @@ export function MatchLine({ match }) {
     </span>
   )
 }
+
+/** Genre, its categories and language as tags (what the book is tagged with on Shopify). Nothing when none is set. */
+export function GenreTags({ item, className }) {
+  const subs = item?.subgenres || []
+  if (!item?.genre && !item?.language) return null
+  return (
+    <span className={cn('genre-tags', className)}>
+      {item.genre && <span className="genre-tag genre-tag--main">{item.genre}</span>}
+      {subs.map((s) => (
+        <span key={s} className="genre-tag">
+          {s}
+        </span>
+      ))}
+      {item.language && <span className="genre-tag genre-tag--lang">{item.language}</span>}
+    </span>
+  )
+}
+
+/** A full-width "Genre" row for the detail fact lists (<dl>). */
+export function GenreFact({ item }) {
+  return (
+    <div className="fact--wide">
+      <dt>Genre</dt>
+      <dd>{item?.genre || item?.language ? <GenreTags item={item} /> : <span className="muted">Not set</span>}</dd>
+    </div>
+  )
+}

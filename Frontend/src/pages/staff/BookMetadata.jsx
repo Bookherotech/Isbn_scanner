@@ -5,7 +5,7 @@ import { getDescription, getGenres, loadShelves, lookupIsbn, searchBooks } from 
 import { addRecentIsbn, setRecentIsbnTitle } from '../../services/recentIsbns'
 import { shrinkPhoto } from '../../services/photo'
 import { checkIsbn } from '../../services/isbn'
-import { useGenres } from '../../services/genres'
+import { FORMATS, useGenres } from '../../services/genres'
 import { useAuth } from '../../hooks/useAuth'
 import { isDraftEdited, useDraft } from '../../hooks/useDraft'
 import { useDebounce } from '../../hooks/useStore'
@@ -19,8 +19,8 @@ import { GenrePicker } from '../../components/books/GenrePicker'
 import { Skeleton } from '../../components/ui/Feedback'
 import { cn } from '../../utils/format'
 
-const FIELDS = ['title', 'author', 'publisher', 'year', 'pages', 'description', 'genre', 'language']
-const EMPTY = { title: '', author: '', publisher: '', year: '', pages: '', description: '', genre: '', subgenres: [], language: '' }
+const FIELDS = ['title', 'author', 'publisher', 'year', 'pages', 'format', 'dimensions', 'description', 'genre', 'language']
+const EMPTY = { title: '', author: '', publisher: '', year: '', pages: '', format: '', dimensions: '', description: '', genre: '', subgenres: [], language: '' }
 const pickValues = (m) => ({ ...Object.fromEntries(FIELDS.map((k) => [k, m?.[k] ?? ''])), subgenres: m?.subgenres || [] })
 const isEmpty = (v) => String(v ?? '').trim() === ''
 const MIN_SEARCH = 3 // letters of the title before Google matches are looked up
@@ -396,6 +396,19 @@ export default function BookMetadata() {
                 </Field>
                 <Field label="Pages" htmlFor="m-pages" optional error={showErrors && errors.pages} badge={fieldTag('pages')}>
                   <Input id="m-pages" inputMode="numeric" value={values.pages} onChange={set('pages')} readOnly={locked} className={cn(missing.includes('pages') && !values.pages && 'is-missing', lockedClass)} />
+                </Field>
+              </div>
+              <div className="meta-form__row">
+                <Field label="Format" htmlFor="m-format" optional badge={fieldTag('format')}>
+                  <Input id="m-format" list="book-formats" value={values.format ?? ''} onChange={set('format')} readOnly={locked} className={cn(lockedClass)} placeholder={locked ? '' : 'Paperback'} />
+                  <datalist id="book-formats">
+                    {FORMATS.map((f) => (
+                      <option key={f} value={f} />
+                    ))}
+                  </datalist>
+                </Field>
+                <Field label="Dimensions" htmlFor="m-dimensions" optional hint="mm: width x height x thickness" badge={fieldTag('dimensions')}>
+                  <Input id="m-dimensions" value={values.dimensions ?? ''} onChange={set('dimensions')} readOnly={locked} className={cn(lockedClass)} placeholder={locked ? '' : '126 x 176 x 21'} />
                 </Field>
               </div>
               {/* Always editable: taken from the store's Shopify product, or guessed from the book data; staff confirm it. */}

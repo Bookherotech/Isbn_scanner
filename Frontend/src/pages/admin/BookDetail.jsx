@@ -3,7 +3,7 @@ import { ArrowLeft, PencilLine, Store } from 'lucide-react'
 import { getItem } from '../../services/adminApi'
 import { useQuery, useTicker } from '../../hooks/useStore'
 import { BookCover } from '../../components/books/BookCover'
-import { DuplicateExplainer, SourceBadge } from '../../components/books/BookBits'
+import { DuplicateExplainer, GenreTags, SourceBadge } from '../../components/books/BookBits'
 import { FlagReviewCard } from '../../components/books/FlagReview'
 import { Barcode, Panel } from '../../components/ui/Misc'
 import { Button } from '../../components/ui/Button'
@@ -13,7 +13,7 @@ import { ActivityRow } from '../../components/dashboard/ActivityRow'
 import { Person } from '../../components/inventory/Filters'
 import { formatDateTime, timeAgo } from '../../utils/format'
 
-const EDIT_LABEL = { title: 'title', author: 'author', publisher: 'publisher', year: 'year', pages: 'pages', isbn: 'ISBN' }
+const EDIT_LABEL = { title: 'title', author: 'author', publisher: 'publisher', year: 'year', pages: 'pages', format: 'format', dimensions: 'dimensions', isbn: 'ISBN' }
 
 /** What staff changed from the looked-up book when they submitted it (kept after approval). */
 function StaffEdits({ item }) {
@@ -69,7 +69,8 @@ export default function BookDetail() {
           </div>
           <h1 className="review__title">{it.title}</h1>
           <p className="review__author">by {it.author}</p>
-          <p className="muted">{[it.publisher, it.year, it.pages && `${it.pages} pages`].filter(Boolean).join(' · ')}</p>
+          <p className="muted">{[it.publisher, it.year, it.pages && `${it.pages} pages`, it.format, it.dimensions && `${it.dimensions} mm`].filter(Boolean).join(' · ')}</p>
+          {it.genre || it.language ? <GenreTags item={it} className="bookd__genre" /> : <p className="muted">Genre not set</p>}
           <div className="review__barcode">
             <Barcode value={it.isbn} height={30} />
           </div>
@@ -80,9 +81,12 @@ export default function BookDetail() {
             </Button>
           )}
           {it.status === 'waiting' && (
-            <Button variant="primary" to={`/admin/waiting-list?review=${it.id}`}>
-              Open in waiting list
-            </Button>
+            <div className="bookd__actions">
+              <Button variant="primary" to={`/admin/waiting-list?review=${it.id}`}>
+                Open in waiting list
+              </Button>
+              <Button to={`/admin/books/${it.id}/edit`}>Edit details</Button>
+            </div>
           )}
         </div>
         <dl className="bookd__stats">
