@@ -114,6 +114,7 @@ export async function lookupIsbn(isbn13) {
     subjects: m.subjects,
     genre: m.genre || '',
     subgenres: m.subgenres || [],
+    ages: m.ages || [], // Kids age groups guessed from the book data, ticked when staff choose Kids
     language: m.language || '',
     genreSource: m.genre_source || '',
     description: m.description || '',
@@ -147,6 +148,7 @@ export async function searchBooks({ title, author = '' }) {
     description: r.description || '',
     genre: r.genre || '',
     subgenres: r.subgenres || [],
+    ages: r.ages || [],
     language: r.language || '',
     coverUrl: r.cover_url,
   }))
