@@ -2,7 +2,7 @@ import re
 
 from rest_framework import serializers
 
-from inventory.constants import BookSource, ShelfStatus
+from inventory.constants import GENRES, LANGUAGES, BookSource, ShelfStatus
 from inventory.models import Shelf
 from inventory.services import InvalidCoverPhoto, clean_cover_photo, to_isbn13
 
@@ -32,6 +32,8 @@ class SubmissionCreateSerializer(serializers.Serializer):
     source = serializers.ChoiceField(choices=BookSource.choices, default=BookSource.MANUAL)
     subjects = serializers.ListField(child=serializers.CharField(max_length=100), required=False, default=list, max_length=50)
     description = serializers.CharField(max_length=5000, required=False, allow_blank=True, default='')
+    genre = serializers.ChoiceField(choices=GENRES, required=False, allow_blank=True, default='')
+    language = serializers.ChoiceField(choices=LANGUAGES, required=False, allow_blank=True, default='')
     fetched = serializers.DictField(required=False, allow_null=True, default=None)
     # A cover photo taken by staff, as a data URL ('data:image/jpeg;base64,...'); re-encoded on the server.
     cover_photo = serializers.CharField(required=False, allow_blank=True, default='', trim_whitespace=True)

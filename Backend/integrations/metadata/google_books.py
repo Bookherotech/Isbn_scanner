@@ -19,6 +19,7 @@ def _details(info):
         'subjects': clean_subjects(info.get('categories') or []),
         'cover_url': https((info.get('imageLinks') or {}).get('thumbnail')),
         'description': str(info.get('description') or '').strip(),
+        'language': str(info.get('language') or '').strip(),  # ISO code, e.g. 'en', 'ar'
     }
 
 

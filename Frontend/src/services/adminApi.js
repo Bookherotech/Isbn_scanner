@@ -80,6 +80,8 @@ function mapItem(r) {
     pages: r.pages ?? '',
     source: r.source,
     subjects: r.subjects,
+    genre: r.genre || '',
+    language: r.language || '',
     description: r.description || '',
     coverUrl: r.cover_url,
     coverPhotoUrl: r.cover_photo_url || null,
@@ -204,7 +206,7 @@ export async function getItem(id) {
 const PATCH_KEYS = { shelfId: 'shelf_id' }
 const CHANGE_KEYS = { shelf_id: 'shelfId' }
 
-/** Saves edits (title, author, publisher, year, pages, description, shelfId, quantity). -> { outcome, match, changes, item }; a clash on the same shelf throws code 'duplicate_same_shelf'. */
+/** Saves edits (title, author, publisher, year, pages, description, genre, language, shelfId, quantity). -> { outcome, match, changes, item }; a clash on the same shelf throws code 'duplicate_same_shelf'. */
 export async function updateItem(id, patch) {
   const body = Object.fromEntries(Object.entries(patch).map(([k, v]) => [PATCH_KEYS[k] || k, v]))
   const res = await change(`/api/admin/books/${id}/`, { method: 'PATCH', body })
