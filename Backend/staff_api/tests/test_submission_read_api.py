@@ -17,7 +17,7 @@ class ShelfListApiTests(StaffApiTestCase):
         response = self.client.get(reverse('staff_api:shelves'))
         self.assertEqual(response.status_code, 200)
         self.assertEqual([s['id'] for s in response.data], ['A-01', 'A-02'])
-        self.assertEqual(response.data[0], {'id': 'A-01', 'code': 'A-01', 'zone': 'A', 'status': 'active'})
+        self.assertEqual(response.data[0], {'id': 'A-01', 'code': 'A-01', 'status': 'active'})
 
     def test_staff_only(self):
         self.sign_in_as(self.admin)

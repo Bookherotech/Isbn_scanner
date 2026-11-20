@@ -139,7 +139,7 @@ export async function searchBooks({ title, author = '' }) {
 // Shelves are loaded once and kept, so the shelf step opens instantly; every load refreshes the copy.
 let shelfCache = null
 
-/** The last loaded list of active shelves ([{ id, code, zone, status }]), or null if not loaded yet. */
+/** The last loaded list of active shelves ([{ id, code, status }]), or null if not loaded yet. */
 export function getCachedShelves() {
   return shelfCache
 }

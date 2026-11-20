@@ -7,8 +7,8 @@ from inventory.models import Shelf
 class ShelfAdmin(admin.ModelAdmin):
     """Add / deactivate shelves until the Admin dashboard's Shelves page is connected."""
 
-    list_display = ('code', 'zone', 'status', 'note', 'created_at')
-    list_filter = ('status', 'zone')
+    list_display = ('code', 'status', 'note', 'created_at')
+    list_filter = ('status',)
     search_fields = ('^code',)
-    readonly_fields = ('zone', 'created_at')
-    fields = ('code', 'zone', 'status', 'note', 'created_at')
+    readonly_fields = ('created_at',)
+    fields = ('code', 'status', 'note', 'created_at')

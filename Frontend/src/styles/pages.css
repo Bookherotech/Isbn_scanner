@@ -614,11 +614,8 @@
 /* =========================================================================
    Shelves — rack map
    ========================================================================= */
-.rack { display: grid; gap: 16px; transition: opacity var(--t-2); }
+.rack { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 16px; transition: opacity var(--t-2); }
 .rack.is-refreshing { opacity: 0.7; }
-.rack__zone { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 14px 16px 16px; }
-.rack__zone-head { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--muted); font-weight: 500; margin-bottom: 12px; }
-.rack__zone-letter { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 6px; background: var(--ink); color: var(--hero); font-family: var(--font-display); font-weight: 800; font-size: 16px; }
 .rack__shelves { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
 .rack__shelf {
   position: relative;

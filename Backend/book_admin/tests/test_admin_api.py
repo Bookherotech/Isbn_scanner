@@ -125,7 +125,7 @@ class ListingTests(AdminApiTestCase):
         response = self.client.post(reverse('book_admin:shelf-list'), {'code': 'b-09', 'note': 'near desk'}, format='json')
         self.assertEqual((response.status_code, response.data['code']), (201, 'B-09'))
         self.assertEqual(self.client.post(reverse('book_admin:shelf-list'), {'code': 'B-09'}, format='json').status_code, 400)
-        self.assertEqual(self.client.post(reverse('book_admin:shelf-list'), {'code': 'bad'}, format='json').status_code, 400)
+        self.assertEqual(self.client.post(reverse('book_admin:shelf-list'), {'code': 'b/1'}, format='json').status_code, 400)
         url = reverse('book_admin:shelf-detail', args=['B-09'])
         self.assertEqual(self.client.patch(url, {'status': 'inactive'}, format='json').data['status'], 'inactive')
         self.assertEqual(self.client.patch(url, {'code': 'B-10'}, format='json').status_code, 400)
