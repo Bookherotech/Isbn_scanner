@@ -4,14 +4,15 @@ from django.utils import timezone
 
 from inventory.constants import ShelfStatus
 
-validate_shelf_code = RegexValidator(r'^[A-Z]-\d{2}$', 'Use the format letter-dash-two digits, e.g. A-13.')
+# Any mix of letters, numbers and dashes (it is part of URLs, so no spaces or slashes). Stored in capitals,
+# so "a1" and "A1" are the same shelf and the unique check catches both.
+validate_shelf_code = RegexValidator(r'^[A-Z0-9-]+$', 'Use only letters, numbers and dashes, e.g. A13 or A-13.')
 
 
 class Shelf(models.Model):
     """A physical shelf, e.g. "A-03". The code is what staff pick and what every screen shows."""
 
     code = models.CharField(max_length=4, unique=True, validators=[validate_shelf_code])
-    zone = models.CharField(max_length=1, editable=False)  # first letter of the code, set on save
     status = models.CharField(max_length=10, choices=ShelfStatus.choices, default=ShelfStatus.ACTIVE)
     note = models.TextField(blank=True)
     created_at = models.DateTimeField(default=timezone.now)
@@ -29,5 +30,4 @@ class Shelf(models.Model):
 
     def save(self, *args, **kwargs):
         self.code = (self.code or '').strip().upper()
-        self.zone = self.code[:1]
         super().save(*args, **kwargs)

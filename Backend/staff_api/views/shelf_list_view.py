@@ -12,4 +12,4 @@ class ShelfListView(ListAPIView):
     permission_classes = [IsStaffRole]
     serializer_class = ShelfSerializer
     pagination_class = None
-    queryset = Shelf.objects.filter(status=ShelfStatus.ACTIVE).only('code', 'zone', 'status').order_by('code')
+    queryset = Shelf.objects.filter(status=ShelfStatus.ACTIVE).only('code', 'status').order_by('code')

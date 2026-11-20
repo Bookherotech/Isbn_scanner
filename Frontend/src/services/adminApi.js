@@ -125,7 +125,7 @@ function mapItem(r) {
   }
 }
 
-const mapShelf = (s) => ({ id: s.id, code: s.code, zone: s.zone, status: s.status, note: s.note, createdAt: ms(s.created_at), titles: s.titles, units: s.units, waiting: s.waiting, pending: s.pending })
+const mapShelf = (s) => ({ id: s.id, code: s.code, status: s.status, note: s.note, createdAt: ms(s.created_at), titles: s.titles, units: s.units, waiting: s.waiting, pending: s.pending })
 
 // --------------------------------------------------------------------------
 // Dashboard, counts, search, filter options
