@@ -450,7 +450,7 @@
 .review__form { display: grid; gap: 12px; }
 .review__row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .review__row2--inv { padding-top: 12px; border-top: 1px dashed var(--line-strong); }
-.input.is-dirty { background: #fffdf2; border-color: var(--hero-line); }
+.input.is-dirty, .select.is-dirty select { background: #fffdf2; border-color: var(--hero-line); }
 .review__actions { display: flex; gap: 8px; align-items: center; padding-top: 14px; border-top: 1px solid var(--line-soft); flex-wrap: wrap; }
 .review__actions-spacer { flex: 1; }
 .review__closed { display: grid; gap: 10px; justify-items: start; }

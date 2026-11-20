@@ -69,6 +69,7 @@ class SubmissionListView(APIView):
                 user=request.user, shelf=data['shelf_id'], isbn=data['isbn'], title=data['title'], author=data['author'],
                 publisher=data['publisher'], year=data['year'], pages=data['pages'], source=data['source'],
                 subjects=data['subjects'], fetched=data['fetched'], cover_url=cover_url, cover_photo=data['cover_photo'], description=data['description'],
+                genre=data['genre'], language=data['language'],
                 quantity=data['quantity'],
             )
         except DuplicateCheckBusy:

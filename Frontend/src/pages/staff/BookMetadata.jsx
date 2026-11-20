@@ -5,6 +5,7 @@ import { getDescription, loadShelves, lookupIsbn, searchBooks } from '../../serv
 import { addRecentIsbn, setRecentIsbnTitle } from '../../services/recentIsbns'
 import { shrinkPhoto } from '../../services/photo'
 import { checkIsbn } from '../../services/isbn'
+import { GENRES, LANGUAGES } from '../../services/genres'
 import { useAuth } from '../../hooks/useAuth'
 import { isDraftEdited, useDraft } from '../../hooks/useDraft'
 import { useDebounce } from '../../hooks/useStore'
@@ -13,12 +14,12 @@ import { BookCover } from '../../components/books/BookCover'
 import { SourceBadge } from '../../components/books/BookBits'
 import { Barcode } from '../../components/ui/Misc'
 import { Button } from '../../components/ui/Button'
-import { Field, Input, Textarea } from '../../components/ui/Form'
+import { Field, Input, Select, Textarea } from '../../components/ui/Form'
 import { Skeleton } from '../../components/ui/Feedback'
 import { cn } from '../../utils/format'
 
-const FIELDS = ['title', 'author', 'publisher', 'year', 'pages', 'description']
-const EMPTY = { title: '', author: '', publisher: '', year: '', pages: '', description: '' }
+const FIELDS = ['title', 'author', 'publisher', 'year', 'pages', 'description', 'genre', 'language']
+const EMPTY = { title: '', author: '', publisher: '', year: '', pages: '', description: '', genre: '', language: '' }
 const pickValues = (m) => Object.fromEntries(FIELDS.map((k) => [k, m?.[k] ?? '']))
 const isEmpty = (v) => String(v ?? '').trim() === ''
 const MIN_SEARCH = 3 // letters of the title before Google matches are looked up
@@ -190,7 +191,7 @@ export default function BookMetadata() {
   const pickSuggestion = (s) => {
     const next = { ...values }
     if (manual || isEmpty(next.title)) next.title = s.title // a typed (maybe partial) title becomes the full one
-    for (const k of ['author', 'publisher', 'year', 'pages', 'description']) {
+    for (const k of ['author', 'publisher', 'year', 'pages', 'description', 'genre', 'language']) {
       if (isEmpty(next[k]) && !isEmpty(s[k])) next[k] = String(s[k]) // only empty fields: found values are never overwritten
     }
     setValues(next)
@@ -389,6 +390,29 @@ export default function BookMetadata() {
                 </Field>
                 <Field label="Pages" htmlFor="m-pages" optional error={showErrors && errors.pages} badge={fieldTag('pages')}>
                   <Input id="m-pages" inputMode="numeric" value={values.pages} onChange={set('pages')} readOnly={locked} className={cn(missing.includes('pages') && !values.pages && 'is-missing', lockedClass)} />
+                </Field>
+              </div>
+              {/* Always editable: the genre is only a guess from the book data, staff confirm it. */}
+              <div className="meta-form__row">
+                <Field label="Genre" htmlFor="m-genre" optional badge={meta?.genre && values.genre === meta.genre && <VerifyTag />}>
+                  <Select id="m-genre" value={values.genre ?? ''} onChange={set('genre')}>
+                    <option value="">Not set</option>
+                    {GENRES.map((g) => (
+                      <option key={g} value={g}>
+                        {g}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+                <Field label="Language" htmlFor="m-language" optional hint="Only for Arabic, French or Spanish books" badge={meta?.language && values.language === meta.language && <VerifyTag />}>
+                  <Select id="m-language" value={values.language ?? ''} onChange={set('language')}>
+                    <option value="">None</option>
+                    {LANGUAGES.map((l) => (
+                      <option key={l} value={l}>
+                        {l}
+                      </option>
+                    ))}
+                  </Select>
                 </Field>
               </div>
               <Field label="ISBN" htmlFor="m-isbn" error={isbnError} badge={isbnCheck.isbn13 && isbnCheck.isbn13 !== originalIsbn && !manual && <EditedTag />}>

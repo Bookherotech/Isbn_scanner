@@ -28,6 +28,11 @@ def _description_html(book):
     return ''.join(f'<p>{html.escape(line)}</p>' for line in lines)
 
 
+def book_tags(book):
+    """The genre and language tags of a book (the store's collections pick products up by these)."""
+    return [tag for tag in (book.genre, book.language) if tag]
+
+
 def product_gid(product_id):
     return f'gid://shopify/Product/{product_id}'
 
@@ -108,7 +113,7 @@ def create_product(book, quantity):
         'vendor': book.publisher or book.author,
         'productType': 'Book',
         'status': settings.SHOPIFY_PRODUCT_STATUS,
-        'tags': [BOOKHERO_TAG],
+        'tags': [BOOKHERO_TAG, *book_tags(book)],
         'descriptionHtml': _description_html(book),
         'productOptions': [DEFAULT_OPTION],
         'variants': [{
@@ -123,6 +128,22 @@ def create_product(book, quantity):
     raise_user_errors(result)
     created = result['product']
     return created['id'], created['variants']['nodes'][0]['inventoryItem']['id']
+
+
+TAGS_MUTATION = """
+mutation AddTags($id: ID!, $tags: [String!]!) {
+  tagsAdd(id: $id, tags: $tags) { userErrors { field message } }
+}
+"""
+
+
+def add_tags(product_gid_or_id, tags):
+    """Add tags to a product; tags it already has, and its other tags, are left as they are."""
+    if not tags:
+        return
+    gid = product_gid_or_id if str(product_gid_or_id).startswith('gid://') else product_gid(product_gid_or_id)
+    result = graphql(TAGS_MUTATION, {'id': gid, 'tags': list(tags)})['tagsAdd']
+    raise_user_errors(result)
 
 
 MEDIA_QUERY = """
