@@ -7,7 +7,7 @@ from book_admin.services.flag_service import load_categories, match_flags, needs
 from book_admin.services.rejection_reasons import REJECTION_REASONS
 from book_admin.serializers.activity_serializers import ActivitySerializer
 from book_admin.utils import display_name
-from inventory.constants import ShelfStatus
+from inventory.constants import GENRES, LANGUAGES, ShelfStatus
 from inventory.models import Book, Shelf
 from inventory.services import duplicate_key, find_duplicates, match_summary, normalize_author, normalize_title
 
@@ -35,7 +35,7 @@ class BookSerializer(serializers.ModelSerializer):
     class Meta:
         model = Book
         fields = [
-            'id', 'isbn', 'title', 'author', 'publisher', 'year', 'pages', 'source', 'subjects', 'description', 'cover_url', 'cover_photo_url',
+            'id', 'isbn', 'title', 'author', 'publisher', 'year', 'pages', 'source', 'subjects', 'genre', 'language', 'description', 'cover_url', 'cover_photo_url',
             'fetched', 'edited_fields', 'missing_fields', 'shelf_id', 'previous_shelf_id', 'quantity', 'stock', 'status', 'ready', 'linked', 'match',
             'submitted_by', 'submitted_by_name', 'submitted_at', 'approved_by', 'approved_by_name', 'approved_at',
             'rejected_by', 'rejected_by_name', 'rejected_at', 'auto_rejected', 'reject_reason', 'reject_note',
@@ -171,6 +171,8 @@ class BookUpdateSerializer(serializers.Serializer):
     year = serializers.CharField(allow_blank=True, allow_null=True)
     pages = serializers.CharField(allow_blank=True, allow_null=True)
     description = serializers.CharField(max_length=5000, allow_blank=True)
+    genre = serializers.ChoiceField(choices=GENRES, allow_blank=True)
+    language = serializers.ChoiceField(choices=LANGUAGES, allow_blank=True)
     shelf_id = serializers.CharField(max_length=10)
     quantity = serializers.IntegerField(
         min_value=1, max_value=MAX_QUANTITY,

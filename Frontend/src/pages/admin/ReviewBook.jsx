@@ -9,14 +9,15 @@ import { SourceBadge } from '../../components/books/BookBits'
 import { FlagReviewCard } from '../../components/books/FlagReview'
 import { Barcode } from '../../components/ui/Misc'
 import { Button } from '../../components/ui/Button'
-import { Field, Input, QuantityStepper, ShelfPicker, Textarea } from '../../components/ui/Form'
+import { Field, Input, QuantityStepper, Select, ShelfPicker, Textarea } from '../../components/ui/Form'
+import { GENRES, LANGUAGES } from '../../services/genres'
 import { ErrorState, Skeleton, StageList, useStages } from '../../components/ui/Feedback'
 import { Modal } from '../../components/ui/Overlay'
 import { ShelfTag, StatusChip } from '../../components/ui/Status'
 import { Person } from '../../components/inventory/Filters'
 import { cn, formatDateTime, timeAgo } from '../../utils/format'
 
-const FIELDS = ['title', 'author', 'publisher', 'year', 'pages', 'description', 'shelfId', 'quantity']
+const FIELDS = ['title', 'author', 'publisher', 'year', 'pages', 'description', 'genre', 'language', 'shelfId', 'quantity']
 const REASONS = ['Incorrect metadata', 'Damaged book', 'Invalid shelf', 'Other']
 const LABEL = { title: 'Title', author: 'Author', publisher: 'Publisher', year: 'Year', pages: 'Pages', description: 'Description' }
 
@@ -253,6 +254,28 @@ function ReviewBody({ item }) {
                   </Field>
                   <Field label="Page count" htmlFor="r-pages">
                     <Input id="r-pages" inputMode="numeric" value={values.pages} onChange={set('pages')} className={cn(dirtyKeys.includes('pages') && 'is-dirty')} />
+                  </Field>
+                </div>
+                <div className="review__row2">
+                  <Field label="Genre" htmlFor="r-genre" hint="Shopify collection tag">
+                    <Select id="r-genre" value={values.genre} onChange={set('genre')} className={cn(dirtyKeys.includes('genre') && 'is-dirty')}>
+                      <option value="">Not set</option>
+                      {GENRES.map((g) => (
+                        <option key={g} value={g}>
+                          {g}
+                        </option>
+                      ))}
+                    </Select>
+                  </Field>
+                  <Field label="Language" htmlFor="r-language" optional>
+                    <Select id="r-language" value={values.language} onChange={set('language')} className={cn(dirtyKeys.includes('language') && 'is-dirty')}>
+                      <option value="">None</option>
+                      {LANGUAGES.map((l) => (
+                        <option key={l} value={l}>
+                          {l}
+                        </option>
+                      ))}
+                    </Select>
                   </Field>
                 </div>
                 <Field label="Description" htmlFor="r-description" optional>

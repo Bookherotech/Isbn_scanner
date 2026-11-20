@@ -86,6 +86,12 @@ export default function ReviewSubmit() {
               <dt>Quantity</dt>
               <dd className="review-card__qty num">{d.quantity}</dd>
             </div>
+            {(d.values.genre || d.values.language) && (
+              <div>
+                <dt>Genre</dt>
+                <dd>{[d.values.genre, d.values.language].filter(Boolean).join(' · ')}</dd>
+              </div>
+            )}
             <div className="review-card__isbn">
               <dt>ISBN</dt>
               <dd>

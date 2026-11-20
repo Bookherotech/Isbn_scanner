@@ -29,7 +29,7 @@ from inventory.models import Book
 from integrations.shopify.client import is_configured
 from integrations.shopify.exceptions import ProductGone, ShopifyError, ShopifyNotConfigured
 from integrations.shopify.products import (
-    attach_image, available_stock, create_product, find_by_isbn, inventory_item_of, numeric_id, product_media, set_available, shop_info,
+    add_tags, attach_image, available_stock, book_tags, create_product, find_by_isbn, inventory_item_of, numeric_id, product_media, set_available, shop_info,
 )
 
 logger = logging.getLogger(__name__)
@@ -95,12 +95,14 @@ def publish_book(book_id):
     try:
         if book.product_id and book.sync_status != DELETED:  # a deleted product cannot be reused: make or find a new one
             set_available(inventory_item_of(book.product_id), quantity)
+            add_tags(book.product_id, book_tags(book))  # e.g. a waiting-list entry: its genre goes on the shared product too
             product_id, action, detail = book.product_id, 'Stock pushed', f'Shelf {book.shelf.code} · {quantity} available'
         else:
             existing = find_by_isbn(book.isbn)
             if existing:
                 gid, item = existing
                 set_available(item, quantity)
+                add_tags(gid, book_tags(book))  # the store's own product joins the genre collections too
                 action = 'Linked to product'
             else:
                 gid, item = create_product(book, quantity)
