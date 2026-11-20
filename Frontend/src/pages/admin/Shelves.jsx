@@ -22,11 +22,6 @@ export default function Shelves() {
   const [toggling, setToggling] = useState(null)
 
   const rows = useMemo(() => (data || []).filter((s) => !dq || s.code.toLowerCase().includes(dq.toLowerCase().trim()) || s.note?.toLowerCase().includes(dq.toLowerCase())), [data, dq])
-  const zones = useMemo(() => {
-    const z = {}
-    for (const s of rows) (z[s.zone] ||= []).push(s)
-    return Object.entries(z)
-  }, [rows])
   const maxUnits = Math.max(1, ...(data || []).map((s) => s.units))
   const totals = data && { active: data.filter((s) => s.status === 'active').length, units: data.reduce((a, s) => a + s.units, 0) }
 
@@ -94,35 +89,25 @@ export default function Shelves() {
           </EmptyState>
         ) : (
           <div className={cn('rack', refreshing && 'is-refreshing')}>
-            {zones.map(([zone, list]) => (
-              <section key={zone} className="rack__zone" aria-label={`Zone ${zone}`}>
-                <header className="rack__zone-head">
-                  <span className="rack__zone-letter">{zone}</span>
-                  <span>
-                    Zone {zone} · {list.length} shelves · {list.reduce((a, s) => a + s.units, 0)} units
+            <div className="rack__shelves">
+              {rows.map((s) => (
+                <button key={s.id} className={cn('rack__shelf', s.status !== 'active' && 'is-inactive')} onClick={() => setEditing(s)} aria-label={`Shelf ${s.code}, ${s.units} units, ${s.titles} books${s.status !== 'active' ? ', inactive' : ''}`}>
+                  <span className="rack__code mono">{s.code}</span>
+                  <span className="rack__books" aria-hidden>
+                    {Array.from({ length: Math.min(12, s.titles) }, (_, i) => (
+                      <i key={i} style={{ height: `${55 + ((i * 37 + s.code.charCodeAt(s.code.length - 1) * 11) % 45)}%` }} />
+                    ))}
                   </span>
-                </header>
-                <div className="rack__shelves">
-                  {list.map((s) => (
-                    <button key={s.id} className={cn('rack__shelf', s.status !== 'active' && 'is-inactive')} onClick={() => setEditing(s)} aria-label={`Shelf ${s.code}, ${s.units} units, ${s.titles} books${s.status !== 'active' ? ', inactive' : ''}`}>
-                      <span className="rack__code mono">{s.code}</span>
-                      <span className="rack__books" aria-hidden>
-                        {Array.from({ length: Math.min(12, s.titles) }, (_, i) => (
-                          <i key={i} style={{ height: `${55 + ((i * 37 + s.code.charCodeAt(2) * 11) % 45)}%` }} />
-                        ))}
-                      </span>
-                      <span className="rack__fill" aria-hidden>
-                        <span style={{ width: `${(s.units / maxUnits) * 100}%` }} />
-                      </span>
-                      <span className="rack__meta num">
-                        {s.status === 'active' ? `${s.units} units · ${s.titles} books` : 'Inactive'}
-                        {s.waiting > 0 && <em> · {s.waiting} waiting</em>}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </section>
-            ))}
+                  <span className="rack__fill" aria-hidden>
+                    <span style={{ width: `${(s.units / maxUnits) * 100}%` }} />
+                  </span>
+                  <span className="rack__meta num">
+                    {s.status === 'active' ? `${s.units} units · ${s.titles} books` : 'Inactive'}
+                    {s.waiting > 0 && <em> · {s.waiting} waiting</em>}
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
         )
       ) : (
@@ -180,7 +165,7 @@ export default function Shelves() {
 function ShelfDialog({ shelf, onClose, onSaved, onToggle }) {
   const isNew = shelf && !shelf.id
   return (
-    <Modal open={!!shelf} onClose={onClose} title={isNew ? 'Add shelf' : `Shelf ${shelf?.code ?? ''}`} description={isNew ? 'Shelf numbers use a zone letter and two digits.' : 'Shelf numbers can’t be renamed once books are assigned.'} size="sm">
+    <Modal open={!!shelf} onClose={onClose} title={isNew ? 'Add shelf' : `Shelf ${shelf?.code ?? ''}`} description={isNew ? 'Letters, numbers and dashes. Capital and small letters count as the same shelf.' : 'Shelf numbers can’t be renamed.'} size="sm">
       {shelf && <ShelfForm key={shelf.id || 'new'} shelf={shelf} isNew={isNew} onClose={onClose} onSaved={onSaved} onToggle={onToggle} />}
     </Modal>
   )
@@ -207,7 +192,7 @@ function ShelfForm({ shelf, isNew, onClose, onSaved, onToggle }) {
   }
   return (
     <form onSubmit={submit} className="form-stack">
-      <Field label="Shelf number" htmlFor="shelf-code" error={err} hint={isNew ? 'e.g. A-13, B-09, D-01' : undefined}>
+      <Field label="Shelf number" htmlFor="shelf-code" error={err} hint={isNew ? 'e.g. A13, A-13, B9' : undefined}>
         <Input id="shelf-code" mono value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} disabled={!isNew} placeholder="A-13" maxLength={4} data-autofocus />
       </Field>
       <Field label="Note" optional htmlFor="shelf-note" hint="Visible to admins only.">
