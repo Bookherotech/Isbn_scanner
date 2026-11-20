@@ -111,9 +111,59 @@ def guess_language(title, language_code=''):
     return _LANGUAGE_CODES.get(str(language_code or '').strip().lower(), '')
 
 
+# Kids age groups (low, high, the default category name). The providers have no age field, so the age comes from clues.
+_AGE_BANDS = ((0, 3, 'Age 0-3'), (4, 8, 'Age 4-8'), (9, 12, 'Age 9-12'), (13, 15, 'Age 13-15'), (16, 18, 'Age 16-18'))
+assert {name for _, _, name in _AGE_BANDS} == set(GENRE_TREE['Kids'])
+_AGE_RANGE = re.compile(r'\bages?\s*(\d{1,2})\s*(?:-|\u2013|to)\s*(\d{1,2})\b|\b(\d{1,2})\s*(?:-|\u2013|to)\s*(\d{1,2})\s*(?:years|yrs)\b', re.IGNORECASE)
+_AGE_UP = re.compile(r'\bages?\s*(\d{1,2})\s*(?:\+|and up|& up|and over)', re.IGNORECASE)
+_AGE_CLUES = (  # checked in this order; the first that matches decides
+    (('board book', 'board books', 'baby', 'babies', 'toddler', 'toddlers', 'nursery rhymes'), ('Age 0-3',)),
+    (('picture book', 'picture books', 'early reader', 'early readers', 'beginning reader', 'easy reader', 'readers (primary)', 'stories in rhyme'), ('Age 4-8',)),
+    (('young adult', 'teen', 'teens', 'teenagers', 'ya fiction'), ('Age 13-15', 'Age 16-18')),
+    (('juvenile', 'children', "children's", 'middle grade', 'chapter books'), ('Age 9-12',)),
+)
+_AGE_CLUE_PATTERNS = [([_pattern(k) for k in words], ages) for words, ages in _AGE_CLUES]
+
+
+def _bands(low, high):
+    """The age groups a range falls in. A group it only touches by one year ("8 to 12" and Age 4-8) is left out,
+    unless that is all there is."""
+    overlap = [(min(hi, high) - max(lo, low) + 1, name) for lo, hi, name in _AGE_BANDS if lo <= high and low <= hi]
+    return [name for years, name in overlap if years >= 2] or [name for _, name in overlap]
+
+
+def guess_ages(record):
+    """Kids age groups for a book, from (in order): an age range written in the subjects or description ("ages 4-8",
+    "8 and up"), then words like "board book", "picture book", "young adult", "juvenile", then the format / page count.
+    [] when nothing points to an age."""
+    text = ' | '.join([*(record.get('subjects') or []), record.get('title') or '', record.get('description') or ''])
+    for match in _AGE_RANGE.finditer(text):
+        low, high = (int(n) for n in (match.group(1, 2) if match.group(1) else match.group(3, 4)))
+        if low <= high <= 18 and (found := _bands(low, high)):
+            return found
+    if match := _AGE_UP.search(text):
+        low = int(match.group(1))
+        if low <= 18:
+            return _bands(low, low + 3)
+    if 'board' in str(record.get('format') or '').lower():
+        return ['Age 0-3']
+    for patterns, ages in _AGE_CLUE_PATTERNS:
+        if any(p.search(text) for p in patterns):
+            return list(ages)
+    pages = record.get('pages')
+    if isinstance(pages, int) and 0 < pages <= 40:
+        return ['Age 4-8']  # a very short book: most likely a picture book
+    return []
+
+
 def add_guesses(record):
-    """Set record['genre'], ['subgenres'] and ['language'] from its title, subjects and provider language code."""
+    """Set record['genre'], ['subgenres'], ['language'] and ['ages'] (the Kids age groups, kept even when the genre is
+    not Kids, so picking Kids by hand can tick them) from the title, subjects, description, format, pages and language."""
     record['genre'] = guess_genre(record.get('title'), record.get('subjects'))
-    record['subgenres'] = guess_subgenres(record['genre'], record.get('title'), record.get('subjects'))
+    record['ages'] = guess_ages(record)
+    if record['genre'] == 'Kids':
+        record['subgenres'] = list(record['ages'])
+    else:
+        record['subgenres'] = guess_subgenres(record['genre'], record.get('title'), record.get('subjects'))
     record['language'] = guess_language(record.get('title'), record.get('language'))
     return record
