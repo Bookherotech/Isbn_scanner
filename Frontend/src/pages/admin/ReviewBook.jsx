@@ -1,26 +1,28 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, ArrowRight, Check, CircleAlert, Flag, PencilLine, Save, ShieldCheck, Store, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Camera, Check, CircleAlert, Flag, Hourglass, PencilLine, Save, ShieldCheck, Store, Trash2, X } from 'lucide-react'
 import { approveItem, getFilterOptions, getGenres, getItem, listItems, rejectItem, updateItem } from '../../services/adminApi'
 import { useQuery, useTicker } from '../../hooks/useStore'
 import { useToast } from '../../hooks/useToast'
 import { BookCover } from '../../components/books/BookCover'
-import { SourceBadge } from '../../components/books/BookBits'
+import { GenreFact, SourceBadge } from '../../components/books/BookBits'
 import { FlagReviewCard } from '../../components/books/FlagReview'
 import { Barcode } from '../../components/ui/Misc'
 import { Button } from '../../components/ui/Button'
 import { Field, Input, QuantityStepper, ShelfPicker, Textarea } from '../../components/ui/Form'
 import { GenrePicker } from '../../components/books/GenrePicker'
-import { useGenres } from '../../services/genres'
+import { FORMATS, useGenres } from '../../services/genres'
+import { shrinkPhoto } from '../../services/photo'
 import { ErrorState, Skeleton, StageList, useStages } from '../../components/ui/Feedback'
 import { Modal } from '../../components/ui/Overlay'
 import { ShelfTag, StatusChip } from '../../components/ui/Status'
 import { Person } from '../../components/inventory/Filters'
 import { cn, formatDateTime, timeAgo } from '../../utils/format'
 
-const FIELDS = ['title', 'author', 'publisher', 'year', 'pages', 'description', 'genre', 'subgenres', 'language', 'shelfId', 'quantity']
+const FIELDS = ['isbn', 'title', 'author', 'publisher', 'year', 'pages', 'format', 'dimensions', 'description', 'genre', 'subgenres', 'language', 'shelfId', 'quantity']
+const EDITABLE = ['pending', 'waiting'] // a waiting-list entry is edited here too; it is approved from the Waiting list
 const REASONS = ['Incorrect metadata', 'Damaged book', 'Invalid shelf', 'Other']
-const LABEL = { title: 'Title', author: 'Author', publisher: 'Publisher', year: 'Year', pages: 'Pages', description: 'Description' }
+const LABEL = { isbn: 'ISBN', title: 'Title', author: 'Author', publisher: 'Publisher', year: 'Year', pages: 'Pages', format: 'Format', dimensions: 'Dimensions', description: 'Description', photo: 'Photo', subgenres: 'Categories' }
 
 export default function ReviewBook() {
   const { id } = useParams()
@@ -46,8 +48,11 @@ function ReviewBody({ item }) {
   const [done, setDone] = useState(null)
   const [nextId, setNextId] = useState(null)
   const stages = useStages()
+  const [photo, setPhoto] = useState(null) // null = unchanged, '' = remove, a JPEG data URL = new photo
+  const [photoError, setPhotoError] = useState('')
+  const waiting = item.status === 'waiting'
 
-  const dirtyKeys = FIELDS.filter((k) => String(values[k]) !== String(initial[k]))
+  const dirtyKeys = [...FIELDS.filter((k) => String(values[k]) !== String(initial[k])), ...(photo !== null ? ['coverPhoto'] : [])]
   const dirty = dirtyKeys.length > 0
   const invalid = !String(values.title).trim() || !String(values.author).trim() || !values.shelfId || !Number(values.quantity)
   const set = (k) => (v) => {
@@ -61,13 +66,14 @@ function ReviewBody({ item }) {
 
   const patch = () =>
     Object.fromEntries(
-      dirtyKeys.map((k) => [k, Array.isArray(values[k]) ? values[k] : k === 'quantity' || k === 'year' || k === 'pages' ? (values[k] === '' ? '' : Number(values[k])) : String(values[k]).trim()]),
+      dirtyKeys.map((k) => [k, k === 'coverPhoto' ? photo : Array.isArray(values[k]) ? values[k] : k === 'quantity' || k === 'year' || k === 'pages' ? (values[k] === '' ? '' : Number(values[k])) : String(values[k]).trim()]),
     )
 
   const save = async () => {
     setSaving(true)
     try {
       const res = await updateItem(item.id, patch())
+      setPhoto(null) // the saved photo now comes with the item
       handleOutcome(res)
       if (res.outcome === 'saved') toast({ title: 'Changes saved', description: res.changes.length ? `Updated ${res.changes.map((k) => LABEL[k] || (k === 'shelfId' ? 'shelf' : k)).join(', ')}.` : undefined })
       return res
@@ -85,7 +91,24 @@ function ReviewBody({ item }) {
       toast({ title: 'Moved to waiting list', description: `Same title + author is already on ${res.match.shelfId}. This entry now waits for that stock to sell out.`, tone: 'warning' })
       navigate('/admin/waiting-list')
     }
+    if (res.outcome === 'moved_to_pending') {
+      toast({ title: 'Moved to pending', description: 'No other copy of this title + author is active any more, so the entry can be approved now.', tone: 'info' })
+    }
   }
+
+  const choosePhoto = async (e) => {
+    const file = e.target.files?.[0]
+    e.target.value = '' // the same file can be chosen again
+    if (!file) return
+    setPhotoError('')
+    try {
+      setPhoto(await shrinkPhoto(file))
+    } catch (error) {
+      setPhotoError(error.message)
+    }
+  }
+  const shownPhoto = photo === null ? item.coverPhotoUrl : photo || null
+  const canRemovePhoto = photo ? true : photo === null && item.hasPhoto
 
   const approve = async () => {
     if (invalid) return
@@ -113,14 +136,20 @@ function ReviewBody({ item }) {
     navigate(nextId ? `/admin/pending/${nextId}` : '/admin/pending')
   }
 
-  const notPending = item.status !== 'pending' && !done
+  const notPending = !EDITABLE.includes(item.status) && !done
 
   return (
     <div className="review">
       <div className="review__nav">
-        <Link to="/admin/pending" className="backlink">
-          <ArrowLeft size={16} aria-hidden /> Pending review
-        </Link>
+        {waiting ? (
+          <Link to="/admin/waiting-list" className="backlink">
+            <ArrowLeft size={16} aria-hidden /> Waiting list
+          </Link>
+        ) : (
+          <Link to="/admin/pending" className="backlink">
+            <ArrowLeft size={16} aria-hidden /> Pending review
+          </Link>
+        )}
         {nextId && !done && (
           <Link to={`/admin/pending/${nextId}`} className="backlink">
             Next pending <ArrowRight size={16} aria-hidden />
@@ -132,7 +161,26 @@ function ReviewBody({ item }) {
         {/* ---------- Editorial: the book as fetched/submitted ---------- */}
         <article className="review__book">
           <div className="review__cover">
-            <BookCover title={values.title || item.title} author={values.author || item.author} isbn={item.isbn} photo={item.coverPhotoUrl} size="xl" />
+            <BookCover title={values.title || item.title} author={values.author || item.author} isbn={item.isbn} photo={shownPhoto} size="xl" />
+            {!notPending && !done && (
+              <div className="review__photo-actions">
+                <Button as="label" size="sm" icon={Camera}>
+                  {shownPhoto ? 'Change photo' : 'Add photo'}
+                  <input type="file" accept="image/*" onChange={choosePhoto} hidden />
+                </Button>
+                {canRemovePhoto && (
+                  <Button variant="ghost" size="sm" icon={Trash2} onClick={() => setPhoto('')}>
+                    Remove photo
+                  </Button>
+                )}
+                {photo !== null && <span className="unsaved">{photo ? 'New photo, not saved' : 'Photo will be removed'}</span>}
+                {photoError && (
+                  <p className="field__error" role="alert">
+                    {photoError}
+                  </p>
+                )}
+              </div>
+            )}
           </div>
           <div className="review__ident">
             <SourceBadge source={item.source} />
@@ -150,6 +198,14 @@ function ReviewBody({ item }) {
               <div>
                 <dt>Pages</dt>
                 <dd className="num">{values.pages || <span className="muted">—</span>}</dd>
+              </div>
+              <div>
+                <dt>Format</dt>
+                <dd>{values.format || <span className="muted">—</span>}</dd>
+              </div>
+              <div>
+                <dt>Dimensions</dt>
+                <dd className="num">{values.dimensions ? `${values.dimensions} mm` : <span className="muted">—</span>}</dd>
               </div>
             </dl>
             <div className="review__barcode">
@@ -220,7 +276,7 @@ function ReviewBody({ item }) {
           ) : notPending ? (
             <div className="review__closed">
               <StatusChip status={item.status} ready={item.ready} syncStatus={item.syncStatus} />
-              <p>This submission is no longer pending.</p>
+              <p>This entry can no longer be edited here.</p>
               <Button to={`/admin/books/${item.id}`}>Open book detail</Button>
             </div>
           ) : (
@@ -243,7 +299,18 @@ function ReviewBody({ item }) {
                   </p>
                 </div>
               )}
+              {waiting && (
+                <div className="callout callout--note">
+                  <Hourglass size={16} aria-hidden />
+                  <p>
+                    This entry is on the <strong>waiting list</strong>. Edit and save it here; approve or reject it from the Waiting list.
+                  </p>
+                </div>
+              )}
               <div className="review__form">
+                <Field label="ISBN" htmlFor="r-isbn" hint="ISBN-10 or ISBN-13">
+                  <Input id="r-isbn" mono inputMode="numeric" maxLength={17} value={values.isbn} onChange={set('isbn')} className={cn(dirtyKeys.includes('isbn') && 'is-dirty')} />
+                </Field>
                 <Field label="Title" htmlFor="r-title" error={!String(values.title).trim() && 'Required'}>
                   <Input id="r-title" value={values.title} onChange={set('title')} className={cn(dirtyKeys.includes('title') && 'is-dirty')} />
                 </Field>
@@ -262,6 +329,19 @@ function ReviewBody({ item }) {
                   </Field>
                 </div>
                 <GenrePicker lists={genreLists} idPrefix="r" value={values} onChange={(patch) => Object.entries(patch).forEach(([k, v]) => set(k)(v))} dirty={dirtyKeys} />
+                <div className="review__row2">
+                  <Field label="Format" htmlFor="r-format" optional>
+                    <Input id="r-format" list="r-book-formats" value={values.format} onChange={set('format')} placeholder="Paperback" className={cn(dirtyKeys.includes('format') && 'is-dirty')} />
+                    <datalist id="r-book-formats">
+                      {FORMATS.map((f) => (
+                        <option key={f} value={f} />
+                      ))}
+                    </datalist>
+                  </Field>
+                  <Field label="Dimensions" htmlFor="r-dimensions" optional hint="mm: width x height x thickness">
+                    <Input id="r-dimensions" value={values.dimensions} onChange={set('dimensions')} placeholder="126 x 176 x 21" className={cn(dirtyKeys.includes('dimensions') && 'is-dirty')} />
+                  </Field>
+                </div>
                 <Field label="Description" htmlFor="r-description" optional>
                   <Textarea id="r-description" rows={5} maxLength={5000} value={values.description} onChange={set('description')} className={cn(dirtyKeys.includes('description') && 'is-dirty')} />
                 </Field>
@@ -289,18 +369,28 @@ function ReviewBody({ item }) {
                 </div>
               )}
 
-              <footer className="review__actions">
-                <Button variant="danger-ghost" icon={X} onClick={() => setRejectOpen(true)} disabled={stages.active}>
-                  Reject
-                </Button>
-                <span className="review__actions-spacer" />
-                <Button icon={Save} onClick={save} disabled={!dirty || stages.active} loading={saving && !stages.active}>
-                  Save changes
-                </Button>
-                <Button variant="primary" icon={Check} onClick={approve} disabled={invalid || stages.active} loading={stages.active}>
-                  {dirty ? 'Save & approve' : 'Approve'}
-                </Button>
-              </footer>
+              {waiting ? (
+                <footer className="review__actions">
+                  <Button to="/admin/waiting-list">Waiting list</Button>
+                  <span className="review__actions-spacer" />
+                  <Button variant="primary" icon={Save} onClick={() => save().catch(() => {})} disabled={!dirty || invalid} loading={saving}>
+                    Save changes
+                  </Button>
+                </footer>
+              ) : (
+                <footer className="review__actions">
+                  <Button variant="danger-ghost" icon={X} onClick={() => setRejectOpen(true)} disabled={stages.active}>
+                    Reject
+                  </Button>
+                  <span className="review__actions-spacer" />
+                  <Button icon={Save} onClick={() => save().catch(() => {})} disabled={!dirty || stages.active} loading={saving && !stages.active}>
+                    Save changes
+                  </Button>
+                  <Button variant="primary" icon={Check} onClick={approve} disabled={invalid || stages.active} loading={stages.active}>
+                    {dirty ? 'Save & approve' : 'Approve'}
+                  </Button>
+                </footer>
+              )}
             </>
           )}
         </section>
@@ -321,6 +411,7 @@ function ApprovedCard({ item, nextId }) {
       <h2>Approved</h2>
       <p className="approved__lead">Book is now live.</p>
       <dl className="approved__facts">
+        <GenreFact item={item} />
         <div>
           <dt>Shopify product</dt>
           <dd className="mono">{item.productId ? `#${item.productId}` : '—'}</dd>

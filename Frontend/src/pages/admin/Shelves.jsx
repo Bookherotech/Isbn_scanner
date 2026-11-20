@@ -252,28 +252,29 @@ function ShelfForm({ shelf, isNew, onClose, onSaved, onToggle, onDelete }) {
           </div>
         </dl>
       )}
-      <div className="form-actions">
+      <div className="form-actions form-actions--split">
         {!isNew && (
-          <Button variant="ghost" icon={Power} onClick={() => onToggle(shelf)}>
-            {shelf.status === 'active' ? 'Deactivate' : 'Activate'}
-          </Button>
+          <div className="form-actions__group">
+            <Button variant="ghost" icon={Power} onClick={() => onToggle(shelf)}>
+              {shelf.status === 'active' ? 'Deactivate' : 'Activate'}
+            </Button>
+            <Button
+              variant="danger-ghost"
+              icon={Trash2}
+              disabled={shelf.used}
+              title={shelf.used ? 'This shelf has books on it (now or before), so it can’t be deleted. Deactivate it instead.' : 'Delete this shelf'}
+              onClick={() => onDelete(shelf)}
+            >
+              Delete
+            </Button>
+          </div>
         )}
-        {!isNew && (
-          <Button
-            variant="danger-ghost"
-            icon={Trash2}
-            disabled={shelf.used}
-            title={shelf.used ? 'This shelf has books on it (now or before), so it can’t be deleted. Deactivate it instead.' : 'Delete this shelf'}
-            onClick={() => onDelete(shelf)}
-          >
-            Delete
+        <div className="form-actions__group form-actions__group--end">
+          <Button onClick={onClose}>Cancel</Button>
+          <Button type="submit" variant="dark" loading={busy}>
+            {isNew ? 'Add shelf' : 'Save'}
           </Button>
-        )}
-        <span style={{ flex: 1 }} />
-        <Button onClick={onClose}>Cancel</Button>
-        <Button type="submit" variant="dark" loading={busy}>
-          {isNew ? 'Add shelf' : 'Save'}
-        </Button>
+        </div>
       </div>
       {!isNew && shelf.used && <p className="field__hint">This shelf has books on it (now or before), so it can’t be deleted. Deactivate it instead.</p>}
     </form>

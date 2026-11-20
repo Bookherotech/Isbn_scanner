@@ -10,7 +10,9 @@ from book_admin.utils import display_name
 from integrations.shopify.genres import canonical_genre, canonical_language, canonical_subgenres
 from inventory.constants import ShelfStatus
 from inventory.models import Book, Shelf
-from inventory.services import duplicate_key, find_duplicates, match_summary, normalize_author, normalize_title
+from inventory.services import (
+    InvalidCoverPhoto, clean_cover_photo, duplicate_key, find_duplicates, match_summary, normalize_author, normalize_title, to_isbn13,
+)
 
 MAX_QUANTITY = 500
 
@@ -22,6 +24,7 @@ class BookSerializer(serializers.ModelSerializer):
     """
 
     shelf_id = serializers.CharField(source='shelf.code', read_only=True)
+    has_photo = serializers.SerializerMethodField()
     previous_shelf_id = serializers.CharField(source='previous_shelf.code', read_only=True, allow_null=True)
     ready = serializers.SerializerMethodField()
     linked = serializers.SerializerMethodField()
@@ -36,7 +39,7 @@ class BookSerializer(serializers.ModelSerializer):
     class Meta:
         model = Book
         fields = [
-            'id', 'isbn', 'title', 'author', 'publisher', 'year', 'pages', 'source', 'subjects', 'genre', 'subgenres', 'language', 'description', 'cover_url', 'cover_photo_url',
+            'id', 'isbn', 'title', 'author', 'publisher', 'year', 'pages', 'format', 'dimensions', 'source', 'subjects', 'genre', 'subgenres', 'language', 'description', 'cover_url', 'cover_photo_url', 'has_photo',
             'fetched', 'edited_fields', 'missing_fields', 'shelf_id', 'previous_shelf_id', 'quantity', 'stock', 'status', 'ready', 'linked', 'match',
             'submitted_by', 'submitted_by_name', 'submitted_at', 'approved_by', 'approved_by_name', 'approved_at',
             'rejected_by', 'rejected_by_name', 'rejected_at', 'auto_rejected', 'reject_reason', 'reject_note',
@@ -44,6 +47,10 @@ class BookSerializer(serializers.ModelSerializer):
             'stock_out_at', 'closed_at', 'closed_reason', 'flags', 'flag_hold', 'flag_reviewed_at', 'flag_reviewed_by_name', 'flag_note',
         ]
         read_only_fields = fields
+
+    def get_has_photo(self, book):
+        """A photo taken by staff (or set by an admin), not our copy of the provider cover."""
+        return bool(book.cover_photo)
 
     def get_cover_photo_url(self, book):
         """The staff photo, else our copy of the provider cover."""
@@ -164,13 +171,20 @@ def _optional_number(value, pattern, message):
 
 
 class BookUpdateSerializer(serializers.Serializer):
-    """PATCH /books/<id>/ body: any of the fields the review screen edits. Pass the book as context['book']."""
+    """PATCH /books/<id>/ body: any of the fields the review screen edits. Pass the book as context['book'].
 
+    cover_photo: a new photo as a data URL ('data:image/jpeg;base64,...'), or '' to remove the photo.
+    """
+
+    isbn = serializers.CharField(max_length=17)
+    cover_photo = serializers.CharField(allow_blank=True, trim_whitespace=True)
     title = serializers.CharField(max_length=255, error_messages={'blank': 'Title is required.'})
     author = serializers.CharField(max_length=255, error_messages={'blank': 'Author is required.'})
     publisher = serializers.CharField(max_length=255, allow_blank=True)
     year = serializers.CharField(allow_blank=True, allow_null=True)
     pages = serializers.CharField(allow_blank=True, allow_null=True)
+    format = serializers.CharField(max_length=40, allow_blank=True)
+    dimensions = serializers.CharField(max_length=60, allow_blank=True)
     description = serializers.CharField(max_length=5000, allow_blank=True)
     genre = serializers.CharField(max_length=40, allow_blank=True)
     language = serializers.CharField(max_length=20, allow_blank=True)
@@ -188,6 +202,20 @@ class BookUpdateSerializer(serializers.Serializer):
 
     def validate_publisher(self, value):
         return value.strip()
+
+    def validate_isbn(self, value):
+        isbn13 = to_isbn13(value)
+        if not isbn13:
+            raise serializers.ValidationError('Enter a valid ISBN-10 or ISBN-13.')
+        return isbn13
+
+    def validate_cover_photo(self, value):
+        if not value:
+            return ''  # remove the photo
+        try:
+            return clean_cover_photo(value)
+        except InvalidCoverPhoto as error:
+            raise serializers.ValidationError(str(error)) from None
 
     def validate_genre(self, value):
         if not value.strip():

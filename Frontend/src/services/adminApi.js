@@ -78,6 +78,8 @@ function mapItem(r) {
     publisher: r.publisher,
     year: r.year ?? '',
     pages: r.pages ?? '',
+    format: r.format || '',
+    dimensions: r.dimensions || '',
     source: r.source,
     subjects: r.subjects,
     genre: r.genre || '',
@@ -86,6 +88,7 @@ function mapItem(r) {
     description: r.description || '',
     coverUrl: r.cover_url,
     coverPhotoUrl: r.cover_photo_url || null,
+    hasPhoto: Boolean(r.has_photo), // a photo taken by staff or set by an admin (not the provider cover)
     fetched: r.fetched,
     editedFields: r.edited_fields,
     missingFields: r.missing_fields,
@@ -204,10 +207,11 @@ export async function getItem(id) {
   return mapItem(await call(`/api/admin/books/${encodeURIComponent(id)}/`))
 }
 
-const PATCH_KEYS = { shelfId: 'shelf_id' }
+const PATCH_KEYS = { shelfId: 'shelf_id', coverPhoto: 'cover_photo' }
 const CHANGE_KEYS = { shelf_id: 'shelfId' }
+// `coverPhoto`: a JPEG data URL to replace the photo, or '' to remove it.
 
-/** Saves edits (title, author, publisher, year, pages, description, genre, subgenres, language, shelfId, quantity). -> { outcome, match, changes, item }; a clash on the same shelf throws code 'duplicate_same_shelf'. */
+/** Saves edits (isbn, title, author, publisher, year, pages, description, genre, subgenres, language, shelfId, quantity, coverPhoto). -> { outcome, match, changes, item }; a clash on the same shelf throws code 'duplicate_same_shelf'. */
 export async function updateItem(id, patch) {
   const body = Object.fromEntries(Object.entries(patch).map(([k, v]) => [PATCH_KEYS[k] || k, v]))
   const res = await change(`/api/admin/books/${id}/`, { method: 'PATCH', body })

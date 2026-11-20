@@ -65,6 +65,7 @@ export function AppRoutes() {
         <Route index element={<Dashboard />} />
         <Route path="pending" element={<Pending />} />
         <Route path="pending/:id" element={<ReviewBook />} />
+        <Route path="books/:id/edit" element={<ReviewBook />} />
         <Route path="waiting-list" element={<WaitingList />} />
         <Route path="approved" element={<Approved />} />
         <Route path="rejected" element={<Rejected />} />
