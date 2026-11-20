@@ -456,6 +456,10 @@
 .review__form { display: grid; gap: 12px; }
 .review__row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .review__row2--inv { padding-top: 12px; border-top: 1px dashed var(--line-strong); }
+/* Quantity fills its column like the other inputs: − and + at the ends, the number in the middle */
+.review__row2--inv .stepper { display: flex; width: 100%; height: 44px; }
+.review__row2--inv .stepper button { width: 52px; flex: none; }
+.review__row2--inv .stepper input { flex: 1; min-width: 0; font-size: 16px; }
 .input.is-dirty, .select.is-dirty select { background: #fffdf2; border-color: var(--hero-line); }
 .review__actions { display: flex; gap: 8px; align-items: center; padding-top: 14px; border-top: 1px solid var(--line-soft); flex-wrap: wrap; }
 .review__actions-spacer { flex: 1; }
