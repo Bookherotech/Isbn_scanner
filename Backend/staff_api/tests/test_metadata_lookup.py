@@ -35,10 +35,10 @@ class MetadataLookupTests(SimpleTestCase):
         cache.clear()
 
     def test_google_record(self):
-        with mock.patch(GOOGLE, return_value=GOOGLE_HIT) as google, mock.patch(OPEN_LIBRARY) as open_library:
+        with mock.patch(GOOGLE, return_value=GOOGLE_HIT) as google, mock.patch(OPEN_LIBRARY, return_value={}) as open_library:
             record = lookup_isbn(ISBN)
-        google.assert_called_once()
-        open_library.assert_not_called()
+        self.assertEqual(google.call_args_list[0].args[1]['q'], f'isbn:{ISBN}')
+        self.assertTrue(all('/isbn/' in c.args[0] for c in open_library.call_args_list))  # only its edition record, for format / size
         self.assertEqual(record['source'], 'google')
         self.assertEqual((record['title'], record['author'], record['publisher'], record['year'], record['pages']), ('Atomic Habits', 'James Clear', 'Avery', 2018, 320))
         self.assertEqual(record['subjects'], ['Self-Help'])
@@ -86,16 +86,17 @@ class MetadataLookupTests(SimpleTestCase):
                 lookup_isbn(ISBN)
 
     def test_results_are_cached(self):
-        with mock.patch(GOOGLE, return_value=GOOGLE_HIT) as google:
+        with mock.patch(GOOGLE, return_value=GOOGLE_HIT) as google, mock.patch(OPEN_LIBRARY, return_value={}):
             lookup_isbn(ISBN)
+            calls = google.call_count
             lookup_isbn(ISBN)
-        google.assert_called_once()
+        self.assertEqual(google.call_count, calls)
 
     @override_settings(GOOGLE_BOOKS_API_KEY='secret-key')
     def test_the_google_key_is_sent_when_set(self):
-        with mock.patch(GOOGLE, return_value=GOOGLE_HIT) as google:
+        with mock.patch(GOOGLE, return_value=GOOGLE_HIT) as google, mock.patch(OPEN_LIBRARY, return_value={}):
             lookup_isbn(ISBN)
-        self.assertEqual(google.call_args.args[1]['key'], 'secret-key')
+        self.assertTrue(all(c.args[1]['key'] == 'secret-key' for c in google.call_args_list))
 
 
 @override_settings(GOOGLE_BOOKS_API_KEY='', METADATA_TIMEOUT_SECONDS=5, METADATA_PROVIDERS=['openlibrary', 'google'])
@@ -107,7 +108,9 @@ class OpenLibraryFirstTests(SimpleTestCase):
 
     def test_open_library_answers_first_and_google_is_not_called(self):
         complete = {f'ISBN:{ISBN}': {**OPEN_LIBRARY_HIT[f'ISBN:{ISBN}'], 'publishers': [{'name': 'Ace'}], 'publish_date': '1990', 'number_of_pages': 412}}  # a missing field would ask Google to fill it
-        with mock.patch(GOOGLE) as google, mock.patch(OPEN_LIBRARY, return_value=complete):
+        edition = {'physical_format': 'Paperback', 'physical_dimensions': '19.8 x 12.9 x 2.1 centimeters'}  # a missing size would ask Google too
+        answer = lambda url, *args: edition if '/isbn/' in url else complete  # noqa: E731
+        with mock.patch(GOOGLE) as google, mock.patch(OPEN_LIBRARY, side_effect=answer):
             record = lookup_isbn(ISBN)
         google.assert_not_called()
         self.assertEqual(record['source'], 'openlibrary')

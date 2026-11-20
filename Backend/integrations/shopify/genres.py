@@ -17,6 +17,7 @@ from django.core.cache import cache
 from integrations.metadata.genre import add_guesses
 from integrations.shopify.client import graphql, is_configured
 from integrations.shopify.exceptions import ShopifyError
+from integrations.shopify.products import isbn_query
 from inventory.constants import GENRE_TREE, LANGUAGES
 
 logger = logging.getLogger(__name__)
@@ -34,7 +35,7 @@ query StoreTags($after: String) {
 """
 
 PRODUCT_TAGS_QUERY = """
-query ProductTagsBySku($query: String!) {
+query ProductTagsByIsbn($query: String!) {
   productVariants(first: 1, query: $query) { nodes { product { tags } } }
 }
 """
@@ -144,12 +145,12 @@ def canonical_language(value):
 
 
 def shopify_genre_of(isbn13):
-    """{'genre', 'subgenres', 'language'} from the tags of the store's product with this ISBN as SKU, or None when
+    """{'genre', 'subgenres', 'language'} from the tags of the store's product with this ISBN (barcode or SKU), or None when
     there is no such product (or Shopify cannot be asked right now)."""
     if not is_configured():
         return None
     try:
-        nodes = graphql(PRODUCT_TAGS_QUERY, {'query': f'sku:{isbn13}'}, timeout=SCAN_TIMEOUT_SECONDS)['productVariants']['nodes']
+        nodes = graphql(PRODUCT_TAGS_QUERY, {'query': isbn_query(isbn13)}, timeout=SCAN_TIMEOUT_SECONDS)['productVariants']['nodes']
     except ShopifyError as error:
         logger.warning('Could not read the Shopify tags for %s: %s', isbn13, error)
         return None
