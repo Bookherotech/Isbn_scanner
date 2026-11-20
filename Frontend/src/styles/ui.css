@@ -142,6 +142,14 @@
 }
 .chip-btn:hover { background: var(--hero-subtle); border-color: var(--hero-line); }
 
+/* Genre picker: genre + language, then the genre's categories as toggle chips */
+.genre-picker__row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
+.genre-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.genre-chip { display: inline-flex; align-items: center; gap: 4px; min-height: 34px; padding: 6px 12px; color: var(--ink-2); }
+.genre-chip.is-on { background: var(--hero); border-color: #e2b500; color: var(--ink); font-weight: 600; }
+.genre-chip.is-on:hover { background: var(--hero); border-color: var(--ink); }
+.genre-picker__subs.is-dirty .genre-chips { padding: 6px; border-radius: 6px; background: #fffdf2; }
+
 /* =========================================================================
    Status chips + shelf tags
    ========================================================================= */

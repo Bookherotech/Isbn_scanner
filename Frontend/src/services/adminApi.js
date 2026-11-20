@@ -81,6 +81,7 @@ function mapItem(r) {
     source: r.source,
     subjects: r.subjects,
     genre: r.genre || '',
+    subgenres: r.subgenres || [],
     language: r.language || '',
     description: r.description || '',
     coverUrl: r.cover_url,
@@ -206,7 +207,7 @@ export async function getItem(id) {
 const PATCH_KEYS = { shelfId: 'shelf_id' }
 const CHANGE_KEYS = { shelf_id: 'shelfId' }
 
-/** Saves edits (title, author, publisher, year, pages, description, genre, language, shelfId, quantity). -> { outcome, match, changes, item }; a clash on the same shelf throws code 'duplicate_same_shelf'. */
+/** Saves edits (title, author, publisher, year, pages, description, genre, subgenres, language, shelfId, quantity). -> { outcome, match, changes, item }; a clash on the same shelf throws code 'duplicate_same_shelf'. */
 export async function updateItem(id, patch) {
   const body = Object.fromEntries(Object.entries(patch).map(([k, v]) => [PATCH_KEYS[k] || k, v]))
   const res = await change(`/api/admin/books/${id}/`, { method: 'PATCH', body })
@@ -388,4 +389,10 @@ export async function rejectAllFlagged(category, { reason, note = '' }) {
 
 export async function reviewFlag(id, note = '') {
   return mapItem(await change(`/api/admin/books/${id}/flag-review/`, { method: 'POST', body: { note } }))
+}
+
+/** GET {role}/genres/ -> { genres, languages }: the store's genre tags from Shopify (built-in lists when Shopify is unavailable). */
+export async function getGenres() {
+  const res = await call('/api/admin/genres/')
+  return { genres: res.genres, languages: res.languages }
 }
