@@ -1,6 +1,8 @@
 """The Shopify calls BookHero needs: find / create a book's product, set its stock, read stock back.
 
-A book is a single-variant product whose SKU (and barcode) is the ISBN-13, stocked at SHOPIFY_LOCATION_ID.
+A book is a single-variant product whose barcode is the ISBN-13 and whose SKU is "<shelf>-<ISBN-13>" (e.g.
+A-01-9780141339207), stocked at SHOPIFY_LOCATION_ID. Older products (and the store's own) may have the bare ISBN as SKU,
+so a book's product is found by barcode or SKU.
 Its shelf is kept in the product's "Shelf location" field (metafield custom.shelf_location).
 IDs are kept as plain numbers in the database (Book.product_id) and turned into GIDs here.
 """
@@ -72,9 +74,19 @@ query FindBySku($query: String!) {
 """
 
 
+def book_sku(shelf_code, isbn):
+    """The SKU BookHero gives a book's product: its shelf, then its ISBN."""
+    return f'{shelf_code}-{isbn}'
+
+
+def isbn_query(isbn):
+    """Product variant search for a book: the barcode is the ISBN; the SKU is the bare ISBN on older / the store's own products."""
+    return f'barcode:{isbn} OR sku:{isbn}'
+
+
 def find_by_isbn(isbn):
-    """(product GID, inventory item GID) of the product whose SKU is this ISBN, or None."""
-    nodes = graphql(FIND_QUERY, {'query': f'sku:{isbn}'})['productVariants']['nodes']
+    """(product GID, inventory item GID) of the product whose barcode (or SKU) is this ISBN, or None."""
+    nodes = graphql(FIND_QUERY, {'query': isbn_query(isbn)})['productVariants']['nodes']
     if not nodes:
         return None
     return nodes[0]['product']['id'], nodes[0]['inventoryItem']['id']
@@ -122,8 +134,8 @@ def create_product(book, quantity):
         'productOptions': [DEFAULT_OPTION],
         'variants': [{
             'optionValues': DEFAULT_VALUE,
-            'barcode': book.isbn,  # the same number as the SKU
-            'inventoryItem': {'sku': book.isbn, 'tracked': True},
+            'barcode': book.isbn,
+            'inventoryItem': {'sku': book_sku(book.shelf.code, book.isbn), 'tracked': True},
             'inventoryQuantities': [{'locationId': location_gid(), 'name': 'available', 'quantity': quantity}],
         }],
         'metafields': [{**SHELF_FIELD, 'value': book.shelf.code}],
@@ -172,8 +184,22 @@ def ensure_shelf_definition():
     cache.set(SHELF_DEFINITION_CACHE_KEY, True, 24 * 60 * 60)
 
 
-def set_shelf_location(product_gid_or_id, shelf_code):
-    """Write the book's current shelf on its product. A failure is logged, never raised: stock matters more."""
+VARIANT_QUERY = """
+query BookVariant($id: ID!) {
+  product(id: $id) { variants(first: 1) { nodes { id } } }
+}
+"""
+
+SKU_MUTATION = """
+mutation SetSku($product: ID!, $variants: [ProductVariantsBulkInput!]!) {
+  productVariantsBulkUpdate(productId: $product, variants: $variants) { userErrors { field message } }
+}
+"""
+
+
+def set_shelf_location(product_gid_or_id, shelf_code, isbn):
+    """Write the book's current shelf on its product: the "Shelf location" field, and the SKU "<shelf>-<ISBN>" (with the
+    ISBN as barcode). A failure is logged, never raised: stock matters more."""
     gid = product_gid_or_id if str(product_gid_or_id).startswith('gid://') else product_gid(product_gid_or_id)
     ensure_shelf_definition()
     try:
@@ -181,6 +207,13 @@ def set_shelf_location(product_gid_or_id, shelf_code):
         raise_user_errors(result)
     except ShopifyError as error:
         logger.warning('Could not set the shelf location of %s: %s', gid, error)
+    try:
+        variants = ((graphql(VARIANT_QUERY, {'id': gid})['product'] or {}).get('variants') or {}).get('nodes') or []
+        if variants:
+            variant = {'id': variants[0]['id'], 'barcode': isbn, 'inventoryItem': {'sku': book_sku(shelf_code, isbn)}}
+            raise_user_errors(graphql(SKU_MUTATION, {'product': gid, 'variants': [variant]})['productVariantsBulkUpdate'])
+    except ShopifyError as error:
+        logger.warning('Could not set the SKU of %s: %s', gid, error)
 
 
 TAGS_MUTATION = """

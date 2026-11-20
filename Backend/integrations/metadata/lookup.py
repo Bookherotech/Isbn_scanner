@@ -53,6 +53,20 @@ def _fill_from_google(record):
     return filled
 
 
+def _fill_physical(record):
+    """Format and dimensions (for the Shopify description) when the answering provider had none: Open Library's
+    edition record, then Google's full volume record for the size. Whatever is still unknown stays '' (staff can type it)."""
+    record.setdefault('format', '')
+    record.setdefault('dimensions', '')
+    timeout = settings.METADATA_TIMEOUT_SECONDS
+    if record['source'] != open_library.SOURCE and OPEN_LIBRARY in settings.METADATA_PROVIDERS and not (record['format'] and record['dimensions']):
+        book_format, size = open_library.physical(record['isbn'], timeout)
+        record['format'] = record['format'] or book_format
+        record['dimensions'] = record['dimensions'] or size
+    if not record['dimensions'] and GOOGLE in settings.METADATA_PROVIDERS:
+        record['dimensions'] = google_books.dimensions(record['isbn'], api_key=settings.GOOGLE_BOOKS_API_KEY, timeout=timeout)
+
+
 def _cache_key(isbn13):
     return f'metadata:isbn:{isbn13}'
 
@@ -97,6 +111,7 @@ def lookup_isbn(isbn13):
 
     record['fallback'] = GOOGLE in failed and record['source'] != GOOGLE
     record['filled'] = _fill_from_google(record)
+    _fill_physical(record)
     record['missing'] = [k for k in FIELDS if record.get(k) in ('', None)]
     cache.set(_cache_key(isbn13), record, CACHE_SECONDS)
     return record

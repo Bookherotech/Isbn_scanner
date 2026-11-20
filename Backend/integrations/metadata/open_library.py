@@ -21,7 +21,7 @@ def fetch_description(isbn13, *, timeout=5):
     return description.get('value', '') if isinstance(description, dict) else str(description or '')  # either a string or {type, value}
 
 
-def _physical(isbn13, timeout):
+def physical(isbn13, timeout):
     """(format, dimensions) from the edition record; the Books API data view does not have them. ('', '') on any failure."""
     try:
         edition = get_json(f'https://openlibrary.org/isbn/{isbn13}.json', {}, timeout)
@@ -50,5 +50,5 @@ def fetch(isbn13, *, timeout=5):
         'subjects': clean_subjects(s.get('name') for s in info.get('subjects') or []),
         'cover_url': str((info.get('cover') or {}).get('medium') or ''),
         'source': SOURCE,
-        **dict(zip(('format', 'dimensions'), _physical(isbn13, timeout))),
+        **dict(zip(('format', 'dimensions'), physical(isbn13, timeout))),
     }
