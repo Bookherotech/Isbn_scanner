@@ -1,3 +1,5 @@
+from django.db import transaction
+from django.db.models import ProtectedError
 from rest_framework import status
 from rest_framework.exceptions import NotFound
 from rest_framework.response import Response
@@ -5,10 +7,14 @@ from rest_framework.views import APIView
 
 from authentication.permissions import IsAdminRole
 from book_admin.serializers import ShelfSerializer, ShelfWriteSerializer
+from book_admin.exceptions import InvalidState
 from book_admin.models import ActivityLog
 from book_admin.services import shelves_with_stats
 from book_admin.services.activity_service import log_activity
 from inventory.constants import ShelfStatus
+from inventory.models import Book, Shelf
+
+SHELF_IN_USE = 'This shelf has books on it (now or before), so it cannot be deleted. Deactivate it instead.'
 
 
 class ShelfListView(APIView):
@@ -40,6 +46,7 @@ class ShelfListView(APIView):
 class ShelfDetailView(APIView):
     """GET   /api/admin/shelves/<code>/
     PATCH /api/admin/shelves/<code>/ {note?, status?}   edit the note, or activate / deactivate (hidden from the staff picker)
+    DELETE /api/admin/shelves/<code>/                   only a shelf no book was ever put on (204); otherwise 409 {code: 'invalid_state'}
     The code cannot change. Books already on a deactivated shelf stay live.
     """
 
@@ -68,3 +75,19 @@ class ShelfDetailView(APIView):
         elif after.get('note', before['note']) != before['note']:
             log_activity(action='Updated shelf', kind=ActivityLog.Kind.SHELF, target=f'Shelf {shelf.code}', detail=after['note'] or 'Details updated', actor=request.user, result=ActivityLog.Result.INFO)
         return Response(ShelfSerializer(self._shelf(code)).data)
+
+    def delete(self, request, code):
+        shelf = self._shelf(code)
+        try:
+            with transaction.atomic():
+                locked = Shelf.objects.select_for_update().filter(pk=shelf.pk).first()
+                if locked is None:
+                    raise NotFound('This shelf could not be found.')
+                if Book.objects.filter(shelf=locked).exists() or Book.objects.filter(previous_shelf=locked).exists():
+                    raise InvalidState(SHELF_IN_USE)
+                locked.delete()
+        except ProtectedError:  # a book was put on it a moment ago
+            raise InvalidState(SHELF_IN_USE) from None
+        log_activity(action='Deleted shelf', kind=ActivityLog.Kind.SHELF, target=f'Shelf {shelf.code}', detail='Removed from the shelf list',
+                     actor=request.user, result=ActivityLog.Result.WARNING)
+        return Response(status=status.HTTP_204_NO_CONTENT)

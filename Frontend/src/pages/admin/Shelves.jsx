@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
-import { LayoutGrid, Pencil, Plus, Power, Rows3 } from 'lucide-react'
-import { getShelves, saveShelf, setShelfStatus } from '../../services/adminApi'
+import { LayoutGrid, Pencil, Plus, Power, Rows3, Trash2 } from 'lucide-react'
+import { deleteShelf, getShelves, saveShelf, setShelfStatus } from '../../services/adminApi'
 import { useDebounce, useQuery } from '../../hooks/useStore'
 import { useToast } from '../../hooks/useToast'
 import { DataTable } from '../../components/ui/Data'
@@ -20,6 +20,8 @@ export default function Shelves() {
   const { data, loading, error, reload, refreshing } = useQuery(() => getShelves(), [])
   const [editing, setEditing] = useState(null) // null | {} (new) | shelf
   const [toggling, setToggling] = useState(null)
+  const [deleting, setDeleting] = useState(null)
+  const [deleteBusy, setDeleteBusy] = useState(false)
 
   const rows = useMemo(() => (data || []).filter((s) => !dq || s.code.toLowerCase().includes(dq.toLowerCase().trim()) || s.note?.toLowerCase().includes(dq.toLowerCase())), [data, dq])
   const maxUnits = Math.max(1, ...(data || []).map((s) => s.units))
@@ -125,6 +127,10 @@ export default function Shelves() {
         shelf={editing}
         onClose={() => setEditing(null)}
         onSaved={(code, isNew) => toast({ title: isNew ? `Shelf ${code} added` : `Shelf ${code} updated`, description: isNew ? 'Staff can select it right away.' : undefined })}
+        onDelete={(s) => {
+          setEditing(null)
+          setDeleting(s)
+        }}
         onToggle={(s) => {
           setEditing(null)
           setToggling(s)
@@ -158,20 +164,52 @@ export default function Shelves() {
           </>
         }
       />
+      <Modal
+        open={!!deleting}
+        onClose={() => setDeleting(null)}
+        size="sm"
+        title={`Delete shelf ${deleting?.code ?? ''}?`}
+        description="No book was ever put on this shelf. It will be removed from the shelf list. This cannot be undone."
+        footer={
+          <>
+            <Button onClick={() => setDeleting(null)}>Cancel</Button>
+            <Button
+              variant="danger"
+              icon={Trash2}
+              loading={deleteBusy}
+              onClick={async () => {
+                const s = deleting
+                setDeleteBusy(true)
+                try {
+                  await deleteShelf(s.id)
+                  setDeleting(null)
+                  toast({ title: `Shelf ${s.code} deleted`, tone: 'info' })
+                } catch (err) {
+                  toast({ title: 'Couldn’t delete shelf', description: err.message, tone: 'error' })
+                } finally {
+                  setDeleteBusy(false)
+                }
+              }}
+            >
+              Delete
+            </Button>
+          </>
+        }
+      />
     </div>
   )
 }
 
-function ShelfDialog({ shelf, onClose, onSaved, onToggle }) {
+function ShelfDialog({ shelf, onClose, onSaved, onToggle, onDelete }) {
   const isNew = shelf && !shelf.id
   return (
     <Modal open={!!shelf} onClose={onClose} title={isNew ? 'Add shelf' : `Shelf ${shelf?.code ?? ''}`} description={isNew ? 'Letters, numbers and dashes. Capital and small letters count as the same shelf.' : 'Shelf numbers can’t be renamed.'} size="sm">
-      {shelf && <ShelfForm key={shelf.id || 'new'} shelf={shelf} isNew={isNew} onClose={onClose} onSaved={onSaved} onToggle={onToggle} />}
+      {shelf && <ShelfForm key={shelf.id || 'new'} shelf={shelf} isNew={isNew} onClose={onClose} onSaved={onSaved} onToggle={onToggle} onDelete={onDelete} />}
     </Modal>
   )
 }
 
-function ShelfForm({ shelf, isNew, onClose, onSaved, onToggle }) {
+function ShelfForm({ shelf, isNew, onClose, onSaved, onToggle, onDelete }) {
   const [code, setCode] = useState(shelf.code || '')
   const [note, setNote] = useState(shelf.note || '')
   const [err, setErr] = useState('')
@@ -220,12 +258,24 @@ function ShelfForm({ shelf, isNew, onClose, onSaved, onToggle }) {
             {shelf.status === 'active' ? 'Deactivate' : 'Activate'}
           </Button>
         )}
+        {!isNew && (
+          <Button
+            variant="danger-ghost"
+            icon={Trash2}
+            disabled={shelf.used}
+            title={shelf.used ? 'This shelf has books on it (now or before), so it can’t be deleted. Deactivate it instead.' : 'Delete this shelf'}
+            onClick={() => onDelete(shelf)}
+          >
+            Delete
+          </Button>
+        )}
         <span style={{ flex: 1 }} />
         <Button onClick={onClose}>Cancel</Button>
         <Button type="submit" variant="dark" loading={busy}>
           {isNew ? 'Add shelf' : 'Save'}
         </Button>
       </div>
+      {!isNew && shelf.used && <p className="field__hint">This shelf has books on it (now or before), so it can’t be deleted. Deactivate it instead.</p>}
     </form>
   )
 }

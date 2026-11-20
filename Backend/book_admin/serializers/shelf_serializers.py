@@ -18,10 +18,11 @@ class ShelfSerializer(serializers.ModelSerializer):
     units = serializers.IntegerField(read_only=True, default=0)
     waiting = serializers.IntegerField(read_only=True, default=0)
     pending = serializers.IntegerField(read_only=True, default=0)
+    used = serializers.BooleanField(read_only=True, default=False)  # has (or had) books: cannot be deleted
 
     class Meta:
         model = Shelf
-        fields = ['id', 'code', 'status', 'note', 'created_at', 'titles', 'units', 'waiting', 'pending']
+        fields = ['id', 'code', 'status', 'note', 'created_at', 'titles', 'units', 'waiting', 'pending', 'used']
         read_only_fields = fields
 
 
