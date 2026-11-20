@@ -7,7 +7,8 @@ from book_admin.services.flag_service import load_categories, match_flags, needs
 from book_admin.services.rejection_reasons import REJECTION_REASONS
 from book_admin.serializers.activity_serializers import ActivitySerializer
 from book_admin.utils import display_name
-from inventory.constants import GENRES, LANGUAGES, ShelfStatus
+from integrations.shopify.genres import canonical_genre, canonical_language, canonical_subgenres
+from inventory.constants import ShelfStatus
 from inventory.models import Book, Shelf
 from inventory.services import duplicate_key, find_duplicates, match_summary, normalize_author, normalize_title
 
@@ -35,7 +36,7 @@ class BookSerializer(serializers.ModelSerializer):
     class Meta:
         model = Book
         fields = [
-            'id', 'isbn', 'title', 'author', 'publisher', 'year', 'pages', 'source', 'subjects', 'genre', 'language', 'description', 'cover_url', 'cover_photo_url',
+            'id', 'isbn', 'title', 'author', 'publisher', 'year', 'pages', 'source', 'subjects', 'genre', 'subgenres', 'language', 'description', 'cover_url', 'cover_photo_url',
             'fetched', 'edited_fields', 'missing_fields', 'shelf_id', 'previous_shelf_id', 'quantity', 'stock', 'status', 'ready', 'linked', 'match',
             'submitted_by', 'submitted_by_name', 'submitted_at', 'approved_by', 'approved_by_name', 'approved_at',
             'rejected_by', 'rejected_by_name', 'rejected_at', 'auto_rejected', 'reject_reason', 'reject_note',
@@ -171,8 +172,9 @@ class BookUpdateSerializer(serializers.Serializer):
     year = serializers.CharField(allow_blank=True, allow_null=True)
     pages = serializers.CharField(allow_blank=True, allow_null=True)
     description = serializers.CharField(max_length=5000, allow_blank=True)
-    genre = serializers.ChoiceField(choices=GENRES, allow_blank=True)
-    language = serializers.ChoiceField(choices=LANGUAGES, allow_blank=True)
+    genre = serializers.CharField(max_length=40, allow_blank=True)
+    language = serializers.CharField(max_length=20, allow_blank=True)
+    subgenres = serializers.ListField(child=serializers.CharField(max_length=60), max_length=30)
     shelf_id = serializers.CharField(max_length=10)
     quantity = serializers.IntegerField(
         min_value=1, max_value=MAX_QUANTITY,
@@ -187,11 +189,39 @@ class BookUpdateSerializer(serializers.Serializer):
     def validate_publisher(self, value):
         return value.strip()
 
+    def validate_genre(self, value):
+        if not value.strip():
+            return ''
+        genre = canonical_genre(value)  # the store's spelling, so the Shopify tag matches its collection
+        if not genre:
+            raise serializers.ValidationError('Choose a genre from the list.')
+        return genre
+
+    def validate_language(self, value):
+        if not value.strip():
+            return ''
+        language = canonical_language(value)
+        if not language:
+            raise serializers.ValidationError('Choose a language from the list.')
+        return language
+
     def validate_year(self, value):
         return _optional_number(value, r'\d{4}', 'Use a 4-digit year.')
 
     def validate_pages(self, value):
         return _optional_number(value, r'\d{1,6}', 'Numbers only.')
+
+    def validate(self, attrs):
+        book = self.context.get('book')
+        if 'genre' in attrs or 'subgenres' in attrs:
+            genre = attrs.get('genre', book.genre if book else '')
+            if 'subgenres' not in attrs:  # a new genre without its categories: the old ones belonged to the old genre
+                attrs['subgenres'] = [] if book is None or genre != book.genre else book.subgenres
+            subgenres, unknown = canonical_subgenres(genre, attrs['subgenres']) if genre else ([], attrs['subgenres'])
+            if unknown:
+                raise serializers.ValidationError({'subgenres': ['Choose categories that belong to the genre.']})
+            attrs['subgenres'] = subgenres
+        return attrs
 
     def validate_shelf_id(self, value):
         code = value.strip().upper()

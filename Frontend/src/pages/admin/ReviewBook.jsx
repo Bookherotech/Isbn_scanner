@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, Check, CircleAlert, Flag, PencilLine, Save, ShieldCheck, Store, X } from 'lucide-react'
-import { approveItem, getFilterOptions, getItem, listItems, rejectItem, updateItem } from '../../services/adminApi'
+import { approveItem, getFilterOptions, getGenres, getItem, listItems, rejectItem, updateItem } from '../../services/adminApi'
 import { useQuery, useTicker } from '../../hooks/useStore'
 import { useToast } from '../../hooks/useToast'
 import { BookCover } from '../../components/books/BookCover'
@@ -9,15 +9,16 @@ import { SourceBadge } from '../../components/books/BookBits'
 import { FlagReviewCard } from '../../components/books/FlagReview'
 import { Barcode } from '../../components/ui/Misc'
 import { Button } from '../../components/ui/Button'
-import { Field, Input, QuantityStepper, Select, ShelfPicker, Textarea } from '../../components/ui/Form'
-import { GENRES, LANGUAGES } from '../../services/genres'
+import { Field, Input, QuantityStepper, ShelfPicker, Textarea } from '../../components/ui/Form'
+import { GenrePicker } from '../../components/books/GenrePicker'
+import { useGenres } from '../../services/genres'
 import { ErrorState, Skeleton, StageList, useStages } from '../../components/ui/Feedback'
 import { Modal } from '../../components/ui/Overlay'
 import { ShelfTag, StatusChip } from '../../components/ui/Status'
 import { Person } from '../../components/inventory/Filters'
 import { cn, formatDateTime, timeAgo } from '../../utils/format'
 
-const FIELDS = ['title', 'author', 'publisher', 'year', 'pages', 'description', 'genre', 'language', 'shelfId', 'quantity']
+const FIELDS = ['title', 'author', 'publisher', 'year', 'pages', 'description', 'genre', 'subgenres', 'language', 'shelfId', 'quantity']
 const REASONS = ['Incorrect metadata', 'Damaged book', 'Invalid shelf', 'Other']
 const LABEL = { title: 'Title', author: 'Author', publisher: 'Publisher', year: 'Year', pages: 'Pages', description: 'Description' }
 
@@ -38,6 +39,7 @@ function ReviewBody({ item }) {
   const shelves = useMemo(() => (options?.shelves ?? []).filter((s) => s.status === 'active' || s.id === item.shelfId), [options, item.shelfId])
   const initial = useMemo(() => Object.fromEntries(FIELDS.map((k) => [k, item[k] ?? ''])), [item])
   const [values, setValues] = useState(initial)
+  const genreLists = useGenres(getGenres)
   const [saving, setSaving] = useState(false)
   const [conflict, setConflict] = useState(null)
   const [rejectOpen, setRejectOpen] = useState(false)
@@ -57,7 +59,10 @@ function ReviewBody({ item }) {
     listItems({ statuses: ['pending'], hideHeld: true, sort: 'oldest', pageSize: 50 }).then((r) => setNextId(r.rows.find((x) => x.id !== item.id)?.id ?? null))
   }, [item.id, done])
 
-  const patch = () => Object.fromEntries(dirtyKeys.map((k) => [k, k === 'quantity' || k === 'year' || k === 'pages' ? (values[k] === '' ? '' : Number(values[k])) : String(values[k]).trim()]))
+  const patch = () =>
+    Object.fromEntries(
+      dirtyKeys.map((k) => [k, Array.isArray(values[k]) ? values[k] : k === 'quantity' || k === 'year' || k === 'pages' ? (values[k] === '' ? '' : Number(values[k])) : String(values[k]).trim()]),
+    )
 
   const save = async () => {
     setSaving(true)
@@ -256,28 +261,7 @@ function ReviewBody({ item }) {
                     <Input id="r-pages" inputMode="numeric" value={values.pages} onChange={set('pages')} className={cn(dirtyKeys.includes('pages') && 'is-dirty')} />
                   </Field>
                 </div>
-                <div className="review__row2">
-                  <Field label="Genre" htmlFor="r-genre" hint="Shopify collection tag">
-                    <Select id="r-genre" value={values.genre} onChange={set('genre')} className={cn(dirtyKeys.includes('genre') && 'is-dirty')}>
-                      <option value="">Not set</option>
-                      {GENRES.map((g) => (
-                        <option key={g} value={g}>
-                          {g}
-                        </option>
-                      ))}
-                    </Select>
-                  </Field>
-                  <Field label="Language" htmlFor="r-language" optional>
-                    <Select id="r-language" value={values.language} onChange={set('language')} className={cn(dirtyKeys.includes('language') && 'is-dirty')}>
-                      <option value="">None</option>
-                      {LANGUAGES.map((l) => (
-                        <option key={l} value={l}>
-                          {l}
-                        </option>
-                      ))}
-                    </Select>
-                  </Field>
-                </div>
+                <GenrePicker lists={genreLists} idPrefix="r" value={values} onChange={(patch) => Object.entries(patch).forEach(([k, v]) => set(k)(v))} dirty={dirtyKeys} />
                 <Field label="Description" htmlFor="r-description" optional>
                   <Textarea id="r-description" rows={5} maxLength={5000} value={values.description} onChange={set('description')} className={cn(dirtyKeys.includes('description') && 'is-dirty')} />
                 </Field>

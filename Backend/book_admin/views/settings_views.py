@@ -5,6 +5,7 @@ from authentication.permissions import IsAdminRole
 from book_admin.models import ActivityLog, AppSettings
 from book_admin.serializers import SettingsSerializer
 from book_admin.services.activity_service import log_activity
+from integrations.shopify.genres import store_genres
 
 
 class SettingsView(APIView):
@@ -27,3 +28,12 @@ class SettingsView(APIView):
             log_activity(action='Updated settings', kind=ActivityLog.Kind.SETTINGS, target='Settings', detail=', '.join(c.replace('_', ' ') for c in changed),
                          actor=request.user, result=ActivityLog.Result.INFO)
         return Response(serializer.data)
+
+
+class GenreListView(APIView):
+    """GET /api/admin/genres/ -> {genres, languages, source}: the store's genre tags for the dropdowns ('source': 'shopify' | 'default')."""
+
+    permission_classes = [IsAdminRole]
+
+    def get(self, request):
+        return Response(store_genres())

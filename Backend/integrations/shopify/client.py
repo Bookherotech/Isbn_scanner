@@ -40,11 +40,11 @@ def is_configured():
     return all((settings.SHOPIFY_STORE_DOMAIN, settings.SHOPIFY_CLIENT_ID, settings.SHOPIFY_CLIENT_SECRET, settings.SHOPIFY_LOCATION_ID))
 
 
-def _post(url, body, headers):
+def _post(url, body, headers, timeout=None):
     """POST and return the parsed JSON. HTTP errors come back as (status, parsed body) so callers can read Shopify's message."""
     request = Request(url, data=body, headers={'Accept': 'application/json', **headers}, method='POST')
     try:
-        with urlopen(request, timeout=settings.SHOPIFY_TIMEOUT_SECONDS) as response:  # noqa: S310 - our store's https URL only
+        with urlopen(request, timeout=timeout or settings.SHOPIFY_TIMEOUT_SECONDS) as response:  # noqa: S310 - our store's https URL only
             return response.status, json.loads(response.read().decode('utf-8'))
     except HTTPError as error:
         try:
@@ -80,8 +80,9 @@ def access_token(refresh=False):
     return token or _fetch_token()
 
 
-def graphql(query, variables=None):
+def graphql(query, variables=None, timeout=None):
     """Run one Admin API query / mutation and return its `data`. Raises ShopifyError on any error.
+    `timeout` (seconds) overrides SHOPIFY_TIMEOUT_SECONDS, e.g. for a call a person is waiting on.
 
     A 401 means the cached token was revoked: a new one is fetched and the call tried once more.
     userErrors inside `data` are left to the caller (they differ per mutation).
@@ -90,7 +91,7 @@ def graphql(query, variables=None):
     body = json.dumps({'query': query, 'variables': variables or {}}).encode('utf-8')
     for attempt in (1, 2):
         token = access_token(refresh=attempt == 2)
-        status, data = _post(url, body, {'Content-Type': 'application/json', 'X-Shopify-Access-Token': token})
+        status, data = _post(url, body, {'Content-Type': 'application/json', 'X-Shopify-Access-Token': token}, timeout)
         if status == 401 and attempt == 1:
             cache.delete(TOKEN_CACHE_KEY)
             continue

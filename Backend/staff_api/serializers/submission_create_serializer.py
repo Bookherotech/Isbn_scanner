@@ -2,7 +2,8 @@ import re
 
 from rest_framework import serializers
 
-from inventory.constants import GENRES, LANGUAGES, BookSource, ShelfStatus
+from integrations.shopify.genres import canonical_genre, canonical_language, canonical_subgenres
+from inventory.constants import BookSource, ShelfStatus
 from inventory.models import Shelf
 from inventory.services import InvalidCoverPhoto, clean_cover_photo, to_isbn13
 
@@ -32,8 +33,9 @@ class SubmissionCreateSerializer(serializers.Serializer):
     source = serializers.ChoiceField(choices=BookSource.choices, default=BookSource.MANUAL)
     subjects = serializers.ListField(child=serializers.CharField(max_length=100), required=False, default=list, max_length=50)
     description = serializers.CharField(max_length=5000, required=False, allow_blank=True, default='')
-    genre = serializers.ChoiceField(choices=GENRES, required=False, allow_blank=True, default='')
-    language = serializers.ChoiceField(choices=LANGUAGES, required=False, allow_blank=True, default='')
+    genre = serializers.CharField(max_length=40, required=False, allow_blank=True, default='')
+    language = serializers.CharField(max_length=20, required=False, allow_blank=True, default='')
+    subgenres = serializers.ListField(child=serializers.CharField(max_length=60), required=False, default=list, max_length=30)
     fetched = serializers.DictField(required=False, allow_null=True, default=None)
     # A cover photo taken by staff, as a data URL ('data:image/jpeg;base64,...'); re-encoded on the server.
     cover_photo = serializers.CharField(required=False, allow_blank=True, default='', trim_whitespace=True)
@@ -48,6 +50,22 @@ class SubmissionCreateSerializer(serializers.Serializer):
         if not isbn13:
             raise serializers.ValidationError('Enter a valid ISBN-10 or ISBN-13.')
         return isbn13
+
+    def validate_genre(self, value):
+        if not value.strip():
+            return ''
+        genre = canonical_genre(value)  # the store's spelling, so the Shopify tag matches its collection
+        if not genre:
+            raise serializers.ValidationError('Choose a genre from the list.')
+        return genre
+
+    def validate_language(self, value):
+        if not value.strip():
+            return ''
+        language = canonical_language(value)
+        if not language:
+            raise serializers.ValidationError('Choose a language from the list.')
+        return language
 
     def validate_year(self, value):
         return _optional_number(value, r'\d{4}', 'Use a 4-digit year.')
@@ -89,4 +107,8 @@ class SubmissionCreateSerializer(serializers.Serializer):
             attrs['fetched'] = None  # typed by hand: nothing was fetched
             attrs['subjects'] = []
         attrs['publisher'] = attrs['publisher'].strip()
+        subgenres, unknown = canonical_subgenres(attrs['genre'], attrs['subgenres']) if attrs['genre'] else ([], attrs['subgenres'])
+        if unknown:
+            raise serializers.ValidationError({'subgenres': ['Choose categories that belong to the genre.']})
+        attrs['subgenres'] = subgenres  # the store's spelling
         return attrs

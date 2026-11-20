@@ -6,11 +6,11 @@ from .inventory_views import (
 )
 from .notification_views import MarkAllReadView, MarkReadView, NotificationListView, UnreadCountView
 from .report_views import ReportView
-from .settings_views import SettingsView
+from .settings_views import GenreListView, SettingsView
 from .shelf_views import ShelfDetailView, ShelfListView
 
 __all__ = [
-    'ActivityListView', 'AuthorListView', 'BookApproveAllView', 'BookApproveView', 'BookFlagReviewView', 'FlagCategoryDetailView', 'FlagCategoryListView', 'FlaggedBookListView', 'FlaggedRejectAllView', 'BookDetailView', 'BookListView', 'BookRejectAllView', 'BookRejectView', 'DashboardView', 'FilterOptionsView',
+    'ActivityListView', 'AuthorListView', 'BookApproveAllView', 'BookApproveView', 'BookFlagReviewView', 'FlagCategoryDetailView', 'FlagCategoryListView', 'FlaggedBookListView', 'FlaggedRejectAllView', 'GenreListView', 'BookDetailView', 'BookListView', 'BookRejectAllView', 'BookRejectView', 'DashboardView', 'FilterOptionsView',
     'MarkAllReadView', 'MarkReadView', 'NavCountsView', 'NotificationListView', 'OutOfStockView', 'RejectionReasonListView', 'ReportView', 'SearchView', 'SettingsView',
     'ShelfDetailView', 'ShelfListView', 'UnreadCountView', 'WaitingApproveView', 'WaitingListView',
 ]
