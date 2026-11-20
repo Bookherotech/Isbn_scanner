@@ -2,7 +2,7 @@
 
 import re
 
-from django.db.models import Count, Prefetch, Q, Sum
+from django.db.models import Count, Exists, OuterRef, Prefetch, Q, Sum
 from django.db.models.functions import Coalesce
 from rest_framework.exceptions import ValidationError
 
@@ -98,9 +98,13 @@ def filter_books(queryset, params):
 
 
 def shelves_with_stats():
-    """Every shelf with its live books / units / waiting / pending counts, in one query."""
+    """Every shelf with its live books / units / waiting / pending counts, in one query.
+
+    `used`: any book entry, in any status, is or was on this shelf; such a shelf cannot be deleted (only deactivated).
+    """
     on_shopify = Q(books__status__in=STOCK_STATUSES)
     return Shelf.objects.annotate(
+        used=Exists(Book.objects.filter(Q(shelf=OuterRef('pk')) | Q(previous_shelf=OuterRef('pk')))),
         titles=Count('books', filter=on_shopify),
         units=Coalesce(Sum('books__stock', filter=on_shopify), 0),
         waiting=Count('books', filter=Q(books__status=BookStatus.WAITING)),

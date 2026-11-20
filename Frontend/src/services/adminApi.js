@@ -128,7 +128,7 @@ function mapItem(r) {
   }
 }
 
-const mapShelf = (s) => ({ id: s.id, code: s.code, status: s.status, note: s.note, createdAt: ms(s.created_at), titles: s.titles, units: s.units, waiting: s.waiting, pending: s.pending })
+const mapShelf = (s) => ({ id: s.id, code: s.code, status: s.status, note: s.note, createdAt: ms(s.created_at), titles: s.titles, units: s.units, waiting: s.waiting, pending: s.pending, used: Boolean(s.used) })
 
 // --------------------------------------------------------------------------
 // Dashboard, counts, search, filter options
@@ -266,6 +266,12 @@ export async function saveShelf({ id, code, note = '' }) {
     : await change('/api/admin/shelves/', { method: 'POST', body: { code: code.trim().toUpperCase(), note } })
   optionsPromise = null
   return { id: shelf.id }
+}
+
+/** Deletes a shelf no book was ever put on; a used shelf is refused (code 'invalid_state'). */
+export async function deleteShelf(id) {
+  await change(`/api/admin/shelves/${encodeURIComponent(id)}/`, { method: 'DELETE' })
+  optionsPromise = null
 }
 
 export async function setShelfStatus(id, status) {
