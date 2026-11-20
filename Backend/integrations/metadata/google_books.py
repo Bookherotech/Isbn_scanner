@@ -1,7 +1,8 @@
 """Google Books: https://developers.google.com/books/docs/v1/using (needs a key: keyless requests have a 0 daily quota)."""
 
+from integrations.metadata.exceptions import ProviderError
 from integrations.metadata.http import get_json
-from integrations.metadata.parsing import clean_subjects, https, positive_int, year_from
+from integrations.metadata.parsing import clean_subjects, dimensions_mm, https, positive_int, year_from
 
 URL = 'https://www.googleapis.com/books/v1/volumes'
 SOURCE = 'google'
@@ -36,6 +37,24 @@ def fetch(isbn13, *, api_key='', timeout=5):
     if not details['title']:
         return None
     return {'isbn': isbn13, **details, 'source': SOURCE}
+
+
+def dimensions(isbn13, *, api_key='', timeout=5):
+    """The book's size in mm ('129 x 198 x 21'), from Google's full volume record (the search results do not carry it).
+    '' when Google has no full size for it or cannot be asked."""
+    params = {'q': f'isbn:{isbn13}', 'maxResults': 1, 'printType': 'books'}
+    if api_key:
+        params['key'] = api_key
+    try:
+        items = get_json(URL, params, timeout).get('items') or []
+        if not items or not items[0].get('id'):
+            return ''
+        volume = get_json(f'{URL}/{items[0]["id"]}', {'key': api_key} if api_key else {}, timeout)
+    except ProviderError:
+        return ''
+    size = (volume.get('volumeInfo') or {}).get('dimensions') or {}
+    parts = [str(size.get(k) or '').strip() for k in ('width', 'height', 'thickness')]
+    return dimensions_mm(' x '.join(parts)) if all(parts) else ''  # e.g. '12.90 cm x 19.80 cm x 2.10 cm'
 
 
 def search(text, *, api_key='', timeout=5, limit=5):

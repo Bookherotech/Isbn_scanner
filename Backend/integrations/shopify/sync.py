@@ -1,7 +1,7 @@
 """Keeping BookHero and Shopify in step. `run_sync` is the scheduled job; each step is also safe to call on its own.
 
 1. Publish: live books that are not on Shopify yet (or whose stock was never pushed) get a product and their
-   counted quantity. A book whose ISBN is already a SKU in the store is linked to that product, not duplicated.
+   counted quantity. A book whose ISBN is already a barcode or SKU in the store is linked to that product, not duplicated.
    A waiting-list entry approved onto an existing product pushes its new quantity.
 2. Stock check: Shopify's 'available' count is read back. 0 -> out of stock (waiting-list entries become ready,
    everyone is notified); back above 0 (restocked in Shopify) -> live again. A product deleted in Shopify ->
@@ -10,7 +10,7 @@
    admins are told once, and it is checked again on every run.
 3. Reminders: books still out of stock after AppSettings.reminder_after_hours get one more notification.
 4. Images: a staff photo or our copy of the cover is uploaded to products BookHero created. The store's own products
-   (linked by SKU) are left alone, and a saved cover copy is not added to a product that already has an image.
+   (linked by ISBN) are left alone, and a saved cover copy is not added to a product that already has an image.
 
 Shopify is never called inside a database transaction, so a slow API never holds row locks.
 """
@@ -97,7 +97,7 @@ def publish_book(book_id):
         if book.product_id and book.sync_status != DELETED:  # a deleted product cannot be reused: make or find a new one
             set_available(inventory_item_of(book.product_id), quantity)
             add_tags(book.product_id, book_tags(book))  # e.g. a waiting-list entry: its genre goes on the shared product too
-            set_shelf_location(book.product_id, book.shelf.code)  # a waiting-list entry may be on another shelf
+            set_shelf_location(book.product_id, book.shelf.code, book.isbn)  # a waiting-list entry may be on another shelf
             product_id, action, detail = book.product_id, 'Stock pushed', f'Shelf {book.shelf.code} · {quantity} available'
         else:
             existing = find_by_isbn(book.isbn)
@@ -105,7 +105,7 @@ def publish_book(book_id):
                 gid, item = existing
                 set_available(item, quantity)
                 add_tags(gid, book_tags(book))  # the store's own product joins the genre collections too
-                set_shelf_location(gid, book.shelf.code)
+                set_shelf_location(gid, book.shelf.code, book.isbn)
                 action = 'Linked to product'
             else:
                 ensure_shelf_definition()  # so the new product shows "Shelf location" as a named field
