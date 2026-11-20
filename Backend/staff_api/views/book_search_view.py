@@ -3,6 +3,7 @@ from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from integrations.metadata import MetadataUnavailable, search_books
+from integrations.shopify.genres import store_guess
 from staff_api.exceptions import MetadataServiceUnavailable, TitleTooShort
 from staff_api.permissions import IsStaffRole
 
@@ -28,6 +29,7 @@ class BookSearchView(APIView):
         if len(title) < MIN_TITLE:
             raise TitleTooShort
         try:
-            return Response({'results': search_books(title, author)})
+            results = [store_guess(r) for r in search_books(title, author)]  # a guessed genre each (no ISBN: never from a Shopify product)
+            return Response({'results': results})
         except MetadataUnavailable:
             raise MetadataServiceUnavailable from None

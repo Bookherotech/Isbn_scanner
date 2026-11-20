@@ -58,6 +58,7 @@ function mapItem(r) {
     source: r.source,
     subjects: r.subjects,
     genre: r.genre || '',
+    subgenres: r.subgenres || [],
     language: r.language || '',
     coverUrl: r.cover_url,
     description: r.description || '',
@@ -91,8 +92,9 @@ function mapItem(r) {
 }
 
 /**
- * GET /api/staff/isbn/<isbn>/ -> { isbn, title, author, publisher, year, pages, subjects, genre, language, coverUrl, source, fallback, missing, filled }
- * `genre` / `language` are guesses from the book data ('' when unknown) for staff to confirm.
+ * GET /api/staff/isbn/<isbn>/ -> { isbn, title, author, publisher, year, pages, subjects, genre, subgenres, language, genreSource, coverUrl, source, fallback, missing, filled }
+ * `genre` / `language`: from the store's Shopify product with this ISBN (genreSource 'shopify'), else guessed from the
+ * book data and matched to the store's genres ('guess'); '' when unknown. Staff confirm them.
  * Errors carry `code`: 'invalid_isbn' | 'not_found' | 'service_unavailable' | 'network'.
  * (The second argument is accepted for the existing Retry calls; every call is a real lookup.)
  */
@@ -107,7 +109,9 @@ export async function lookupIsbn(isbn13) {
     pages: m.pages ?? '',
     subjects: m.subjects,
     genre: m.genre || '',
+    subgenres: m.subgenres || [],
     language: m.language || '',
+    genreSource: m.genre_source || '',
     description: m.description || '',
     coverUrl: m.cover_url,
     source: m.source,
@@ -138,6 +142,7 @@ export async function searchBooks({ title, author = '' }) {
     pages: r.pages ?? '',
     description: r.description || '',
     genre: r.genre || '',
+    subgenres: r.subgenres || [],
     language: r.language || '',
     coverUrl: r.cover_url,
   }))
@@ -159,7 +164,7 @@ export async function loadShelves() {
 
 /**
  * POST /api/staff/submissions/ -> { result: 'pending' | 'waiting' | 'rejected', match, ready, flags, flagHold, item, key }
- * `draft` is what the Review screen sends: { isbn, title, author, publisher, year, pages, source, subjects, genre, language, description, fetched, photo, shelfId, quantity }.
+ * `draft` is what the Review screen sends: { isbn, title, author, publisher, year, pages, source, subjects, genre, subgenres, language, description, fetched, photo, shelfId, quantity }.
  * `fetched.isbn` is the ISBN first scanned/typed (a corrected ISBN counts as an edit); `photo` is a JPEG data URL.
  */
 export async function submitBook(draft) {
@@ -176,6 +181,7 @@ export async function submitBook(draft) {
       subjects: draft.subjects || [],
       description: draft.description?.trim() || '',
       genre: draft.genre || '',
+      subgenres: draft.genre ? draft.subgenres || [] : [],
       language: draft.language || '',
       fetched: draft.fetched || null,
       cover_photo: draft.photo || '',
@@ -222,4 +228,10 @@ export async function getBook(id) {
     stock: b.stock,
     status: b.status,
   }
+}
+
+/** GET {role}/genres/ -> { genres, languages }: the store's genre tags from Shopify (built-in lists when Shopify is unavailable). */
+export async function getGenres() {
+  const res = await call('/api/staff/genres/')
+  return { genres: res.genres, languages: res.languages }
 }

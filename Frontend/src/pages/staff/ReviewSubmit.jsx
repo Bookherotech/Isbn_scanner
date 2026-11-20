@@ -89,7 +89,7 @@ export default function ReviewSubmit() {
             {(d.values.genre || d.values.language) && (
               <div>
                 <dt>Genre</dt>
-                <dd>{[d.values.genre, d.values.language].filter(Boolean).join(' · ')}</dd>
+                <dd>{[d.values.genre, (d.values.subgenres || []).join(', '), d.values.language].filter(Boolean).join(' · ')}</dd>
               </div>
             )}
             <div className="review-card__isbn">

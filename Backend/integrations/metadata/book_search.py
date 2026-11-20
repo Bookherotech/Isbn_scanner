@@ -9,7 +9,6 @@ from django.core.cache import cache
 
 from integrations.metadata import google_books
 from integrations.metadata.exceptions import MetadataUnavailable, ProviderError
-from integrations.metadata.genre import add_guesses
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +20,7 @@ def _query(title, author):
 
 
 def search_books(title, author=''):
-    """Up to 5 {title, author, publisher, year, pages, subjects, cover_url, genre, language}; [] when nothing matches.
+    """Up to 5 {title, author, publisher, year, pages, subjects, cover_url, language}; [] when nothing matches.
 
     Cached per query for 24 h. Raises MetadataUnavailable when Google cannot be reached.
     """
@@ -35,7 +34,5 @@ def search_books(title, author=''):
     except ProviderError as error:
         logger.warning('Google Books title search failed for %r: %s', query, error)
         raise MetadataUnavailable from error
-    for result in results:
-        add_guesses(result)
     cache.set(key, results, CACHE_SECONDS)
     return results

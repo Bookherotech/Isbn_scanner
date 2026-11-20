@@ -75,7 +75,7 @@ class BookSearchApiTests(StaffApiTestCase):
         with mock.patch(self.SEARCH, return_value=found) as search:
             response = self.client.get(self.url, {'title': ' Lessons in Chem ', 'author': 'Garmus'})
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data, {'results': found})
+        self.assertEqual(response.data, {'results': [{**found[0], 'genre': '', 'language': ''}]})
         search.assert_called_once_with('Lessons in Chem', 'Garmus')
 
     def test_title_too_short(self):

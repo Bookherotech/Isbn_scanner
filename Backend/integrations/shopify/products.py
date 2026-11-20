@@ -29,8 +29,8 @@ def _description_html(book):
 
 
 def book_tags(book):
-    """The genre and language tags of a book (the store's collections pick products up by these)."""
-    return [tag for tag in (book.genre, book.language) if tag]
+    """The genre, sub-category and language tags of a book (the store's collections pick products up by these)."""
+    return [tag for tag in (book.genre, *(book.subgenres or []), book.language) if tag]
 
 
 def product_gid(product_id):

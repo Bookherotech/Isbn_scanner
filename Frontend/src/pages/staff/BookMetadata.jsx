@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { ArrowRight, Camera, Check, CircleAlert, Keyboard, Pencil, PencilLine, RotateCcw, Search, SearchX, ServerCrash, Trash2 } from 'lucide-react'
-import { getDescription, loadShelves, lookupIsbn, searchBooks } from '../../services/staffApi'
+import { getDescription, getGenres, loadShelves, lookupIsbn, searchBooks } from '../../services/staffApi'
 import { addRecentIsbn, setRecentIsbnTitle } from '../../services/recentIsbns'
 import { shrinkPhoto } from '../../services/photo'
 import { checkIsbn } from '../../services/isbn'
-import { GENRES, LANGUAGES } from '../../services/genres'
+import { useGenres } from '../../services/genres'
 import { useAuth } from '../../hooks/useAuth'
 import { isDraftEdited, useDraft } from '../../hooks/useDraft'
 import { useDebounce } from '../../hooks/useStore'
@@ -14,13 +14,14 @@ import { BookCover } from '../../components/books/BookCover'
 import { SourceBadge } from '../../components/books/BookBits'
 import { Barcode } from '../../components/ui/Misc'
 import { Button } from '../../components/ui/Button'
-import { Field, Input, Select, Textarea } from '../../components/ui/Form'
+import { Field, Input, Textarea } from '../../components/ui/Form'
+import { GenrePicker } from '../../components/books/GenrePicker'
 import { Skeleton } from '../../components/ui/Feedback'
 import { cn } from '../../utils/format'
 
 const FIELDS = ['title', 'author', 'publisher', 'year', 'pages', 'description', 'genre', 'language']
-const EMPTY = { title: '', author: '', publisher: '', year: '', pages: '', description: '', genre: '', language: '' }
-const pickValues = (m) => Object.fromEntries(FIELDS.map((k) => [k, m?.[k] ?? '']))
+const EMPTY = { title: '', author: '', publisher: '', year: '', pages: '', description: '', genre: '', subgenres: [], language: '' }
+const pickValues = (m) => ({ ...Object.fromEntries(FIELDS.map((k) => [k, m?.[k] ?? ''])), subgenres: m?.subgenres || [] })
 const isEmpty = (v) => String(v ?? '').trim() === ''
 const MIN_SEARCH = 3 // letters of the title before Google matches are looked up
 
@@ -30,6 +31,7 @@ export default function BookMetadata() {
   const navigate = useNavigate()
   const { draft, setDraft } = useDraft()
   const { user } = useAuth()
+  const genreLists = useGenres(getGenres)
   const preset = draft?.isbn === isbn ? draft : null
 
   const [state, setState] = useState(() =>
@@ -191,7 +193,11 @@ export default function BookMetadata() {
   const pickSuggestion = (s) => {
     const next = { ...values }
     if (manual || isEmpty(next.title)) next.title = s.title // a typed (maybe partial) title becomes the full one
-    for (const k of ['author', 'publisher', 'year', 'pages', 'description', 'genre', 'language']) {
+    if (isEmpty(next.genre) && !isEmpty(s.genre)) {
+      next.genre = s.genre
+      next.subgenres = s.subgenres || []
+    }
+    for (const k of ['author', 'publisher', 'year', 'pages', 'description', 'language']) {
       if (isEmpty(next[k]) && !isEmpty(s[k])) next[k] = String(s[k]) // only empty fields: found values are never overwritten
     }
     setValues(next)
@@ -392,29 +398,15 @@ export default function BookMetadata() {
                   <Input id="m-pages" inputMode="numeric" value={values.pages} onChange={set('pages')} readOnly={locked} className={cn(missing.includes('pages') && !values.pages && 'is-missing', lockedClass)} />
                 </Field>
               </div>
-              {/* Always editable: the genre is only a guess from the book data, staff confirm it. */}
-              <div className="meta-form__row">
-                <Field label="Genre" htmlFor="m-genre" optional badge={meta?.genre && values.genre === meta.genre && <VerifyTag />}>
-                  <Select id="m-genre" value={values.genre ?? ''} onChange={set('genre')}>
-                    <option value="">Not set</option>
-                    {GENRES.map((g) => (
-                      <option key={g} value={g}>
-                        {g}
-                      </option>
-                    ))}
-                  </Select>
-                </Field>
-                <Field label="Language" htmlFor="m-language" optional hint="Only for Arabic, French or Spanish books" badge={meta?.language && values.language === meta.language && <VerifyTag />}>
-                  <Select id="m-language" value={values.language ?? ''} onChange={set('language')}>
-                    <option value="">None</option>
-                    {LANGUAGES.map((l) => (
-                      <option key={l} value={l}>
-                        {l}
-                      </option>
-                    ))}
-                  </Select>
-                </Field>
-              </div>
+              {/* Always editable: taken from the store's Shopify product, or guessed from the book data; staff confirm it. */}
+              <GenrePicker
+                lists={genreLists}
+                idPrefix="m"
+                className="meta-form__wide"
+                value={values}
+                onChange={(patch) => setValues((v) => ({ ...v, ...patch }))}
+                badge={meta?.genre && values.genre === meta.genre && <GenreTag source={meta.genreSource} />}
+              />
               <Field label="ISBN" htmlFor="m-isbn" error={isbnError} badge={isbnCheck.isbn13 && isbnCheck.isbn13 !== originalIsbn && !manual && <EditedTag />}>
                 <div className="meta-isbn">
                   <Input
@@ -479,4 +471,9 @@ function EditedTag() {
 
 function VerifyTag() {
   return <span className="edited-tag edited-tag--verify">Verify</span>
+}
+
+/** Genre already set on the store's Shopify product, or a guess from the book data to check. */
+function GenreTag({ source }) {
+  return source === 'shopify' ? <span className="edited-tag">From Shopify</span> : <VerifyTag />
 }

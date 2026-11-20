@@ -8,7 +8,6 @@ from django.core.exceptions import ImproperlyConfigured
 
 from integrations.metadata import google_books, open_library
 from integrations.metadata.exceptions import MetadataNotFound, MetadataUnavailable, ProviderError
-from integrations.metadata.genre import add_guesses
 from integrations.metadata.parsing import same_author, same_title
 
 logger = logging.getLogger(__name__)
@@ -66,8 +65,9 @@ def cached_metadata(isbn13):
 def lookup_isbn(isbn13):
     """Book details for a valid ISBN-13.
 
-    Returns {isbn, title, author, publisher, year, pages, subjects, cover_url, source, fallback, missing, filled, genre, language}.
-    `genre` / `language` are guesses from the subjects and title ('' when unknown) for staff to confirm.
+    Returns {isbn, title, author, publisher, year, pages, subjects, cover_url, source, fallback, missing, filled}
+    (+ `language`, the provider's language code, when Google answered). The genre is added per request: see
+    integrations.shopify.genres.store_guess.
     `filled` lists fields that came from a Google Books title match, which staff should verify.
     `fallback` is True when Google Books failed and another provider answered instead
     (the screens then say "Google Books unavailable").
@@ -98,6 +98,5 @@ def lookup_isbn(isbn13):
     record['fallback'] = GOOGLE in failed and record['source'] != GOOGLE
     record['filled'] = _fill_from_google(record)
     record['missing'] = [k for k in FIELDS if record.get(k) in ('', None)]
-    add_guesses(record)
     cache.set(_cache_key(isbn13), record, CACHE_SECONDS)
     return record
