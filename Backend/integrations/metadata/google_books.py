@@ -36,20 +36,22 @@ def fetch(isbn13, *, api_key='', timeout=5):
     details = _details(items[0].get('volumeInfo') or {})
     if not details['title']:
         return None
-    return {'isbn': isbn13, **details, 'source': SOURCE}
+    return {'isbn': isbn13, **details, 'source': SOURCE, 'volume_id': str(items[0].get('id') or '')}
 
 
-def dimensions(isbn13, *, api_key='', timeout=5):
+def dimensions(isbn13, *, volume_id='', api_key='', timeout=5):
     """The book's size in mm ('129 x 198 x 21'), from Google's full volume record (the search results do not carry it).
-    '' when Google has no full size for it or cannot be asked."""
+    `volume_id` (from fetch) saves the search. '' when Google has no full size for it or cannot be asked."""
     params = {'q': f'isbn:{isbn13}', 'maxResults': 1, 'printType': 'books'}
     if api_key:
         params['key'] = api_key
     try:
-        items = get_json(URL, params, timeout).get('items') or []
-        if not items or not items[0].get('id'):
+        if not volume_id:
+            items = get_json(URL, params, timeout).get('items') or []
+            volume_id = str(items[0].get('id') or '') if items else ''
+        if not volume_id:
             return ''
-        volume = get_json(f'{URL}/{items[0]["id"]}', {'key': api_key} if api_key else {}, timeout)
+        volume = get_json(f'{URL}/{volume_id}', {'key': api_key} if api_key else {}, timeout)
     except ProviderError:
         return ''
     size = (volume.get('volumeInfo') or {}).get('dimensions') or {}

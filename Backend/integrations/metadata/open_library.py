@@ -22,12 +22,15 @@ def fetch_description(isbn13, *, timeout=5):
 
 
 def physical(isbn13, timeout):
-    """(format, dimensions) from the edition record; the Books API data view does not have them. ('', '') on any failure."""
+    """(format, dimensions, language code e.g. 'eng') from the edition record; the Books API data view does not have
+    them. '' for each on any failure."""
     try:
         edition = get_json(f'https://openlibrary.org/isbn/{isbn13}.json', {}, timeout)
     except ProviderError:
-        return '', ''
-    return book_format(edition.get('physical_format')), dimensions_mm(edition.get('physical_dimensions'))
+        return '', '', ''
+    languages = [lang for lang in edition.get('languages') or [] if isinstance(lang, dict)]
+    language = str(languages[0].get('key') or '').rsplit('/', 1)[-1] if languages else ''
+    return book_format(edition.get('physical_format')), dimensions_mm(edition.get('physical_dimensions')), language
 
 
 def fetch(isbn13, *, timeout=5):
@@ -50,5 +53,5 @@ def fetch(isbn13, *, timeout=5):
         'subjects': clean_subjects(s.get('name') for s in info.get('subjects') or []),
         'cover_url': str((info.get('cover') or {}).get('medium') or ''),
         'source': SOURCE,
-        **dict(zip(('format', 'dimensions'), physical(isbn13, timeout))),
+        **dict(zip(('format', 'dimensions', 'language'), physical(isbn13, timeout))),
     }
