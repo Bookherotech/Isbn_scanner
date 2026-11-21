@@ -4,36 +4,29 @@ import { withCurrent } from '../../services/genres'
 import { cn } from '../../utils/format'
 
 /**
- * Genre, its categories (any number) and language: the Shopify tags that put the book in the store's collections.
- * value = { genre, subgenres, language }; onChange(patch) gets the changed keys. Changing the genre clears the
- * categories, which belong to the old genre. `badge` marks a value that was filled in (from Shopify or guessed).
- * `className` goes on both blocks (e.g. to span a two-column form).
+ * Genre and its categories (any number): the Shopify tags that put the book in the store's collections.
+ * The languages (Arabic, French, Spanish) are choices in the Genre list too: picking one sets `language` and no
+ * genre, picking a genre clears the language. value = { genre, subgenres, language }; onChange(patch) gets the
+ * changed keys. Changing the genre clears the categories, which belong to the old genre. `badge` marks a value that
+ * was filled in (from Shopify or guessed). `className` goes on both blocks (e.g. to span a two-column form).
  */
 export function GenrePicker({ lists, value, onChange, idPrefix, badge, dirty = [], className }) {
-  const genre = lists.genres.find((g) => g.name === value.genre)
-  const subs = withCurrentAll(genre?.subs || [], value.subgenres)
+  const genre = value.language ? null : lists.genres.find((g) => g.name === value.genre)
+  const subs = withCurrentAll(genre?.subs || [], genre ? value.subgenres : [])
   const selected = value.subgenres || []
   const toggle = (sub) => onChange({ subgenres: selected.includes(sub) ? selected.filter((s) => s !== sub) : [...selected, sub] })
+  const languages = withCurrent(lists.languages, value.language)
+  const pick = (v) => onChange(languages.includes(v) ? { genre: '', subgenres: [], language: v } : { genre: v, subgenres: [], language: '' })
 
   return (
     <>
       <div className={cn('genre-picker__row', className)}>
         <Field label="Genre" htmlFor={`${idPrefix}-genre`} optional badge={badge}>
-          <Select id={`${idPrefix}-genre`} value={value.genre || ''} onChange={(e) => onChange({ genre: e.target.value, subgenres: [] })} className={cn(dirty.includes('genre') && 'is-dirty')}>
+          <Select id={`${idPrefix}-genre`} value={value.language || value.genre || ''} onChange={(e) => pick(e.target.value)} className={cn((dirty.includes('genre') || dirty.includes('language')) && 'is-dirty')}>
             <option value="">Not set</option>
-            {withCurrent(lists.genres.map((g) => g.name), value.genre).map((g) => (
+            {[...withCurrent(lists.genres.map((g) => g.name), value.genre), ...languages].map((g) => (
               <option key={g} value={g}>
                 {g}
-              </option>
-            ))}
-          </Select>
-        </Field>
-        <Field label="Language" htmlFor={`${idPrefix}-language`} optional hint="Only for Arabic, French or Spanish books">
-          <Select id={`${idPrefix}-language`} value={value.language || ''} onChange={(e) => onChange({ language: e.target.value })} className={cn(dirty.includes('language') && 'is-dirty')}>
-            <option value="">None</option>
-            {withCurrent(lists.languages, value.language).map((l) => (
-              <option key={l} value={l}>
-                {l}
               </option>
             ))}
           </Select>
