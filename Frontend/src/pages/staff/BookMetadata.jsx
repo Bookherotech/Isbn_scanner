@@ -198,11 +198,15 @@ export default function BookMetadata() {
   const pickSuggestion = (s) => {
     const next = { ...values }
     if (manual || isEmpty(next.title)) next.title = s.title // a typed (maybe partial) title becomes the full one
-    if (isEmpty(next.genre) && !isEmpty(s.genre)) {
-      next.genre = s.genre
-      next.subgenres = s.subgenres || []
+    if (isEmpty(next.genre) && isEmpty(next.language)) {
+      // genre or language: one choice in the Genre list
+      if (!isEmpty(s.language)) next.language = s.language
+      else if (!isEmpty(s.genre)) {
+        next.genre = s.genre
+        next.subgenres = s.subgenres || []
+      }
     }
-    for (const k of ['author', 'publisher', 'year', 'pages', 'description', 'language']) {
+    for (const k of ['author', 'publisher', 'year', 'pages', 'description']) {
       if (isEmpty(next[k]) && !isEmpty(s[k])) next[k] = String(s[k]) // only empty fields: found values are never overwritten
     }
     setValues(next)
@@ -456,7 +460,7 @@ export default function BookMetadata() {
                   const ages = patch.genre && patch.genre.toLowerCase() === 'kids' ? meta?.ages || [] : null
                   setValues((v) => ({ ...v, ...patch, ...(ages?.length ? { subgenres: ages } : {}) }))
                 }}
-                badge={meta?.genre && values.genre === meta.genre && <GenreTag source={meta.genreSource} />}
+                badge={(meta?.language || meta?.genre) && (values.language || values.genre) === (meta.language || meta.genre) && <GenreTag source={meta.genreSource} />}
               />
               <Field label="Description" htmlFor="m-description" optional className="meta-form__wide" hint={loadingDescription ? 'Looking for a description…' : undefined}>
                 <Textarea
