@@ -11,6 +11,7 @@ import { Barcode } from '../../components/ui/Misc'
 import { Button } from '../../components/ui/Button'
 import { Field, Input, QuantityStepper, Select, ShelfPicker, Textarea } from '../../components/ui/Form'
 import { GenrePicker } from '../../components/books/GenrePicker'
+import { PhotoDrop } from '../../components/books/PhotoDrop'
 import { FORMATS, useGenres, withCurrent } from '../../services/genres'
 import { shrinkPhoto } from '../../services/photo'
 import { ErrorState, Skeleton, StageList, useStages } from '../../components/ui/Feedback'
@@ -96,10 +97,12 @@ function ReviewBody({ item }) {
     }
   }
 
-  const choosePhoto = async (e) => {
+  const choosePhoto = (e) => {
     const file = e.target.files?.[0]
     e.target.value = '' // the same file can be chosen again
-    if (!file) return
+    if (file) takePhoto(file)
+  }
+  const takePhoto = async (file) => {
     setPhotoError('')
     try {
       setPhoto(await shrinkPhoto(file))
@@ -160,7 +163,7 @@ function ReviewBody({ item }) {
       <div className="review__grid">
         {/* ---------- Editorial: the book as fetched/submitted ---------- */}
         <article className="review__book">
-          <div className="review__cover">
+          <PhotoDrop className="review__cover" onFile={takePhoto} disabled={notPending || done}>
             <BookCover title={values.title || item.title} author={values.author || item.author} isbn={item.isbn} photo={shownPhoto} size="xl" />
             {!notPending && !done && (
               <div className="review__photo-actions">
@@ -174,6 +177,7 @@ function ReviewBody({ item }) {
                   </Button>
                 )}
                 {photo !== null && <span className="unsaved">{photo ? 'New photo, not saved' : 'Photo will be removed'}</span>}
+                <span className="photo-drop__hint">or drag an image onto the cover</span>
                 {photoError && (
                   <p className="field__error" role="alert">
                     {photoError}
@@ -181,7 +185,7 @@ function ReviewBody({ item }) {
                 )}
               </div>
             )}
-          </div>
+          </PhotoDrop>
           <div className="review__ident">
             <SourceBadge source={item.source} />
             <h1 className="review__title">{values.title || item.title}</h1>

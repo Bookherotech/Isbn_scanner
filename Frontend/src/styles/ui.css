@@ -150,6 +150,16 @@
 .genre-chip.is-on:hover { background: var(--hero); border-color: var(--ink); }
 .genre-picker__subs.is-dirty .genre-chips { padding: 6px; border-radius: 6px; background: #fffdf2; }
 
+/* Cover photo: drop an image from the computer onto the cover block */
+.photo-drop { position: relative; }
+.photo-drop__veil {
+  position: absolute; inset: -8px; z-index: 5; display: grid; place-content: center; justify-items: center; gap: 6px;
+  border: 2px dashed var(--ink); border-radius: 10px; background: rgba(255, 210, 31, 0.88);
+  color: var(--ink); font-size: 13px; font-weight: 700; pointer-events: none;
+}
+.photo-drop__hint { color: var(--muted, #6b6659); font-size: 12px; }
+@media (hover: none) { .photo-drop__hint { display: none; } }
+
 /* Genre shown on book details */
 .genre-tags { display: inline-flex; flex-wrap: wrap; gap: 4px; vertical-align: middle; }
 .genre-tag { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 99px; border: 1px solid var(--line-strong); background: var(--surface); font-size: 12px; font-weight: 500; color: var(--ink-2); white-space: nowrap; }
