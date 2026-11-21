@@ -106,14 +106,16 @@ class OpenLibraryFirstTests(SimpleTestCase):
     def setUp(self):
         cache.clear()
 
-    def test_open_library_answers_first_and_google_is_not_called(self):
+    def test_open_library_answers_first_and_google_only_adds_its_categories(self):
         complete = {f'ISBN:{ISBN}': {**OPEN_LIBRARY_HIT[f'ISBN:{ISBN}'], 'publishers': [{'name': 'Ace'}], 'publish_date': '1990', 'number_of_pages': 412}}  # a missing field would ask Google to fill it
         edition = {'physical_format': 'Paperback', 'physical_dimensions': '19.8 x 12.9 x 2.1 centimeters', 'languages': [{'key': '/languages/eng'}]}  # a missing size or language would ask Google too
         answer = lambda url, *args: edition if '/isbn/' in url else complete  # noqa: E731
-        with mock.patch(GOOGLE) as google, mock.patch(OPEN_LIBRARY, side_effect=answer):
+        with mock.patch(GOOGLE, return_value=GOOGLE_HIT) as google, mock.patch(OPEN_LIBRARY, side_effect=answer):
             record = lookup_isbn(ISBN)
-        google.assert_not_called()
-        self.assertEqual(record['source'], 'openlibrary')
+        # One same-ISBN call for the categories (every category of the book is there for the genre guess); no title search
+        self.assertEqual([c.args[1]['q'] for c in google.call_args_list], [f'isbn:{ISBN}'])
+        self.assertEqual(record['subjects'], ['Habits', 'Self-Help'])
+        self.assertEqual((record['source'], record['publisher'], record['pages']), ('openlibrary', 'Ace', 412))  # Open Library's values are kept
         self.assertFalse(record['fallback'])
 
     def test_google_is_asked_when_open_library_has_nothing(self):
