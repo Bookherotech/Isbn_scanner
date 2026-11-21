@@ -44,8 +44,8 @@ def _fill_from_google_isbn(record):
     if record['source'] == GOOGLE or GOOGLE not in settings.METADATA_PROVIDERS:
         return record.pop('volume_id', '')
     empty = [k for k in FROM_GOOGLE_ISBN if _empty(record.get(k))]
-    if not empty:
-        return ''
+    # Always asked, also when nothing is empty: Google's categories are added to the subjects, so every category of
+    # the book is there for the genre guess (Open Library often has "Fiction" only, Google "Fiction / Thrillers").
     try:
         found = google_books.fetch(record['isbn'], api_key=settings.GOOGLE_BOOKS_API_KEY, timeout=settings.METADATA_TIMEOUT_SECONDS)
     except ProviderError as error:
@@ -56,6 +56,9 @@ def _fill_from_google_isbn(record):
     for field in empty:
         if not _empty(found.get(field)):
             record[field] = found[field]
+    if 'subjects' not in empty:
+        seen = {s.lower() for s in record['subjects']}
+        record['subjects'] = [*record['subjects'], *(s for s in found.get('subjects') or [] if s.lower() not in seen)]
     return found.get('volume_id', '')
 
 
