@@ -16,6 +16,7 @@ import { Barcode } from '../../components/ui/Misc'
 import { Button } from '../../components/ui/Button'
 import { Field, Input, Select, Textarea } from '../../components/ui/Form'
 import { GenrePicker } from '../../components/books/GenrePicker'
+import { PhotoDrop } from '../../components/books/PhotoDrop'
 import { Skeleton } from '../../components/ui/Feedback'
 import { cn } from '../../utils/format'
 
@@ -131,10 +132,12 @@ export default function BookMetadata() {
 
   const draftFor = (targetIsbn, extra) => ({ isbn: targetIsbn, originalIsbn, meta, manual, values, photo, descriptionChecked, ...extra })
 
-  const choosePhoto = async (e) => {
+  const choosePhoto = (e) => {
     const file = e.target.files?.[0]
     e.target.value = '' // the same file can be picked again
-    if (!file) return
+    if (file) takePhoto(file)
+  }
+  const takePhoto = async (file) => {
     setPhotoError('')
     try {
       setPhoto(await shrinkPhoto(file))
@@ -291,7 +294,7 @@ export default function BookMetadata() {
         {state.status === 'ready' && (
           <div className="meta">
             <div className="meta-hero">
-              <div className="meta-hero__cover">
+              <PhotoDrop className="meta-hero__cover" onFile={takePhoto} disabled={locked}>
                 <BookCover title={values.title || 'Untitled'} author={values.author} isbn={meta?.noCover ? null : isbn} photo={photo} size="lg" />
                 {!locked && (
                   <>
@@ -304,6 +307,7 @@ export default function BookMetadata() {
                         Remove photo
                       </Button>
                     )}
+                    <span className="photo-drop__hint">or drag an image here</span>
                   </>
                 )}
                 {photoError && (
@@ -311,7 +315,7 @@ export default function BookMetadata() {
                     {photoError}
                   </p>
                 )}
-              </div>
+              </PhotoDrop>
               <div className="meta-hero__info">
                 {manual ? (
                   <SourceBadge source="manual" />
