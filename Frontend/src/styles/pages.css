@@ -421,7 +421,8 @@
 .review__nav { display: flex; justify-content: space-between; margin-bottom: 14px; }
 .review__grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(400px, 470px); gap: 24px; align-items: start; }
 .review__book { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0 26px; align-content: start; }
-.review__cover { grid-row: span 1; padding: 6px 0 0; }
+.review__cover { grid-row: span 1; padding: 6px 0 0; width: min-content; } /* as wide as the cover: the photo buttons wrap under it, never push the details aside */
+.review__photo-actions .btn, .review__photo-actions .unsaved { white-space: nowrap; }
 .review__photo-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 14px; }
 .review__photo-actions .field__error { flex-basis: 100%; margin: 0; }
 .bookd__actions { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -495,7 +496,7 @@
 }
 @media (max-width: 640px) {
   .review__book { grid-template-columns: minmax(0, 1fr); }
-  .review__cover { justify-self: start; margin-bottom: 14px; }
+  .review__cover { justify-self: start; margin-bottom: 14px; width: auto; }
   .review__cover .cover--xl { --cw: 130px !important; width: 130px; }
   .review__title { font-size: 28px; }
   .review__row2, .review__form .genre-picker__row { grid-template-columns: 1fr; }
