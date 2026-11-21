@@ -403,6 +403,32 @@ export default function BookMetadata() {
                   <Input id="m-pages" inputMode="numeric" value={values.pages} onChange={set('pages')} readOnly={locked} className={cn(missing.includes('pages') && !values.pages && 'is-missing', lockedClass)} />
                 </Field>
               </div>
+              {/* Desktop: ISBN | Format + Dimensions, under Publisher | Year + Pages */}
+              <Field label="ISBN" htmlFor="m-isbn" error={isbnError} badge={isbnCheck.isbn13 && isbnCheck.isbn13 !== originalIsbn && !manual && <EditedTag />}>
+                <div className="meta-isbn">
+                  <Input
+                    id="m-isbn"
+                    mono
+                    inputMode="numeric"
+                    maxLength={17}
+                    value={isbnInput}
+                    readOnly={locked}
+                    aria-readonly={locked}
+                    onChange={(e) => {
+                      setIsbnInput(e.target.value)
+                      setIsbnError('')
+                    }}
+                    aria-invalid={!locked && isbnCheck.state === 'invalid'}
+                    className={cn(lockedClass)}
+                  />
+                  {!locked && newIsbn && (
+                    <Button variant="dark" size="lg" icon={Search} onClick={lookUpNewIsbn} loading={lookingUp}>
+                      Look up
+                    </Button>
+                  )}
+                </div>
+                {!locked && !isbnError && isbnInput !== isbn && <p className="field__hint">{isbnCheck.message}</p>}
+              </Field>
               <div className="meta-form__row">
                 {/* Always editable, like genre and language: often guessed, so staff check it against the book. */}
                 <Field label="Format" htmlFor="m-format" optional badge={fieldTag('format')}>
@@ -432,31 +458,6 @@ export default function BookMetadata() {
                 }}
                 badge={meta?.genre && values.genre === meta.genre && <GenreTag source={meta.genreSource} />}
               />
-              <Field label="ISBN" htmlFor="m-isbn" error={isbnError} badge={isbnCheck.isbn13 && isbnCheck.isbn13 !== originalIsbn && !manual && <EditedTag />}>
-                <div className="meta-isbn">
-                  <Input
-                    id="m-isbn"
-                    mono
-                    inputMode="numeric"
-                    maxLength={17}
-                    value={isbnInput}
-                    readOnly={locked}
-                    aria-readonly={locked}
-                    onChange={(e) => {
-                      setIsbnInput(e.target.value)
-                      setIsbnError('')
-                    }}
-                    aria-invalid={!locked && isbnCheck.state === 'invalid'}
-                    className={cn(lockedClass)}
-                  />
-                  {!locked && newIsbn && (
-                    <Button variant="dark" size="lg" icon={Search} onClick={lookUpNewIsbn} loading={lookingUp}>
-                      Look up
-                    </Button>
-                  )}
-                </div>
-                {!locked && !isbnError && isbnInput !== isbn && <p className="field__hint">{isbnCheck.message}</p>}
-              </Field>
               <Field label="Description" htmlFor="m-description" optional className="meta-form__wide" hint={loadingDescription ? 'Looking for a description…' : undefined}>
                 <Textarea
                   id="m-description"
