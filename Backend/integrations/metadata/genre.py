@@ -64,14 +64,14 @@ _SUB_KEYWORDS = {
     'Sports': ('sports', 'football', 'soccer', 'cricket', 'basketball'),
     'Travel': ('travel', 'guidebooks', 'description and travel'),
 }
-MAX_SUBGENRES = 3  # a guess with more than this many is noise; staff can tick more by hand
 
 assert all(genre in GENRES for genre, _ in _KEYWORDS)
 assert set(_SUB_KEYWORDS) <= {sub for subs in GENRE_TREE.values() for sub in subs}
 
 
 def _pattern(keyword):
-    return re.compile(rf'(^|[^a-z0-9]){re.escape(keyword)}($|[^a-z0-9])', re.IGNORECASE)
+    """The keyword as a whole word, not right after "non" ("Non-Fiction" / "non fiction" is not fiction)."""
+    return re.compile(rf'(?<!\bnon)(^|[^a-z0-9]){re.escape(keyword)}($|[^a-z0-9])', re.IGNORECASE)
 
 
 _PATTERNS = [(genre, [_pattern(k) for k in words]) for genre, words in _KEYWORDS]
@@ -96,12 +96,12 @@ def guess_genre(title, subjects):
 
 
 def guess_subgenres(genre, title, subjects):
-    """Up to MAX_SUBGENRES sub-categories of `genre` found in the subjects, in the genre's order."""
+    """Every sub-category of `genre` found in the subjects, in the genre's order (staff untick any that do not fit)."""
     text = _haystack(title, subjects)
     found = [sub for sub in GENRE_TREE.get(genre, ()) if any(p.search(text) for p in _SUB_PATTERNS.get(sub, ()))]
     if genre == 'Fiction' and len(found) > 1 and 'General Fiction' in found:
         found.remove('General Fiction')  # a book with a real sub-category is not "general"
-    return found[:MAX_SUBGENRES]
+    return found
 
 
 def guess_language(title, language_code=''):
