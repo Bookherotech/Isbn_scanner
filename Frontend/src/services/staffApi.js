@@ -126,10 +126,11 @@ export async function lookupIsbn(isbn13) {
   }
 }
 
-/** GET /api/staff/isbn/<isbn>/description/ -> the book's description text, '' when there is none. Can take several seconds. */
+/** GET /api/staff/isbn/<isbn>/description/ -> { description, format } ('' when there is none; `format` is a guess from the text). Can take several seconds. */
 export async function getDescription({ isbn, title = '', author = '' }) {
   const query = new URLSearchParams({ title, author })
-  return (await call(`/api/staff/isbn/${encodeURIComponent(isbn)}/description/?${query}`)).description
+  const data = await call(`/api/staff/isbn/${encodeURIComponent(isbn)}/description/?${query}`)
+  return { description: data.description || '', format: data.format || '' }
 }
 
 /**

@@ -69,6 +69,23 @@ def book_format(value):
     return text[:40].title()
 
 
+# Words in a title, subject or description that give away the binding (the providers often have no format field).
+# Checked in this order; the first found wins. Little Golden Books are always hardcover.
+_FORMAT_CLUES = (
+    ('Board Book', r'\bboard ?books?\b'),
+    ('Spiral-bound', r'\bspiral[- ]?bound\b|\bspiral binding\b'),
+    ('Hardcover', r'\bhard ?cover\b|\bhardback\b|\blittle golden books?\b'),
+    ('Mass Market Paperback', r'\bmass[- ]market\b'),
+    ('Paperback', r'\bpaper ?back\b|\bsoft ?cover\b'),
+)
+
+
+def guess_format(*texts):
+    """A format from clues in the text ('A Little Golden Book' -> 'Hardcover'), '' when nothing points to one."""
+    text = ' | '.join(t if isinstance(t, str) else ' | '.join(map(str, t or [])) for t in texts)
+    return next((name for name, pattern in _FORMAT_CLUES if re.search(pattern, text, re.IGNORECASE)), '')
+
+
 def dimensions_mm(value):
     """'19.8 x 12.9 x 2.1 centimeters' -> '129 x 198 x 21' (mm; width x height x thickness), '' when it cannot be read."""
     text = str(value or '').lower()

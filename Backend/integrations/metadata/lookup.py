@@ -8,7 +8,7 @@ from django.core.exceptions import ImproperlyConfigured
 
 from integrations.metadata import google_books, open_library
 from integrations.metadata.exceptions import MetadataNotFound, MetadataUnavailable, ProviderError
-from integrations.metadata.parsing import same_author, same_title
+from integrations.metadata.parsing import guess_format, same_author, same_title
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +55,8 @@ def _fill_from_google(record):
 
 def _fill_physical(record):
     """Format and dimensions (for the Shopify description) when the answering provider had none: Open Library's
-    edition record, then Google's full volume record for the size. Whatever is still unknown stays '' (staff can type it)."""
+    edition record, then Google's full volume record for the size, then clues in the title / subjects / description
+    for the format ("board book", "Little Golden Book"...). Whatever is still unknown stays '' (staff can type it)."""
     record.setdefault('format', '')
     record.setdefault('dimensions', '')
     timeout = settings.METADATA_TIMEOUT_SECONDS
@@ -65,6 +66,7 @@ def _fill_physical(record):
         record['dimensions'] = record['dimensions'] or size
     if not record['dimensions'] and GOOGLE in settings.METADATA_PROVIDERS:
         record['dimensions'] = google_books.dimensions(record['isbn'], api_key=settings.GOOGLE_BOOKS_API_KEY, timeout=timeout)
+    record['format'] = record['format'] or guess_format(record.get('title'), record.get('subjects'), record.get('description') or '')
 
 
 def _cache_key(isbn13):
