@@ -3,6 +3,7 @@ from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from integrations.metadata import find_description
+from integrations.metadata.parsing import guess_format
 from inventory.services import to_isbn13
 from staff_api.exceptions import InvalidIsbn
 from staff_api.permissions import IsStaffRole
@@ -11,7 +12,10 @@ MAX_TEXT = 200
 
 
 class IsbnDescriptionView(APIView):
-    """GET /api/staff/isbn/<isbn>/description/?title=&author= -> {description, source} (both '' when there is none).
+    """GET /api/staff/isbn/<isbn>/description/?title=&author= -> {description, source, format} ('' when there is none).
+
+    `format` is a guess from clues in the title and description ("A Little Golden Book" -> Hardcover); the screen
+    uses it only when the book has no format yet.
 
     Asked for after the book's details are on screen, because it can take several seconds. 400 {code: 'invalid_isbn'}
     """
@@ -26,4 +30,5 @@ class IsbnDescriptionView(APIView):
             raise InvalidIsbn
         title = request.query_params.get('title', '').strip()[:MAX_TEXT]
         author = request.query_params.get('author', '').strip()[:MAX_TEXT]
-        return Response(find_description(isbn13, title, author))
+        found = find_description(isbn13, title, author)
+        return Response({**found, 'format': guess_format(title, found['description'])})
