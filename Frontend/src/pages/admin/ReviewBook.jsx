@@ -9,9 +9,9 @@ import { GenreFact, SourceBadge } from '../../components/books/BookBits'
 import { FlagReviewCard } from '../../components/books/FlagReview'
 import { Barcode } from '../../components/ui/Misc'
 import { Button } from '../../components/ui/Button'
-import { Field, Input, QuantityStepper, ShelfPicker, Textarea } from '../../components/ui/Form'
+import { Field, Input, QuantityStepper, Select, ShelfPicker, Textarea } from '../../components/ui/Form'
 import { GenrePicker } from '../../components/books/GenrePicker'
-import { FORMATS, useGenres } from '../../services/genres'
+import { FORMATS, useGenres, withCurrent } from '../../services/genres'
 import { shrinkPhoto } from '../../services/photo'
 import { ErrorState, Skeleton, StageList, useStages } from '../../components/ui/Feedback'
 import { Modal } from '../../components/ui/Overlay'
@@ -331,12 +331,14 @@ function ReviewBody({ item }) {
                 <GenrePicker lists={genreLists} idPrefix="r" value={values} onChange={(patch) => Object.entries(patch).forEach(([k, v]) => set(k)(v))} dirty={dirtyKeys} />
                 <div className="review__row2">
                   <Field label="Format" htmlFor="r-format" optional>
-                    <Input id="r-format" list="r-book-formats" value={values.format} onChange={set('format')} placeholder="Paperback" className={cn(dirtyKeys.includes('format') && 'is-dirty')} />
-                    <datalist id="r-book-formats">
-                      {FORMATS.map((f) => (
-                        <option key={f} value={f} />
+                    <Select id="r-format" value={values.format || ''} onChange={set('format')} className={cn(dirtyKeys.includes('format') && 'is-dirty')}>
+                      <option value="">Not set</option>
+                      {withCurrent(FORMATS, values.format).map((f) => (
+                        <option key={f} value={f}>
+                          {f}
+                        </option>
                       ))}
-                    </datalist>
+                    </Select>
                   </Field>
                   <Field label="Dimensions" htmlFor="r-dimensions" optional hint="mm: width x height x thickness">
                     <Input id="r-dimensions" value={values.dimensions} onChange={set('dimensions')} placeholder="126 x 176 x 21" className={cn(dirtyKeys.includes('dimensions') && 'is-dirty')} />

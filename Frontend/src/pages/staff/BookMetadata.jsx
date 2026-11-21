@@ -5,7 +5,7 @@ import { getDescription, getGenres, loadShelves, lookupIsbn, searchBooks } from 
 import { addRecentIsbn, setRecentIsbnTitle } from '../../services/recentIsbns'
 import { shrinkPhoto } from '../../services/photo'
 import { checkIsbn } from '../../services/isbn'
-import { FORMATS, useGenres } from '../../services/genres'
+import { FORMATS, useGenres, withCurrent } from '../../services/genres'
 import { useAuth } from '../../hooks/useAuth'
 import { isDraftEdited, useDraft } from '../../hooks/useDraft'
 import { useDebounce } from '../../hooks/useStore'
@@ -14,7 +14,7 @@ import { BookCover } from '../../components/books/BookCover'
 import { SourceBadge } from '../../components/books/BookBits'
 import { Barcode } from '../../components/ui/Misc'
 import { Button } from '../../components/ui/Button'
-import { Field, Input, Textarea } from '../../components/ui/Form'
+import { Field, Input, Select, Textarea } from '../../components/ui/Form'
 import { GenrePicker } from '../../components/books/GenrePicker'
 import { Skeleton } from '../../components/ui/Feedback'
 import { cn } from '../../utils/format'
@@ -82,11 +82,16 @@ export default function BookMetadata() {
   useEffect(() => {
     if (state.status !== 'ready' || manual || descriptionChecked === isbn || !values.title.trim()) return undefined
     let alive = true
-    const fill = (text) => (v) => (isEmpty(v.description) && text ? { ...v, description: text } : v)
+    // the description and a format guessed from it ("A Little Golden Book" -> Hardcover) only fill empty boxes
+    const fill = ({ description: text, format }) => (v) => ({
+      ...v,
+      ...(isEmpty(v.description) && text ? { description: text } : {}),
+      ...(isEmpty(v.format) && format ? { format } : {}),
+    })
     // eslint-disable-next-line react-hooks/set-state-in-effect -- show "looking" while the request runs
     setLoadingDescription(true)
     getDescription({ isbn, title: values.title.trim(), author: values.author.trim() })
-      .catch(() => '') // optional: staff can type one, or leave it empty
+      .catch(() => ({ description: '', format: '' })) // optional: staff can type one, or leave it empty
       .then((text) => {
         // Staff may have pressed Continue meanwhile: the draft gets it too.
         setDraft((d) => (d?.isbn === isbn && d.values ? { ...d, descriptionChecked: isbn, values: fill(text)(d.values) } : d))
@@ -399,13 +404,16 @@ export default function BookMetadata() {
                 </Field>
               </div>
               <div className="meta-form__row">
+                {/* Always editable, like genre and language: often guessed, so staff check it against the book. */}
                 <Field label="Format" htmlFor="m-format" optional badge={fieldTag('format')}>
-                  <Input id="m-format" list="book-formats" value={values.format ?? ''} onChange={set('format')} readOnly={locked} className={cn(lockedClass)} placeholder={locked ? '' : 'Paperback'} />
-                  <datalist id="book-formats">
-                    {FORMATS.map((f) => (
-                      <option key={f} value={f} />
+                  <Select id="m-format" value={values.format ?? ''} onChange={set('format')}>
+                    <option value="">Not set</option>
+                    {withCurrent(FORMATS, values.format).map((f) => (
+                      <option key={f} value={f}>
+                        {f}
+                      </option>
                     ))}
-                  </datalist>
+                  </Select>
                 </Field>
                 <Field label="Dimensions" htmlFor="m-dimensions" optional hint="mm: width x height x thickness" badge={fieldTag('dimensions')}>
                   <Input id="m-dimensions" value={values.dimensions ?? ''} onChange={set('dimensions')} readOnly={locked} className={cn(lockedClass)} placeholder={locked ? '' : '126 x 176 x 21'} />

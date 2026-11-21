@@ -44,5 +44,5 @@ export function withCurrent(list, value) {
   return value && !list.includes(value) ? [...list, value] : list
 }
 
-/** Suggestions for the book format field (any text is allowed). */
+/** The book format choices (a value from elsewhere, e.g. an older book, is kept as an extra choice). */
 export const FORMATS = ['Paperback', 'Hardcover', 'Board Book', 'Mass Market Paperback', 'Spiral-bound']
