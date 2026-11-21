@@ -9,7 +9,8 @@ import { SearchInput, Select } from '../../components/ui/Form'
 import { Button } from '../../components/ui/Button'
 import { EmptyState, ErrorState, TableSkeleton } from '../../components/ui/Feedback'
 import { ActorAvatar } from '../../components/dashboard/ActivityRow'
-import { cn, downloadCsv, formatDateTime, formatTime, longDate } from '../../utils/format'
+import { cn, formatDate, formatDateTime, formatTime, longDate } from '../../utils/format'
+import { countBy, downloadXlsx } from '../../utils/xlsx'
 
 const TYPES = [
   ['submission', 'Submissions'],
@@ -59,10 +60,46 @@ export default function ActivityLog() {
             icon={Download}
             onClick={async () => {
               const all = await getActivity({ q: dq, type, actor, page: 1, pageSize: 5000 })
-              downloadCsv('bookhero-activity.csv', all.rows.map((a) => ({ Time: formatDateTime(a.at), User: a.actorName, Action: a.action, Object: a.object, Detail: a.detail, Result: RESULT[a.result] })))
+              // Same styled Excel layout as the Reports page exports
+              const who = !actor ? 'Everyone' : actor === 'system' ? 'System' : actor === 'shopify' ? 'Shopify' : String(actor) === String(user.backendId) ? `Admin (${user.name.split(' ')[0]})` : people.find((p) => String(p.id) === String(actor))?.name || 'One user'
+              const rows = all.rows.map((a) => ({ ...a, resultLabel: RESULT[a.result], typeLabel: TYPES.find(([v]) => v === a.type)?.[1] || 'Other' }))
+              const count = (result) => rows.filter((a) => a.result === result).length
+              const times = rows.map((a) => a.at).filter(Boolean)
+              const topUser = countBy(rows, 'actorName')[0]
+              const topDay = countBy(rows, (a) => a.at && formatDate(a.at, { weekday: 'short' }))[0]
+              const many = (n, one, other = `${one}s`) => `${n.toLocaleString('en')} ${n === 1 ? one : other}`
+              downloadXlsx('bookhero-activity.xlsx', {
+                sheet: 'Activity log',
+                title: 'Activity log',
+                subtitle: [TYPES.find(([v]) => v === type)?.[1] || 'All events', who, dq ? `Search "${dq}"` : 'No search'].join('   ·   '),
+                meta: `Exported ${formatDateTime(Date.now())}`,
+                columns: [
+                  { header: 'Time', key: 'at', type: 'datetime' },
+                  { header: 'User', key: 'actorName' },
+                  { header: 'Action', key: 'action' },
+                  { header: 'Object', key: 'object' },
+                  { header: 'Detail', key: 'detail' },
+                  { header: 'Result', key: 'resultLabel', tones: { Success: 'green', Rejected: 'red', Attention: 'orange', Info: 'grey' } },
+                ],
+                rows,
+                countLabel: 'Events',
+                // Overview sheet: what happened, who was busiest
+                tiles: [
+                  { label: 'Events', value: rows.length, note: times.length ? `${formatDate(Math.min(...times))} – ${formatDate(Math.max(...times))}` : '', tone: 'ink' },
+                  { label: 'Success', value: count('success'), note: 'done without problems', tone: 'green' },
+                  { label: 'Attention', value: count('warning'), note: 'worth a look', tone: 'orange' },
+                  { label: 'Rejected', value: count('error'), note: 'refused or failed', tone: 'red' },
+                ],
+                chart: { type: 'doughnut', title: 'What happened' },
+                breakdown: { title: 'By event type', total: many(rows.length, 'event'), items: countBy(rows, 'typeLabel').map((t, i) => ({ ...t, tone: ['brand', 'green', 'ink', 'violet', 'orange', 'red'][i % 6] })) },
+                highlights: [
+                  topUser && { label: 'Most active', value: `${topUser.label} — ${many(topUser.value, 'event')}` },
+                  topDay && { label: 'Busiest day', value: `${topDay.label} — ${many(topDay.value, 'event')}` },
+                ].filter(Boolean),
+              })
             }}
           >
-            Export CSV
+            Export Excel
           </Button>
         }
       />
