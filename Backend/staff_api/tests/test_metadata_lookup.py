@@ -108,7 +108,7 @@ class OpenLibraryFirstTests(SimpleTestCase):
 
     def test_open_library_answers_first_and_google_is_not_called(self):
         complete = {f'ISBN:{ISBN}': {**OPEN_LIBRARY_HIT[f'ISBN:{ISBN}'], 'publishers': [{'name': 'Ace'}], 'publish_date': '1990', 'number_of_pages': 412}}  # a missing field would ask Google to fill it
-        edition = {'physical_format': 'Paperback', 'physical_dimensions': '19.8 x 12.9 x 2.1 centimeters'}  # a missing size would ask Google too
+        edition = {'physical_format': 'Paperback', 'physical_dimensions': '19.8 x 12.9 x 2.1 centimeters', 'languages': [{'key': '/languages/eng'}]}  # a missing size or language would ask Google too
         answer = lambda url, *args: edition if '/isbn/' in url else complete  # noqa: E731
         with mock.patch(GOOGLE) as google, mock.patch(OPEN_LIBRARY, side_effect=answer):
             record = lookup_isbn(ISBN)
