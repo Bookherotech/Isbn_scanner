@@ -13,6 +13,7 @@ import uuid
 
 from django.conf import settings
 from django.core.cache import cache
+from django.utils.text import slugify
 
 from integrations.shopify.client import graphql, location_gid, put_file, raise_user_errors
 from integrations.shopify.exceptions import ProductGone, ShopifyError
@@ -32,6 +33,34 @@ def _description_html(book):
     details = [('Dimensions', book.dimensions), ('Author', book.author), ('ISBN', book.isbn), ('Format', book.format), ('Pages', book.pages)]
     lines += [f'{label}: {value}' for label, value in details if value]
     return ''.join(f'<p>{html.escape(line)}</p>' for line in lines)
+
+
+SEO_SUFFIX = 'BookHero Dubai'
+_SMALL_WORDS = {'a', 'an', 'and', 'as', 'at', 'but', 'by', 'for', 'in', 'nor', 'of', 'on', 'or', 'the', 'to', 'with'}
+
+
+def _title_case(text):
+    """'the return of the king' -> 'The Return of the King'. A word that already has a capital ('iPhone', 'McCarthy')
+    is kept as written; small words stay lower case except first."""
+    words = str(text or '').split()
+    return ' '.join(
+        w if any(c.isupper() for c in w) or (i and w in _SMALL_WORDS) else w[:1].upper() + w[1:]
+        for i, w in enumerate(words)
+    )
+
+
+def seo_title(book):
+    """The search engine page title: 'The Return by Victoria Hislop | BookHero Dubai'."""
+    name = _title_case(book.title)
+    if book.author:
+        name = f'{name} by {_title_case(book.author)}'
+    return f'{name} | {SEO_SUFFIX}'[:255]
+
+
+def book_handle(book):
+    """The product URL handle: 'the-return-victoria-hislop' (title, then author). '' when neither has latin letters
+    or digits (e.g. an Arabic title): Shopify then makes one from the product title."""
+    return slugify(f'{book.title} {book.author}')[:200].strip('-')
 
 
 def book_tags(book):
@@ -112,7 +141,7 @@ CREATE_MUTATION = """
 mutation CreateBook($input: ProductSetInput!) {
   productSet(synchronous: true, input: $input) {
     product { id variants(first: 1) { nodes { inventoryItem { id } } } }
-    userErrors { field message }
+    userErrors { field message code }
   }
 }
 """
@@ -122,10 +151,13 @@ def create_product(book, quantity):
     """A new product for the book, with `quantity` available at our location -> (product GID, inventory item GID).
 
     It is created with SHOPIFY_PRODUCT_STATUS (DRAFT by default): BookHero has no prices, so an admin sets the
-    price in Shopify and publishes it there.
+    price in Shopify and publishes it there. Its page title is seo_title and its URL handle book_handle; when another
+    product already has that handle, the ISBN is added to it ('the-return-victoria-hislop-9781...'), and when that
+    is taken too, Shopify picks one.
     """
     product = {
         'title': book.title,
+        'seo': {'title': seo_title(book)},
         'vendor': book.publisher or book.author,
         'productType': 'Book',
         'status': settings.SHOPIFY_PRODUCT_STATUS,
@@ -142,7 +174,16 @@ def create_product(book, quantity):
     }
     if book.cover_url.startswith('https://') and not (book.cover_photo or book.cached_cover):  # a file of ours is uploaded after this, see attach_image
         product['files'] = [{'originalSource': book.cover_url, 'alt': book.title[:255], 'contentType': 'IMAGE'}]
-    result = graphql(CREATE_MUTATION, {'input': product})['productSet']
+    handle = book_handle(book)
+    for candidate in ([handle, f'{handle}-{book.isbn}', None] if handle else [None]):
+        if candidate:
+            product['handle'] = candidate
+        else:
+            product.pop('handle', None)
+        result = graphql(CREATE_MUTATION, {'input': product})['productSet']
+        taken = any(e.get('code') == 'HANDLE_NOT_UNIQUE' for e in result.get('userErrors') or [])
+        if not (taken and candidate):
+            break
     raise_user_errors(result)
     created = result['product']
     return created['id'], created['variants']['nodes'][0]['inventoryItem']['id']
