@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { BookCopy, CheckCircle2, Download, Hourglass, PackageX, Users, Warehouse, XCircle } from 'lucide-react'
-import { getReports } from '../../services/adminApi'
+import { getFilterOptions, getReports } from '../../services/adminApi'
 import { useQuery } from '../../hooks/useStore'
 import { Avatar, PageHeader, Panel } from '../../components/ui/Misc'
 import { Select } from '../../components/ui/Form'
@@ -8,7 +8,10 @@ import { Button } from '../../components/ui/Button'
 import { ErrorState, Skeleton } from '../../components/ui/Feedback'
 import { LineChart, ShelfBars } from '../../components/charts/Charts'
 import { ShelfFilter, StaffFilter } from '../../components/inventory/Filters'
-import { downloadCsv, formatDate, formatDateTime } from '../../utils/format'
+import { formatDate, formatDateTime } from '../../utils/format'
+import { downloadXlsx } from '../../utils/xlsx'
+
+const STATUS_LABEL = { pending: 'Pending', waiting: 'Waiting list', live: 'Live', out_of_stock: 'Out of stock', rejected: 'Rejected' }
 
 export default function Reports() {
   const [days, setDays] = useState(14)
@@ -17,13 +20,40 @@ export default function Reports() {
   const [status, setStatus] = useState('')
   const { data, error, reload, refreshing } = useQuery(() => getReports({ days, shelf, staff, status }), [days, shelf, staff, status])
 
-  const exportSeries = () =>
-    downloadCsv(
-      `bookhero-books-${days}d.csv`,
-      (data?.series ?? []).map((d) => ({ Date: formatDate(d.date, { year: 'numeric' }), Added: d.added, Approved: d.approved, Rejected: d.rejected })),
-    )
-  const exportStaff = () =>
-    downloadCsv('bookhero-staff-activity.csv', (data?.staffRows ?? []).map((s) => ({ Staff: s.name, Submitted: s.submitted, Approved: s.approved, Rejected: s.rejected, Waiting: s.waiting, 'Approval rate %': s.rate ?? '' })))
+  // Every export is a styled Excel file: real dates (a CSV date showed as ##### in Excel), header, stripes, totals and
+  // a line with the period and filters used.
+  const filterLine = async (period) => {
+    const options = await getFilterOptions().catch(() => null)
+    const staffName = staff ? options?.staff.find((s) => String(s.id) === String(staff))?.name || 'One staff member' : 'All staff'
+    return [period, shelf ? `Shelf ${shelf}` : 'All shelves', staffName, STATUS_LABEL[status] || 'Any status', `Exported ${formatDateTime(Date.now())}`].join('  ·  ')
+  }
+  const exportSeries = async () => {
+    const series = data?.series ?? []
+    const range = series.length ? ` (${formatDate(series[0].date, { year: 'numeric' })} – ${formatDate(series[series.length - 1].date, { year: 'numeric' })})` : ''
+    downloadXlsx(`bookhero-books-${days}d.xlsx`, {
+      sheet: `Books, last ${days} days`,
+      title: 'BookHero · Books added, approved and rejected',
+      subtitle: await filterLine(`Last ${days} days${range}`),
+      columns: [
+        { header: 'Date', key: 'date', type: 'date', width: 22 },
+        { header: 'Added', key: 'added', type: 'number', width: 14 },
+        { header: 'Approved', key: 'approved', type: 'number', width: 14 },
+        { header: 'Rejected', key: 'rejected', type: 'number', width: 14 },
+      ],
+      rows: series,
+      totals: true,
+    })
+  }
+  const exportReport = async (report) =>
+    downloadXlsx(`bookhero-${report.key}-report.xlsx`, {
+      sheet: report.name,
+      title: `BookHero · ${report.name}`,
+      subtitle: await filterLine(report.current ? 'Right now' : `Last ${days} days`),
+      columns: report.columns,
+      rows: report.rows,
+      totals: true,
+    })
+  const exportStaff = () => exportReport(libraryReports(data, days).find((r) => r.key === 'staff'))
 
   return (
     <div className={refreshing ? 'is-refreshing' : ''}>
@@ -32,7 +62,7 @@ export default function Reports() {
         description="Throughput, review outcomes and where the stock is."
         actions={
           <Button icon={Download} onClick={exportSeries} disabled={!data}>
-            Export CSV
+            Export Excel
           </Button>
         }
       />
@@ -74,7 +104,7 @@ export default function Reports() {
             ))}
           </section>
 
-          <ReportLibrary data={data} days={days} />
+          <ReportLibrary data={data} days={days} onExport={exportReport} />
 
           <Panel title="Books added, approved and rejected" eyebrow={`Last ${days} days`} className="reports__trend">
             {!data ? (
@@ -100,7 +130,7 @@ export default function Reports() {
             className="reports__staff"
             action={
               <Button size="sm" variant="ghost" icon={Download} onClick={exportStaff} disabled={!data}>
-                CSV
+                Excel
               </Button>
             }
           >
@@ -178,43 +208,58 @@ export default function Reports() {
 }
 
 
-/* ---------- Report library: ready-made mock reports with CSV export ---------- */
-function ReportLibrary({ data, days }) {
-  const d = (t) => (t ? formatDateTime(t) : '')
-  const reports = data
-    ? [
-        {
-          key: 'added', icon: BookCopy, name: 'Books added', desc: `Every book submitted by staff in the last ${days} days, with current status.`,
-          rows: data.lists.added.map((r) => ({ Title: r.title, Author: r.author, ISBN: r.isbn, Shelf: r.shelf, Quantity: r.quantity, 'Submitted by': r.submittedBy, Submitted: d(r.submittedAt), Status: r.status })),
-        },
-        {
-          key: 'approved', icon: CheckCircle2, name: 'Books approved', desc: 'Approvals with the Shopify product for each book.',
-          rows: data.lists.approved.map((r) => ({ Title: r.title, Author: r.author, ISBN: r.isbn, Shelf: r.shelf, Quantity: r.quantity, Approved: d(r.approvedAt), 'Shopify product': r.productId })),
-        },
-        {
-          key: 'rejected', icon: XCircle, name: 'Books rejected', desc: 'Duplicate-check and admin rejections with reasons.',
-          rows: data.lists.rejected.map((r) => ({ Title: r.title, Author: r.author, ISBN: r.isbn, Shelf: r.shelf, Reason: r.reason, 'Rejected by': r.by, Rejected: d(r.rejectedAt), 'Submitted by': r.submittedBy })),
-        },
-        {
-          key: 'waiting', icon: Hourglass, name: 'Waiting list', desc: 'Open waiting-list entries and the stock they are waiting behind.',
-          rows: data.lists.waiting.map((r) => ({ Title: r.title, Author: r.author, 'Current shelf': r.currentShelf, 'Current stock': r.currentStock, 'Waiting shelf': r.shelf, Quantity: r.quantity, Status: r.ready ? 'Ready for approval' : 'Waiting', 'Submitted by': r.submittedBy })),
-        },
-        {
-          key: 'oos', icon: PackageX, name: 'Out of stock', desc: 'Sold-out books and when the stock-out was detected.',
-          rows: data.lists.outOfStock.map((r) => ({ Title: r.title, Author: r.author, Shelf: r.shelf, 'Stock-out detected': d(r.stockOutAt), 'Waiting entries': r.waitingEntries })),
-        },
-        {
-          key: 'shelf', icon: Warehouse, name: 'Inventory by shelf', desc: 'Books, units on Shopify and waiting entries per shelf.',
-          rows: data.byShelf.map((s) => ({ Shelf: s.code, Status: s.status, Books: s.titles, Units: s.units, Waiting: s.waiting, Pending: s.pending })),
-        },
-        {
-          key: 'staff', icon: Users, name: 'Staff activity', desc: 'Submissions, approvals, rejections and approval rate per staff member.',
-          rows: data.staffRows.map((s) => ({ Staff: s.name, Submitted: s.submitted, Approved: s.approved, Rejected: s.rejected, Waiting: s.waiting, 'Approval rate %': s.rate ?? '' })),
-        },
-      ]
-    : []
+
+/* ---------- Report library: ready-made reports, each exported as a styled Excel file ---------- */
+const text = (header, key) => ({ header, key })
+const number = (header, key, extra = {}) => ({ header, key, type: 'number', ...extra })
+const when = (header, key) => ({ header, key, type: 'datetime' })
+
+/** The library's reports: columns (with Excel types) and the raw rows. `current`: a "right now" list, not the period. */
+function libraryReports(data, days) {
+  if (!data) return []
+  return [
+    {
+      key: 'added', icon: BookCopy, name: 'Books added', desc: `Every book submitted by staff in the last ${days} days, with current status.`,
+      columns: [text('Title', 'title'), text('Author', 'author'), text('ISBN', 'isbn'), text('Shelf', 'shelf'), number('Quantity', 'quantity'), text('Submitted by', 'submittedBy'), when('Submitted', 'submittedAt'), text('Status', 'status')],
+      rows: data.lists.added,
+    },
+    {
+      key: 'approved', icon: CheckCircle2, name: 'Books approved', desc: 'Approvals with the Shopify product for each book.',
+      columns: [text('Title', 'title'), text('Author', 'author'), text('ISBN', 'isbn'), text('Shelf', 'shelf'), number('Quantity', 'quantity'), when('Approved', 'approvedAt'), text('Shopify product', 'productId')],
+      rows: data.lists.approved,
+    },
+    {
+      key: 'rejected', icon: XCircle, name: 'Books rejected', desc: 'Duplicate-check and admin rejections with reasons.',
+      columns: [text('Title', 'title'), text('Author', 'author'), text('ISBN', 'isbn'), text('Shelf', 'shelf'), text('Reason', 'reason'), text('Rejected by', 'by'), when('Rejected', 'rejectedAt'), text('Submitted by', 'submittedBy')],
+      rows: data.lists.rejected,
+    },
+    {
+      key: 'waiting', icon: Hourglass, name: 'Waiting list', desc: 'Open waiting-list entries and the stock they are waiting behind.', current: true,
+      columns: [text('Title', 'title'), text('Author', 'author'), text('Current shelf', 'currentShelf'), number('Current stock', 'currentStock'), text('Waiting shelf', 'shelf'), number('Quantity', 'quantity'), text('Status', 'state'), text('Submitted by', 'submittedBy')],
+      rows: data.lists.waiting.map((r) => ({ ...r, state: r.ready ? 'Ready for approval' : 'Waiting' })),
+    },
+    {
+      key: 'oos', icon: PackageX, name: 'Out of stock', desc: 'Sold-out books and when the stock-out was detected.', current: true,
+      columns: [text('Title', 'title'), text('Author', 'author'), text('Shelf', 'shelf'), when('Stock-out detected', 'stockOutAt'), number('Waiting entries', 'waitingEntries')],
+      rows: data.lists.outOfStock,
+    },
+    {
+      key: 'shelf', icon: Warehouse, name: 'Inventory by shelf', desc: 'Books, units on Shopify and waiting entries per shelf.', current: true,
+      columns: [text('Shelf', 'code'), text('Status', 'status'), number('Books', 'titles'), number('Units', 'units'), number('Waiting', 'waiting'), number('Pending', 'pending')],
+      rows: data.byShelf,
+    },
+    {
+      key: 'staff', icon: Users, name: 'Staff activity', desc: 'Submissions, approvals, rejections and approval rate per staff member.',
+      columns: [text('Staff', 'name'), number('Submitted', 'submitted'), number('Approved', 'approved'), number('Rejected', 'rejected'), number('Waiting', 'waiting'), number('Approval rate %', 'rate', { total: false })],
+      rows: data.staffRows,
+    },
+  ]
+}
+
+function ReportLibrary({ data, days, onExport }) {
+  const reports = libraryReports(data, days)
   return (
-    <Panel title="Report library" eyebrow="CSV export" className="reports__library">
+    <Panel title="Report library" eyebrow="Excel export" className="reports__library">
       {!data ? (
         <Skeleton h={160} r={6} />
       ) : (
@@ -229,8 +274,8 @@ function ReportLibrary({ data, days }) {
                 <span>{r.desc}</span>
               </span>
               <span className="replib__count num">{r.rows.length} rows</span>
-              <Button size="sm" icon={Download} disabled={!r.rows.length} onClick={() => downloadCsv(`bookhero-${r.key}-report.csv`, r.rows)}>
-                CSV
+              <Button size="sm" icon={Download} disabled={!r.rows.length} onClick={() => onExport(r)}>
+                Excel
               </Button>
             </li>
           ))}

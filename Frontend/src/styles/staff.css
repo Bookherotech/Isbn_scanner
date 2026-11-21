@@ -554,6 +554,59 @@
 .subdetail__wide { grid-column: 1 / -1; border-left: 0 !important; border-top: 1px solid var(--line-soft); }
 .subdetail__wide .barcode { width: 170px; }
 
+/* Submission detail: phone = one column (hero, stock, book details + description, progress);
+   wide desk = book on the left, stock + progress in a right column (pages.css). */
+.subdetail__side { display: contents; }
+.subdetail__stock { order: 1; } /* the hero stays first (order 0, also on the approved-book page) */
+.subdetail__main { order: 2; display: grid; gap: 16px; min-width: 0; }
+.subdetail__progress { order: 3; display: grid; gap: 12px; min-width: 0; }
+.subdetail__card { display: grid; gap: 12px; align-content: start; padding: 14px 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; min-width: 0; }
+.subdetail__title { margin: 0; font-size: 14px; font-weight: 700; color: var(--ink); }
+.subdetail__label, .subdetail__grid dt { font-size: 10.5px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--faint); }
+.subdetail__stock { padding: 0; gap: 0; overflow: hidden; }
+.subdetail__stock .subdetail__facts { border: 0; border-radius: 0; background: none; grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); } /* 2 or 3 facts share the width */
+.subdetail__isbn { display: grid; gap: 6px; justify-items: start; padding: 10px 12px; border-top: 1px solid var(--line-soft); }
+.subdetail__isbn .barcode { width: 170px; }
+/* at least 110px each (2 across on a 320px phone), at most 4 across so 8 facts make even rows */
+.subdetail__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(max(110px, calc((100% - 36px) / 4)), 1fr)); gap: 14px 12px; margin: 0; }
+.subdetail__grid > div { display: grid; gap: 4px; align-content: start; min-width: 0; }
+.subdetail__grid dd { margin: 0; font-size: 14px; font-weight: 600; color: var(--ink); overflow-wrap: anywhere; }
+.subdetail__grid dd.is-empty { font-weight: 400; color: var(--faint); }
+.subdetail__grid-wide { grid-column: 1 / -1; }
+.subjects--genre li { background: var(--hero-subtle); border-color: var(--hero-line); color: var(--hero-ink); }
+.subdetail__card .book-desc { font-size: 14px; color: var(--ink-2); }
+.book-desc.is-clamped { display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden; }
+.subdetail__more { justify-self: start; padding: 0; font-size: 13px; font-weight: 650; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+.subdetail__progress .timeline { padding-top: 2px; }
+.subdetail__progress .timeline__item:last-child { padding-bottom: 0; }
+/* Two columns when the page has room (tablet, desk): book left, stock + progress right. A container query, so it
+   follows the space the page really gets (desk sidebar, phone shell) rather than the screen width. */
+.flow__body:has(> .subdetail) { container-type: inline-size; }
+@container (min-width: 680px) {
+  .flow__body .subdetail:has(.subdetail__side) {
+    max-width: none;
+    grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
+    grid-template-areas: 'hero side' 'main side';
+    grid-template-rows: auto 1fr;
+    column-gap: 20px;
+    align-items: start;
+  }
+  .subdetail:has(.subdetail__side) > .subdetail__hero { grid-area: hero; }
+  .subdetail__side { grid-area: side; display: grid; gap: 16px; align-content: start; min-width: 0; }
+  .subdetail__main { grid-area: main; }
+}
+@container (min-width: 960px) {
+  .flow__body .subdetail:has(.subdetail__side) { column-gap: 24px; grid-template-columns: minmax(0, 1fr) minmax(300px, 360px); }
+  .subdetail:has(.subdetail__side) > .subdetail__hero .cover--lg { --cw: 120px !important; width: 120px; }
+  .subdetail:has(.subdetail__side) > .subdetail__hero h2 { font-size: 26px; }
+}
+@media (max-width: 420px) {
+  .subdetail__hero { gap: 12px; }
+  .subdetail__hero .cover--lg { --cw: 84px !important; width: 84px; }
+  .subdetail__hero h2 { font-size: 19px; overflow-wrap: anywhere; }
+  .subdetail__card:not(.subdetail__stock) { padding: 12px 14px; }
+}
+
 .timeline { list-style: none; margin: 0; padding: 4px 0 0 4px; display: grid; }
 .timeline__item { position: relative; display: grid; grid-template-columns: 22px 1fr; column-gap: 8px; padding-bottom: 16px; }
 .timeline__item::before { content: ''; position: absolute; left: 6px; top: 16px; bottom: 0; width: 2px; background: var(--line); }
