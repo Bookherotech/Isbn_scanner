@@ -176,10 +176,17 @@ def store_guess(record, isbn=None):
         record.update(found, genre_source='shopify')
         if record['genre'] == kids and not record['subgenres']:
             record['subgenres'] = list(record['ages'])  # the store's product has no age yet: suggest one
-        return record
+        return _language_or_genre(record)
     record.update({k: guessed[k] for k in ('genre', 'subgenres', 'language')})
     record['genre'] = canonical_genre(record['genre'])
     record['subgenres'] = canonical_subgenres(record['genre'], record['subgenres'])[0] if record['genre'] else []
     record['language'] = canonical_language(record['language'])
     record['genre_source'] = 'guess' if record['genre'] or record['language'] else ''
+    return _language_or_genre(record)
+
+
+def _language_or_genre(record):
+    """The languages are choices in the Genre list (one choice per book): a book with a language gets no genre."""
+    if record['language']:
+        record['genre'], record['subgenres'] = '', []
     return record
