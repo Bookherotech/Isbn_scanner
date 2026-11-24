@@ -1,11 +1,11 @@
 /**
- * The Scan screen's camera: the phone's main back lens (not the ultra-wide, which cannot focus on a barcode held
- * close), 1920px wide, continuous autofocus and a little zoom where the phone allows them, and the part of each frame
- * inside the yellow frame for the barcode reader.
+ * The Scan screen's camera: on Android the main back lens (not the ultra-wide, which cannot focus on a barcode held
+ * close; on iPhone Safari's own choice, which switches lenses for close-ups), 1920px wide, continuous autofocus and a
+ * little zoom where the phone allows them, and the band of each frame around the yellow frame for the barcode reader.
  */
 
 const SIZE = { width: { ideal: 1920 }, height: { ideal: 1080 } }
-const ZOOM = 1.5 // a little zoom: staff can hold the book a bit further away, where the lens focuses
+const ZOOM = 1.2 // a little zoom: a barcode held at a normal distance still fits on screen, and sits where the lens focuses
 const CAMERA_KEY = 'bookhero.scanCamera' // the lens picked last time on this device, so the next scan opens it straight away
 const NOT_MAIN = /ultra|wide angle|tele|depth|infrared|\bir\b|macro|front|user/i
 
@@ -42,6 +42,11 @@ export function mainBackCamera(devices) {
   return numbered[0]?.d || usable[0] || null
 }
 
+/** iPhone / iPad (also iPadOS, which reports itself as a Mac with a touch screen). */
+function isApple() {
+  return /iPhone|iPad|iPod/i.test(navigator.userAgent) || (/Macintosh/i.test(navigator.userAgent) && navigator.maxTouchPoints > 1)
+}
+
 async function open(video) {
   return navigator.mediaDevices.getUserMedia({ video, audio: false })
 }
@@ -60,6 +65,20 @@ async function tune(stream) {
  */
 export async function openScanCamera() {
   if (!navigator.mediaDevices?.getUserMedia) throw Object.assign(new Error('No camera API'), { name: 'NotFoundError' })
+
+  if (isApple()) {
+    // iPhone: Safari's back camera is a virtual one that switches to the close-up lens by itself; forcing a lens loses that
+    remember('')
+    let stream
+    try {
+      stream = await open({ facingMode: 'environment', ...SIZE })
+    } catch (error) {
+      if (error?.name !== 'OverconstrainedError' && error?.name !== 'NotFoundError') throw error
+      stream = await open(true)
+    }
+    await tune(stream)
+    return stream
+  }
 
   const saved = remembered()
   if (saved) {
@@ -99,9 +118,13 @@ export async function openScanCamera() {
   return stream
 }
 
+const BAND = 2.2 // the band read is this many times the yellow frame's height (a barcode held a little high or low still reads)
+const MAX_READ_WIDTH = 1280 // wider bands are scaled down first: same result for a barcode, less work per check
+
 /**
- * The part of the video inside `frame` (the yellow frame on screen), drawn into `canvas` -> the canvas, or the video
- * itself when it cannot be worked out. A margin is kept around the frame, so a barcode held a little off still reads.
+ * The band of the video across its full width, around the yellow frame (`frame`) on screen, drawn into `canvas` ->
+ * the canvas, or the video itself when it cannot be worked out. Full width, so a barcode bigger than the frame or held
+ * off to one side still reads; only the parts far above and below (other text, other barcodes) are left out.
  */
 export function frameArea(video, frame, canvas) {
   const vw = video.videoWidth
@@ -110,21 +133,15 @@ export function frameArea(video, frame, canvas) {
   const view = video.getBoundingClientRect()
   const box = frame.getBoundingClientRect()
   const scale = Math.max(view.width / vw, view.height / vh) // the video is shown with object-fit: cover
-  if (!scale || !box.width) return video
-  const offsetX = (view.width - vw * scale) / 2
+  if (!scale || !box.height) return video
   const offsetY = (view.height - vh * scale) / 2
-  const margin = 0.2
-  let x = (box.left - view.left - offsetX) / scale - (box.width / scale) * margin
-  let y = (box.top - view.top - offsetY) / scale - (box.height / scale) * margin
-  let w = (box.width / scale) * (1 + 2 * margin)
-  let h = (box.height / scale) * (1 + 2 * margin)
-  x = Math.max(0, x)
-  y = Math.max(0, y)
-  w = Math.min(vw - x, w)
-  h = Math.min(vh - y, h)
-  if (w < 50 || h < 30) return video
-  canvas.width = Math.round(w)
-  canvas.height = Math.round(h)
-  canvas.getContext('2d', { willReadFrequently: true }).drawImage(video, x, y, w, h, 0, 0, canvas.width, canvas.height)
+  const centre = (box.top + box.height / 2 - view.top - offsetY) / scale
+  const h = Math.min(vh, (box.height / scale) * BAND)
+  const y = Math.min(Math.max(0, centre - h / 2), vh - h)
+  const shrink = Math.min(1, MAX_READ_WIDTH / vw)
+  canvas.width = Math.round(vw * shrink)
+  canvas.height = Math.round(h * shrink)
+  if (canvas.height < 30) return video
+  canvas.getContext('2d', { willReadFrequently: true }).drawImage(video, 0, y, vw, h, 0, 0, canvas.width, canvas.height)
   return canvas
 }
