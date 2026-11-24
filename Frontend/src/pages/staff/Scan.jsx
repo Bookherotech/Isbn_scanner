@@ -79,7 +79,6 @@ export default function Scan() {
       const meta = await lookup
       setPhase('ready')
       setDraft({ isbn: code, meta, values: null })
-      await wait(150)
       navigate(`/staff/book/${code}`)
     } catch (error) {
       navigate(`/staff/book/${code}`, { state: { error: { code: error.code, message: error.message } } })

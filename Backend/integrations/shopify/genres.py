@@ -167,10 +167,15 @@ def shopify_genre_of(isbn13):
 _POOL = ThreadPoolExecutor(max_workers=8, thread_name_prefix='shopify-genre')
 
 
+def _store_check(isbn13):
+    store_genres()  # the store's tag list (refreshed hourly) is read here too, not after the book data
+    return shopify_genre_of(isbn13)
+
+
 def start_store_check(isbn13):
     """shopify_genre_of in the background, so a scan asks Shopify while the book data is being looked up. -> a future
     for store_guess(..., store_check=)."""
-    return _POOL.submit(lambda: shopify_genre_of(isbn13))
+    return _POOL.submit(_store_check, isbn13)
 
 
 def store_guess(record, isbn=None, store_check=None):
@@ -179,10 +184,10 @@ def store_guess(record, isbn=None, store_check=None):
     Guessed on every call (not cached with the record), always in the store's spelling.
     `store_check`: the start_store_check future for this ISBN, when already started."""
     record = dict(record)
+    found = (store_check.result() if store_check else shopify_genre_of(isbn)) if isbn else None  # also has the tag list ready
     guessed = add_guesses(dict(record))
     kids = canonical_genre('Kids')
     record['ages'] = canonical_subgenres(kids, guessed['ages'])[0] if kids else []  # for when staff pick Kids by hand
-    found = (store_check.result() if store_check else shopify_genre_of(isbn)) if isbn else None
     if found and (found['genre'] or found['language']):
         record.update(found, genre_source='shopify')
         if record['genre'] == kids and not record['subgenres']:
