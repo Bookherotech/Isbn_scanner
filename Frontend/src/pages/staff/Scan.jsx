@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { CheckCircle2, Flashlight, FlashlightOff, Keyboard, RotateCcw, ScanLine, X } from 'lucide-react'
 import { lookupIsbn } from '../../services/staffApi'
 import { createIsbnDetector } from '../../services/barcode'
+import { frameArea, openScanCamera } from '../../services/camera'
 import { isValidIsbn13 } from '../../services/isbn'
 import { useDraft } from '../../hooks/useDraft'
 import { Button } from '../../components/ui/Button'
@@ -36,17 +37,6 @@ function cameraErrorText(error) {
   }
 }
 
-/** The back camera on phones; any camera on laptops (they have no "environment" camera). */
-async function openCamera() {
-  if (!navigator.mediaDevices?.getUserMedia) throw Object.assign(new Error('No camera API'), { name: 'NotFoundError' })
-  try {
-    return await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1280 } }, audio: false })
-  } catch (error) {
-    if (error?.name !== 'OverconstrainedError' && error?.name !== 'NotFoundError') throw error
-    return navigator.mediaDevices.getUserMedia({ video: true, audio: false })
-  }
-}
-
 export default function Scan() {
   const navigate = useNavigate()
   const { setDraft } = useDraft()
@@ -56,6 +46,8 @@ export default function Scan() {
   const [camError, setCamError] = useState('')
   const [hasDetector, setHasDetector] = useState(true) // false only if no barcode decoder could be loaded
   const videoRef = useRef(null)
+  const frameRef = useRef(null) // the yellow frame: only the picture inside it is read
+  const canvasRef = useRef(null)
   const streamRef = useRef(null)
   const runRef = useRef(0) // bumps on every start/stop, so a camera that opens after leaving the page is shut again
   const busy = ['detected', 'loading', 'ready'].includes(phase)
@@ -96,7 +88,7 @@ export default function Scan() {
     detecting.catch(() => {}) // handled below
     let stream
     try {
-      stream = await openCamera()
+      stream = await openScanCamera() // main back lens, autofocus, a little zoom
     } catch (error) {
       if (run !== runRef.current) return
       setCamError(cameraErrorText(error))
@@ -127,7 +119,8 @@ export default function Scan() {
     const loop = async () => {
       if (run !== runRef.current || !videoRef.current) return
       try {
-        const codes = await detector.detect(videoRef.current)
+        canvasRef.current ??= document.createElement('canvas')
+        const codes = await detector.detect(frameArea(videoRef.current, frameRef.current, canvasRef.current))
         const hit = codes.find((c) => isValidIsbn13(c.rawValue)) // 978/979 prefix + check digit
         if (hit && run === runRef.current) return finish(hit.rawValue)
       } catch {
@@ -171,7 +164,7 @@ export default function Scan() {
 
       <div className="scanner__view">
         <video ref={videoRef} className="scanner__video" playsInline muted />
-        <div className="scanner__frame" aria-hidden>
+        <div className="scanner__frame" ref={frameRef} aria-hidden>
           <i />
           <i />
           <i />
