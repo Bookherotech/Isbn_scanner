@@ -33,12 +33,16 @@ def _text(value):
 
 
 def create_submission(*, user, shelf, isbn, title, author, publisher='', year=None, pages=None, format='', dimensions='',  # noqa: A002 - the book's format
-                      source=BookSource.MANUAL, subjects=None, fetched=None, cover_url='', cover_photo=None, description='', genre='', subgenres=None, language='', quantity):
+                      source=BookSource.MANUAL, subjects=None, fetched=None, cover_url='', cover_photo=None, description='', genre='', subgenres=None, language='', quantity,
+                      shopify_match=None):
     """Save one submission and apply the duplicate rule, all in one transaction.
 
     Arguments are already validated (see staff_api SubmissionCreateSerializer).
     `fetched` may carry 'isbn': the ISBN first scanned/typed, so a corrected ISBN counts as an edit.
     `cover_photo`: a cleaned image file (see cover_photo.clean_cover_photo) or None.
+    `shopify_match`: integrations.shopify.shopify_wait(isbn), asked before (never inside the transaction): when the store
+    already has units of this ISBN on Shopify and BookHero has no other copy, the entry goes on the waiting list until
+    they sell out (then the sync moves it to Pending), instead of straight to Pending.
     Raises DuplicateCheckBusy if another submission of the same book holds the lock for too long.
     """
     values = {'title': title, 'author': author, 'publisher': publisher, 'year': year, 'pages': pages}
@@ -81,6 +85,11 @@ def create_submission(*, user, shelf, isbn, title, author, publisher='', year=No
             book.waiting_ready_at = now if ready else None
             book.save()
             outcome = SubmissionResult(WAITING, book, match, ready)
+        elif shopify_match:
+            book.status = BookStatus.WAITING
+            book.match = shopify_match
+            book.save()
+            outcome = SubmissionResult(WAITING, book, shopify_match)
         else:
             book.status = BookStatus.PENDING
             book.save()

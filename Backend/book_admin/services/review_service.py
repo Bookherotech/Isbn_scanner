@@ -124,7 +124,7 @@ def update_book(book_id, data, admin=None):
                 elif dup.primary and dup.primary.id != book.linked_item_id:  # a waiting entry now waits behind a different copy
                     book.linked_item, book.match = dup.primary, match_summary(dup.primary)
                     book.waiting_ready_at = timezone.now() if dup.primary.status == BookStatus.OUT_OF_STOCK else None
-                elif not dup.primary and book.status == BookStatus.WAITING:
+                elif not dup.primary and book.status == BookStatus.WAITING and not (book.match or {}).get('shopify'):  # a Shopify wait stays
                     outcome = 'moved_to_pending'
                     book.status, book.linked_item, book.match, book.waiting_ready_at = BookStatus.PENDING, None, None, None
             if changes:

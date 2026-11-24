@@ -5,6 +5,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from integrations.metadata import cached_metadata
+from integrations.shopify import shopify_wait
 from inventory.constants import BookSource, BookStatus
 from inventory.services import DuplicateCheckBusy, create_submission, normalize_author, normalize_title
 from staff_api.exceptions import SubmissionBusy
@@ -64,13 +65,14 @@ class SubmissionListView(APIView):
         if data['source'] != BookSource.MANUAL:
             cover_url = (cached_metadata(data['isbn']) or {}).get('cover_url', '')  # from the lookup a moment ago
 
+        shopify_match = shopify_wait(data['isbn'])  # units already on Shopify: the entry waits for them to sell out
         try:
             outcome = create_submission(
                 user=request.user, shelf=data['shelf_id'], isbn=data['isbn'], title=data['title'], author=data['author'],
                 publisher=data['publisher'], year=data['year'], pages=data['pages'], format=data['format'], dimensions=data['dimensions'], source=data['source'],
                 subjects=data['subjects'], fetched=data['fetched'], cover_url=cover_url, cover_photo=data['cover_photo'], description=data['description'],
                 genre=data['genre'], subgenres=data['subgenres'], language=data['language'],
-                quantity=data['quantity'],
+                quantity=data['quantity'], shopify_match=shopify_match,
             )
         except DuplicateCheckBusy:
             raise SubmissionBusy from None

@@ -130,13 +130,15 @@ const RESULT = {
   rejected: { icon: XCircle, tone: 'rejected', title: 'Already on this shelf', text: 'This book is already registered on this shelf.' },
   restockDeleted: { icon: Hourglass, tone: 'waiting', title: 'Sent for restock approval', text: 'This book was deleted on Shopify. Your new copies are on the waiting list for the admin to approve.' },
   restock: { icon: Hourglass, tone: 'waiting', title: 'Sent for restock approval', text: 'This book is sold out on this shelf. Your new copies are on the waiting list for the admin to approve.' },
+  shopify: { icon: Hourglass, tone: 'waiting', title: 'Added to the waiting list', text: 'This book is already in stock on Shopify. Your entry waits until that stock sells out, then goes to the admin for approval.' },
 }
 
 function SubmitResult({ result }) {
   const d = result.draft
-  const restock = result.result === 'waiting' && result.match?.shelfId === d.shelfId // sold out on this same shelf
+  const onShopify = result.result === 'waiting' && result.match?.shopify // units already on Shopify, no other BookHero copy
+  const restock = result.result === 'waiting' && !onShopify && result.match?.shelfId === d.shelfId // sold out on this same shelf
   const deleted = result.match?.syncStatus === 'deleted'
-  const cfg = RESULT[restock ? (deleted ? 'restockDeleted' : 'restock') : result.result]
+  const cfg = RESULT[onShopify ? 'shopify' : restock ? (deleted ? 'restockDeleted' : 'restock') : result.result]
   const Icon = cfg.icon
   const mine = { title: d.values.title, author: d.values.author, isbn: d.isbn }
   return (
@@ -168,7 +170,8 @@ function SubmitResult({ result }) {
         )}
         {result.result === 'waiting' && (
           <div className="result__waiting">
-            {!restock && (
+            {onShopify && <p className="result__strong">{result.match.quantity} in stock on Shopify.</p>}
+            {!restock && !onShopify && (
               <>
                 <ShelfMove from={result.match.shelfId} to={d.shelfId} fromLabel="Current stock" toLabel="Your shelf" />
                 <p>Waiting for the current stock to sell out before this shelf can become active. The admin approves it then.</p>
