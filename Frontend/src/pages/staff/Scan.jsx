@@ -71,13 +71,15 @@ export default function Scan() {
     setIsbn(code)
     setPhase('detected')
     navigator.vibrate?.(40)
-    await wait(650)
+    const lookup = lookupIsbn(code) // asked right away; the "detected" tick only shows while it runs
+    lookup.catch(() => {}) // handled below (avoids an "unhandled rejection" before the await)
+    await wait(250)
     setPhase('loading')
     try {
-      const meta = await lookupIsbn(code)
+      const meta = await lookup
       setPhase('ready')
       setDraft({ isbn: code, meta, values: null })
-      await wait(450)
+      await wait(150)
       navigate(`/staff/book/${code}`)
     } catch (error) {
       navigate(`/staff/book/${code}`, { state: { error: { code: error.code, message: error.message } } })
@@ -89,6 +91,9 @@ export default function Scan() {
     const run = runRef.current
     setCamError('')
     setPhase('idle')
+    // The barcode reader (native, or the WebAssembly one) loads while the camera opens, not after it.
+    const detecting = createIsbnDetector()
+    detecting.catch(() => {}) // handled below
     let stream
     try {
       stream = await openCamera()
@@ -113,7 +118,7 @@ export default function Scan() {
     // Native reader on Chrome Android / macOS; the WebAssembly reader everywhere else (iPhone, Firefox, Windows, …).
     let detector
     try {
-      detector = await createIsbnDetector()
+      detector = await detecting
     } catch {
       if (run === runRef.current) setHasDetector(false)
       return
@@ -128,9 +133,9 @@ export default function Scan() {
       } catch {
         /* frame not ready */
       }
-      setTimeout(loop, 250)
+      setTimeout(loop, 100) // the next frame soon after: a barcode held up is read within a fraction of a second
     }
-    setTimeout(loop, 500)
+    setTimeout(loop, 150)
   }
 
   useEffect(() => {
