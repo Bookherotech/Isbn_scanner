@@ -3,7 +3,7 @@ from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from integrations.metadata import MetadataNotFound, MetadataUnavailable, lookup_isbn
-from integrations.shopify.genres import store_guess
+from integrations.shopify.genres import start_store_check, store_guess
 from inventory.services import to_isbn13
 from staff_api.exceptions import InvalidIsbn, IsbnNotFound, MetadataServiceUnavailable
 from staff_api.permissions import IsStaffRole
@@ -26,8 +26,9 @@ class IsbnLookupView(APIView):
         isbn13 = to_isbn13(isbn)
         if not isbn13:
             raise InvalidIsbn
+        store_check = start_store_check(isbn13)  # Shopify is asked while the book data is looked up
         try:
-            return Response(store_guess(lookup_isbn(isbn13), isbn=isbn13))
+            return Response(store_guess(lookup_isbn(isbn13), isbn=isbn13, store_check=store_check))
         except MetadataNotFound:
             raise IsbnNotFound from None
         except MetadataUnavailable:

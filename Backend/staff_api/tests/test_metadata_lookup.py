@@ -38,7 +38,7 @@ class MetadataLookupTests(SimpleTestCase):
         with mock.patch(GOOGLE, return_value=GOOGLE_HIT) as google, mock.patch(OPEN_LIBRARY, return_value={}) as open_library:
             record = lookup_isbn(ISBN)
         self.assertEqual(google.call_args_list[0].args[1]['q'], f'isbn:{ISBN}')
-        self.assertTrue(all('/isbn/' in c.args[0] for c in open_library.call_args_list))  # only its edition record, for format / size
+        self.assertTrue(all(ISBN in str(c.args) for c in open_library.call_args_list))  # asked at the same time (by ISBN only), Google's record still wins
         self.assertEqual(record['source'], 'google')
         self.assertEqual((record['title'], record['author'], record['publisher'], record['year'], record['pages']), ('Atomic Habits', 'James Clear', 'Avery', 2018, 320))
         self.assertEqual(record['subjects'], ['Self-Help'])

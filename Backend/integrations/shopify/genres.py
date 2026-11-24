@@ -11,6 +11,7 @@ a guess from the provider data (integrations.metadata.genre). Staff confirm eith
 """
 
 import logging
+from concurrent.futures import ThreadPoolExecutor
 
 from django.core.cache import cache
 
@@ -163,15 +164,25 @@ def shopify_genre_of(isbn13):
     return {'genre': genre, 'subgenres': subgenres, 'language': language}
 
 
-def store_guess(record, isbn=None):
+_POOL = ThreadPoolExecutor(max_workers=8, thread_name_prefix='shopify-genre')
+
+
+def start_store_check(isbn13):
+    """shopify_genre_of in the background, so a scan asks Shopify while the book data is being looked up. -> a future
+    for store_guess(..., store_check=)."""
+    return _POOL.submit(lambda: shopify_genre_of(isbn13))
+
+
+def store_guess(record, isbn=None, store_check=None):
     """A copy of a lookup / search result with genre, subgenres, language, ages (Kids age groups) and genre_source:
     'shopify' = from the store's own product with this ISBN, 'guess' = from the book data, '' = nothing found.
-    Guessed on every call (not cached with the record), always in the store's spelling."""
+    Guessed on every call (not cached with the record), always in the store's spelling.
+    `store_check`: the start_store_check future for this ISBN, when already started."""
     record = dict(record)
     guessed = add_guesses(dict(record))
     kids = canonical_genre('Kids')
     record['ages'] = canonical_subgenres(kids, guessed['ages'])[0] if kids else []  # for when staff pick Kids by hand
-    found = shopify_genre_of(isbn) if isbn else None
+    found = (store_check.result() if store_check else shopify_genre_of(isbn)) if isbn else None
     if found and (found['genre'] or found['language']):
         record.update(found, genre_source='shopify')
         if record['genre'] == kids and not record['subgenres']:

@@ -33,8 +33,9 @@ def physical(isbn13, timeout):
     return book_format(edition.get('physical_format')), dimensions_mm(edition.get('physical_dimensions')), language
 
 
-def fetch(isbn13, *, timeout=5):
-    """The record for an ISBN-13, or None when Open Library has none. Raises ProviderError on failure."""
+def fetch(isbn13, *, timeout=5, with_physical=True):
+    """The record for an ISBN-13, or None when Open Library has none. Raises ProviderError on failure.
+    `with_physical=False` leaves out format / dimensions / language (a second call; the scan asks it at the same time)."""
     key = f'ISBN:{isbn13}'
     data = get_json(URL, {'bibkeys': key, 'format': 'json', 'jscmd': 'data'}, timeout)
     info = data.get(key) if isinstance(data, dict) else None
@@ -53,5 +54,5 @@ def fetch(isbn13, *, timeout=5):
         'subjects': clean_subjects(s.get('name') for s in info.get('subjects') or []),
         'cover_url': str((info.get('cover') or {}).get('medium') or ''),
         'source': SOURCE,
-        **dict(zip(('format', 'dimensions', 'language'), physical(isbn13, timeout))),
+        **(dict(zip(('format', 'dimensions', 'language'), physical(isbn13, timeout))) if with_physical else {}),
     }
