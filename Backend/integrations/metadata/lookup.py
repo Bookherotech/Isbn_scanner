@@ -30,6 +30,7 @@ PROVIDER_NAMES = {GOOGLE: 'Google Books', OPEN_LIBRARY: 'Open Library'}
 POOL = ThreadPoolExecutor(max_workers=16, thread_name_prefix='metadata')
 SLOW_GRACE_SECONDS = 1.5  # the preferred provider still busy this long after another one found the book: use that one
 EXTRA_WAIT_SECONDS = 1.5  # how much longer the extras (format, size, Google's categories) may hold up the answer
+FILL_WAIT_SECONDS = 2.0  # then the Google title fill-in and the size (asked at the same time) may take this much longer
 
 
 def _fetch(provider, isbn13, timeout):
@@ -121,17 +122,31 @@ def _fill_from_google_isbn(record, google_job, deadline):
     return found.get('volume_id', '')
 
 
-def _fill_from_google(record):
-    """Fill fields still empty (after the same-ISBN fill) from a Google Books title search. -> the fields filled.
-
-    A title match can be another edition, so the screens ask staff to verify these. A failed search just leaves them empty.
-    """
+def _start_title_fill(record):
+    """Start a Google Books title search for the fields still empty (after the same-ISBN fill). -> (job, fields) or
+    (None, []) when nothing is empty or Google is not used."""
     empty = [k for k in FILLABLE if record.get(k) in ('', None)]
     if not empty or GOOGLE not in settings.METADATA_PROVIDERS:
-        return []
+        return None, []
     query = f'{record["title"]} {record.get("author") or ""}'.strip()
+    job = POOL.submit(google_books.search, query, api_key=settings.GOOGLE_BOOKS_API_KEY, timeout=settings.METADATA_TIMEOUT_SECONDS)
+    return job, empty
+
+
+def _fill_from_google(record, job, empty, deadline):
+    """Fill the `empty` fields from the title search `job` (see _start_title_fill). -> the fields filled.
+
+    A title match can be another edition, so the screens ask staff to verify these. A failed or slow search just
+    leaves them empty.
+    """
+    if job is None:
+        return []
+    wait_for([job], timeout=max(0.0, deadline - time.monotonic()))
+    if not job.done():
+        logger.info('Google Books fill-in was slow for %s: skipped', record['isbn'])
+        return []
     try:
-        results = google_books.search(query, api_key=settings.GOOGLE_BOOKS_API_KEY, timeout=settings.METADATA_TIMEOUT_SECONDS)
+        results = job.result()
     except ProviderError as error:
         logger.warning('Google Books fill-in failed for %s: %s', record['isbn'], error)
         return []
@@ -156,15 +171,33 @@ def _add_edition(record, edition, deadline):
         record['language'] = language
 
 
-def _fill_physical(record, volume_id=''):
+def _google_size(isbn13, edition, google_job, timeout):
+    """The size from Google's full volume record, asked as soon as Open Library's edition record shows it has no size
+    (runs next to the rest of the lookup). '' when Google has no record or no size."""
+    if edition is not None:
+        try:
+            if edition.result(timeout=timeout + 1)[1]:
+                return ''  # Open Library has the size: no Google call
+        except Exception:  # noqa: BLE001 - a failed edition record just means: ask Google
+            pass
+    try:
+        found = google_job.result(timeout=timeout + 1)
+    except Exception:  # noqa: BLE001 - Google failed or is slow: no size
+        return ''
+    if not found:
+        return ''
+    return google_books.dimensions(isbn13, volume_id=found.get('volume_id', ''), api_key=settings.GOOGLE_BOOKS_API_KEY, timeout=timeout)
+
+
+def _fill_physical(record, size_job, deadline):
     """Format and dimensions (for the Shopify description) when still unknown after Open Library's edition record:
-    Google's full volume record for the size, then clues in the title / subjects / description for the format
-    ("board book", "Little Golden Book"...). Whatever is still unknown stays '' (staff can type it)."""
+    the size from Google's full volume record (size_job, see _google_size), then clues in the title / subjects /
+    description for the format ("board book", "Little Golden Book"...). Whatever is still unknown stays '' (staff can
+    type it)."""
     record.setdefault('format', '')
     record.setdefault('dimensions', '')
-    timeout = settings.METADATA_TIMEOUT_SECONDS
-    if not record['dimensions'] and GOOGLE in settings.METADATA_PROVIDERS:
-        record['dimensions'] = google_books.dimensions(record['isbn'], volume_id=volume_id, api_key=settings.GOOGLE_BOOKS_API_KEY, timeout=timeout)
+    if not record['dimensions']:
+        record['dimensions'] = _result(size_job, deadline, '')
     record['format'] = record['format'] or guess_format(record.get('title'), record.get('subjects'), record.get('description') or '')
 
 
@@ -198,6 +231,7 @@ def lookup_isbn(isbn13):
     providers = list(settings.METADATA_PROVIDERS)
     jobs = {provider: POOL.submit(_fetch, provider, isbn13, timeout) for provider in providers}
     edition = POOL.submit(open_library.physical, isbn13, timeout) if OPEN_LIBRARY in providers else None
+    size_job = POOL.submit(_google_size, isbn13, edition, jobs[GOOGLE], timeout) if GOOGLE in providers else None
     record, failed = _first_answer(jobs, providers)
 
     if record is None:
@@ -209,9 +243,12 @@ def lookup_isbn(isbn13):
     record['fallback'] = GOOGLE in failed and record['source'] != GOOGLE
     deadline = time.monotonic() + EXTRA_WAIT_SECONDS
     _add_edition(record, edition, deadline if record['source'] == OPEN_LIBRARY else 0)  # Open Library passed over as slow: only if already there
-    volume_id = _fill_from_google_isbn(record, jobs.get(GOOGLE), deadline)
-    record['filled'] = _fill_from_google(record)
-    _fill_physical(record, volume_id)
+    _fill_from_google_isbn(record, jobs.get(GOOGLE), deadline)
+    title_job, empty = _start_title_fill(record)  # the title search and the size lookup run at the same time
+    fill_deadline = time.monotonic() + FILL_WAIT_SECONDS
+    record['filled'] = _fill_from_google(record, title_job, empty, fill_deadline)
+    _fill_physical(record, size_job, fill_deadline)
+    record.pop('volume_id', None)
     record['missing'] = [k for k in FIELDS if record.get(k) in ('', None)]
     cache.set(_cache_key(isbn13), record, CACHE_SECONDS)
     return record
