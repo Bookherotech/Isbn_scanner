@@ -28,7 +28,7 @@ PROVIDER_NAMES = {GOOGLE: 'Google Books', OPEN_LIBRARY: 'Open Library'}
 
 # A scan asks every provider (and Open Library's edition record) at the same time instead of one after another.
 POOL = ThreadPoolExecutor(max_workers=16, thread_name_prefix='metadata')
-SLOW_GRACE_SECONDS = 1.5  # the preferred provider still busy this long after another one found the book: use that one
+SLOW_GRACE_SECONDS = 0.3  # the preferred provider still busy this long after another one found the book: use that one (Open Library often takes 3-20 s)
 EXTRA_WAIT_SECONDS = 1.5  # how much longer the extras (format, size, Google's categories) may hold up the answer
 FILL_WAIT_SECONDS = 2.0  # then the Google title fill-in and the size (asked at the same time) may take this much longer
 
@@ -171,22 +171,17 @@ def _add_edition(record, edition, deadline):
         record['language'] = language
 
 
-def _google_size(isbn13, edition, google_job, timeout):
-    """The size from Google's full volume record, asked as soon as Open Library's edition record shows it has no size
-    (runs next to the rest of the lookup). '' when Google has no record or no size."""
-    if edition is not None:
-        try:
-            if edition.result(timeout=timeout + 1)[1]:
-                return ''  # Open Library has the size: no Google call
-        except Exception:  # noqa: BLE001 - a failed edition record just means: ask Google
-            pass
+def _google_size(isbn13, google_job, timeout):
+    """The size from Google's full volume record, asked as soon as Google's record for the ISBN is back (next to the
+    rest of the lookup; used only when Open Library's edition record has no size). '' when Google has no record or
+    no size."""
     try:
         found = google_job.result(timeout=timeout + 1)
     except Exception:  # noqa: BLE001 - Google failed or is slow: no size
         return ''
-    if not found:
+    if not found or not found.get('volume_id'):
         return ''
-    return google_books.dimensions(isbn13, volume_id=found.get('volume_id', ''), api_key=settings.GOOGLE_BOOKS_API_KEY, timeout=timeout)
+    return google_books.dimensions(isbn13, volume_id=found['volume_id'], api_key=settings.GOOGLE_BOOKS_API_KEY, timeout=timeout)
 
 
 def _fill_physical(record, size_job, deadline):
@@ -231,7 +226,7 @@ def lookup_isbn(isbn13):
     providers = list(settings.METADATA_PROVIDERS)
     jobs = {provider: POOL.submit(_fetch, provider, isbn13, timeout) for provider in providers}
     edition = POOL.submit(open_library.physical, isbn13, timeout) if OPEN_LIBRARY in providers else None
-    size_job = POOL.submit(_google_size, isbn13, edition, jobs[GOOGLE], timeout) if GOOGLE in providers else None
+    size_job = POOL.submit(_google_size, isbn13, jobs[GOOGLE], timeout) if GOOGLE in providers else None
     record, failed = _first_answer(jobs, providers)
 
     if record is None:
