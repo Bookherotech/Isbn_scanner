@@ -15,7 +15,7 @@ from django.conf import settings
 from django.core.cache import cache
 from django.utils.text import slugify
 
-from integrations.shopify.client import graphql, location_gid, put_file, raise_user_errors
+from integrations.shopify.client import graphql, is_configured, location_gid, put_file, raise_user_errors
 from integrations.shopify.exceptions import ProductGone, ShopifyError
 
 STOCK_BATCH = 50  # products per stock query (keeps the query cost well under Shopify's limit)
@@ -94,15 +94,6 @@ def shop_info():
     return {'shop': data['shop']['name'], 'domain': data['shop']['myshopifyDomain'], 'location': location['name']}
 
 
-FIND_QUERY = """
-query FindBySku($query: String!) {
-  productVariants(first: 1, query: $query) {
-    nodes { product { id } inventoryItem { id } }
-  }
-}
-"""
-
-
 def book_sku(shelf_code, isbn):
     """The SKU BookHero gives a book's product: its shelf, then its ISBN."""
     return f'{shelf_code}-{isbn}'
@@ -113,12 +104,76 @@ def isbn_query(isbn):
     return f'barcode:{isbn} OR sku:{isbn}'
 
 
-def find_by_isbn(isbn):
-    """(product GID, inventory item GID) of the product whose barcode (or SKU) is this ISBN, or None."""
-    nodes = graphql(FIND_QUERY, {'query': isbn_query(isbn)})['productVariants']['nodes']
-    if not nodes:
+COPIES_QUERY = """
+query IsbnCopies($query: String!, $location: ID!) {
+  productVariants(first: 20, query: $query) {
+    nodes {
+      sku
+      product { id title status }
+      inventoryItem { id inventoryLevel(locationId: $location) { quantities(names: ["available"]) { quantity } } }
+    }
+  }
+}
+"""
+
+
+def isbn_copies(isbn, timeout=None):
+    """Every product in the store whose barcode (or SKU) is this ISBN, oldest first: [{'gid', 'id', 'item', 'title',
+    'status' ('ACTIVE' | 'DRAFT' | 'ARCHIVED'), 'available' (units at our location; 0 when not stocked there),
+    'shelf' (from a '<shelf>-<ISBN>' SKU, else '')}]."""
+    nodes = graphql(COPIES_QUERY, {'query': isbn_query(isbn), 'location': location_gid()}, timeout=timeout)['productVariants']['nodes']
+    copies = {}
+    for node in nodes:
+        product = node.get('product') or {}
+        if not product.get('id') or product['id'] in copies:
+            continue
+        level = (node.get('inventoryItem') or {}).get('inventoryLevel')
+        quantities = (level or {}).get('quantities') or []
+        sku = str(node.get('sku') or '')
+        copies[product['id']] = {
+            'gid': product['id'], 'id': numeric_id(product['id']), 'item': (node.get('inventoryItem') or {}).get('id'),
+            'title': product.get('title') or '', 'status': str(product.get('status') or '').upper(),
+            'available': max(int(quantities[0]['quantity']), 0) if quantities else 0,
+            'shelf': sku[:-len(isbn) - 1] if sku.endswith(f'-{isbn}') else '',
+        }
+    return sorted(copies.values(), key=lambda c: int(c['id']) if c['id'].isdigit() else 0)
+
+
+def product_for_book(isbn):
+    """(product GID, inventory item GID) of the store's product a newly approved book should go on, or None (create one).
+
+    Only a product with the status new products get (SHOPIFY_PRODUCT_STATUS) is used: with DRAFT, an existing draft is
+    updated and an ACTIVE product is never touched (a new draft is made instead); with ACTIVE, the active product.
+    Several such copies: the oldest.
+    """
+    wanted = str(settings.SHOPIFY_PRODUCT_STATUS).upper()
+    same = next((c for c in isbn_copies(isbn) if c['status'] == wanted and c['item']), None)
+    return (same['gid'], same['item']) if same else None
+
+
+SCAN_TIMEOUT_SECONDS = 5  # staff are waiting on the submit
+
+
+def shopify_wait(isbn):
+    """The match a new scan waits behind when the store already has units of this ISBN on Shopify, or None (no copy
+    with units, Shopify not set up or not reachable: the scan goes to Pending as before). Stored on the entry as its
+    `match`; 'shopify': True marks it (see integrations.shopify.sync.release_shopify_waits)."""
+    if not is_configured():
         return None
-    return nodes[0]['product']['id'], nodes[0]['inventoryItem']['id']
+    try:
+        copies = isbn_copies(isbn, timeout=SCAN_TIMEOUT_SECONDS)
+    except ShopifyError as error:
+        logger.warning('Could not check the Shopify stock of %s: %s', isbn, error)
+        return None
+    stocked = [c for c in copies if c['available'] > 0]
+    if not stocked:
+        return None
+    first = stocked[0]
+    return {
+        'item_id': None, 'title': first['title'], 'author': '', 'isbn': isbn, 'shelf_id': first['shelf'] or 'Shopify',
+        'quantity': sum(c['available'] for c in stocked), 'status': 'live', 'sync_status': 'synced',
+        'shopify': True, 'product_id': first['id'], 'copies': len(copies),
+    }
 
 
 ITEM_QUERY = """

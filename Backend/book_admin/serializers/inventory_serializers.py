@@ -67,7 +67,13 @@ class BookSerializer(serializers.ModelSerializer):
     def get_linked(self, book):
         linked = book.linked_item
         if linked is None:
-            return None
+            match = book.match or {}
+            if book.status != 'waiting' or not match.get('shopify'):
+                return None
+            return {  # waits on the store's own Shopify stock (see integrations.shopify.shopify_wait)
+                'id': None, 'shelf_id': match.get('shelf_id'), 'status': 'live', 'sync_status': 'synced', 'stock': match.get('quantity'),
+                'quantity': match.get('quantity'), 'product_id': match.get('product_id') or '', 'stock_out_at': None, 'shopify': True,
+            }
         return {
             'id': linked.id, 'shelf_id': linked.shelf.code, 'status': linked.status, 'sync_status': linked.sync_status, 'stock': linked.stock,
             'quantity': linked.quantity, 'product_id': linked.product_id, 'stock_out_at': linked.stock_out_at,

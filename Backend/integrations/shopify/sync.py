@@ -1,13 +1,17 @@
 """Keeping BookHero and Shopify in step. `run_sync` is the scheduled job; each step is also safe to call on its own.
 
 1. Publish: live books that are not on Shopify yet (or whose stock was never pushed) get a product and their
-   counted quantity. A book whose ISBN is already a barcode or SKU in the store is linked to that product, not duplicated.
+   counted quantity. A book whose ISBN is already a barcode or SKU of a store product with the status new products get
+   (SHOPIFY_PRODUCT_STATUS) is linked to that product, not duplicated; with DRAFT an ACTIVE product is never touched
+   (a new draft is made). See products.product_for_book.
    A waiting-list entry approved onto an existing product pushes its new quantity.
 2. Stock check: Shopify's 'available' count is read back. 0 -> out of stock (waiting-list entries become ready,
    everyone is notified); back above 0 (restocked in Shopify) -> live again. A product deleted in Shopify ->
    out of stock with sync status 'deleted' (shown as "Deleted on Shopify"); it is not checked again, and a
    waiting-list entry approved after it gets a new product. A product not stocked at our location is left as it is,
    admins are told once, and it is checked again on every run.
+   Waiting-list entries waiting on the store's own stock (the ISBN had units on Shopify when it was scanned, see
+   inventory.services.submission_service) move to Pending for approval once every copy is at 0 (release_shopify_waits).
 3. Reminders: books still out of stock after AppSettings.reminder_after_hours get one more notification.
 4. Images: a staff photo or our copy of the cover is uploaded to products BookHero created. The store's own products
    (linked by ISBN) are left alone, and a saved cover copy is not added to a product that already has an image.
@@ -30,8 +34,8 @@ from integrations.shopify.category import set_book_category
 from integrations.shopify.client import is_configured
 from integrations.shopify.exceptions import ProductGone, ShopifyError, ShopifyNotConfigured
 from integrations.shopify.products import (
-    add_tags, attach_image, available_stock, book_tags, create_product, ensure_shelf_definition, find_by_isbn, inventory_item_of, numeric_id,
-    product_gid, product_media, set_available, set_shelf_location, shop_info,
+    add_tags, attach_image, available_stock, book_tags, create_product, ensure_shelf_definition, inventory_item_of, isbn_copies, numeric_id,
+    product_for_book, product_gid, product_media, set_available, set_shelf_location, shop_info,
 )
 
 logger = logging.getLogger(__name__)
@@ -102,7 +106,7 @@ def publish_book(book_id):
             set_book_category(product_gid(book.product_id), book)
             product_id, action, detail = book.product_id, 'Stock pushed', f'Shelf {book.shelf.code} · {quantity} available'
         else:
-            existing = find_by_isbn(book.isbn)
+            existing = product_for_book(book.isbn)
             if existing:
                 gid, item = existing
                 set_available(item, quantity)
@@ -270,6 +274,36 @@ def check_stock():
     return counts
 
 
+SHOPIFY_WAIT_BATCH = 50  # waiting-on-Shopify entries checked per run
+
+
+def release_shopify_waits(limit=SHOPIFY_WAIT_BATCH):
+    """Waiting-list entries that wait on the store's own Shopify stock (no BookHero entry to wait behind): once every
+    Shopify copy of the ISBN is at 0, the entry moves to Pending for approval and admins are told. Until then the units
+    left are kept up to date on the entry. -> how many moved."""
+    entries = list(Book.objects.filter(status=BookStatus.WAITING, linked_item__isnull=True, match__shopify=True).select_related('shelf').order_by('submitted_at')[:limit])
+    moved = 0
+    for entry in entries:
+        left = sum(c['available'] for c in isbn_copies(entry.isbn))
+        with transaction.atomic():
+            book = Book.objects.select_for_update().select_related('shelf').filter(pk=entry.pk, status=BookStatus.WAITING, linked_item__isnull=True).first()
+            if book is None or not (book.match or {}).get('shopify'):
+                continue
+            if left > 0:
+                if book.match.get('quantity') != left:
+                    book.match = {**book.match, 'quantity': left}
+                    book.save(update_fields=['match', 'updated_at'])
+                continue
+            book.status, book.match, book.waiting_ready_at = BookStatus.PENDING, None, None
+            book.save(update_fields=['status', 'match', 'waiting_ready_at', 'updated_at'])
+            log_activity(action='Moved to pending', kind=K.WAITING, target=quoted(book), book=book, result=R.INFO, actor_type=A.SHOPIFY,
+                         detail=f'Sold out on Shopify · shelf {book.shelf.code} ready for review')
+            notify(type=Notification.Type.WAITING_READY, title='Ready for approval', audience=Notification.Audience.ADMIN, book=book,
+                   body=f'{book.title} is sold out on Shopify — the entry on {book.shelf.code} moved to Pending for approval.')
+            moved += 1
+    return moved
+
+
 def send_reminders():
     """One more notification for each book still out of stock after reminder_after_hours. -> how many were sent."""
     cutoff = timezone.now() - timedelta(hours=AppSettings.load().reminder_after_hours)
@@ -299,6 +333,7 @@ def run_sync(force=False):
         check_connection()
         published = publish_pending()
         stock = check_stock()
+        released = release_shopify_waits()
     except ShopifyError as error:
         logger.error('Shopify sync failed: %s', error)
         if was_connected:
@@ -310,4 +345,4 @@ def run_sync(force=False):
     AppSettings.objects.filter(pk=1).update(last_stock_check_at=now)
     if not was_connected:
         log_activity(action='Connected', kind=K.SHOPIFY, target='Shopify', detail=f'Store {AppSettings.load().store_domain}', actor_type=A.SHOPIFY)
-    return {'published': published, **stock, 'reminders': reminders, 'images': images}
+    return {'published': published, **stock, 'to_pending': released, 'reminders': reminders, 'images': images}

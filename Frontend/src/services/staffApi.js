@@ -42,7 +42,7 @@ async function call(path, options) {
 
 function mapMatch(m) {
   if (!m) return null
-  return { itemId: m.item_id, title: m.title, author: m.author, isbn: m.isbn, shelfId: m.shelf_id, quantity: m.quantity, status: m.status, syncStatus: m.sync_status }
+  return { itemId: m.item_id, title: m.title, author: m.author, isbn: m.isbn, shelfId: m.shelf_id, quantity: m.quantity, status: m.status, syncStatus: m.sync_status, shopify: Boolean(m.shopify) }
 }
 
 /** A submission row from the backend -> the item shape used by SubmissionCard / SubmissionDetail. */
