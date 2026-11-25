@@ -13,6 +13,7 @@ from book_admin.services.activity_service import log_activity, notify, quoted
 from book_admin.services.flag_service import load_categories, match_flags, needs_review
 from inventory.constants import BookStatus
 from inventory.models import Book
+from inventory.services.submission_service import BLOCKED_REASON
 
 
 def _first_name(user):
@@ -28,6 +29,11 @@ def record_submission(sender, instance, created, raw=False, **kwargs):
     book, name, who = instance, quoted(instance), _first_name(instance.submitted_by)
     K, R, A = ActivityLog.Kind, ActivityLog.Result, ActivityLog.ActorType
     log_activity(action='Submitted', kind=K.SUBMISSION, target=name, detail=f'Shelf {book.shelf.code} · qty {book.quantity}', actor=book.submitted_by, result=R.INFO, book=book)
+
+    if book.status == BookStatus.REJECTED and book.reject_reason == BLOCKED_REASON:  # the ISBN is on the Blocked books list
+        log_activity(action='Auto-rejected', kind=K.REJECTION, target=name, detail='On the Blocked books list' + (f' · {book.reject_note}' if book.reject_note else ''),
+                     actor_type=A.SYSTEM, result=R.ERROR, book=book)
+        return
 
     if book.status == BookStatus.REJECTED:  # the duplicate check refused it (same title + author already on that shelf)
         shelf = (book.match or {}).get('shelf_id', book.shelf.code)

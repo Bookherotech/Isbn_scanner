@@ -40,3 +40,15 @@ class MetadataServiceUnavailable(IsbnLookupError):
     status_code = status.HTTP_503_SERVICE_UNAVAILABLE
     default_detail = 'Google Books and Open Library did not respond.'
     default_code = 'service_unavailable'
+
+
+class BookBlocked(IsbnLookupError):
+    """The admin put this ISBN on the Blocked books list. The body also has `blocked`: {isbn, title, author, reason}."""
+
+    status_code = status.HTTP_409_CONFLICT
+    default_detail = 'The admin has blocked this book. It cannot be submitted.'
+    default_code = 'blocked'
+
+    def __init__(self, blocked):
+        super().__init__()
+        self.detail['blocked'] = blocked

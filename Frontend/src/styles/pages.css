@@ -933,6 +933,7 @@
 .flagcat__keys li { font-family: var(--font-mono); font-size: 11px; padding: 2px 6px; border-radius: 3px; background: var(--sunken); color: var(--ink-2); }
 .flagcat__foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding-top: 8px; border-top: 1px solid var(--line-soft); font-size: 12.5px; color: var(--muted); }
 .flagcat__foot strong { color: #6b3590; }
+.flagcat__actions { display: inline-flex; gap: 2px; flex: none; }
 .flagcat--add { place-items: center; text-align: center; min-height: 180px; border: 1.5px dashed var(--line-strong); border-top-width: 1.5px; background: transparent; color: var(--ink-2); gap: 6px; align-content: center; }
 .flagcat--add:hover { border-color: var(--ink); background: var(--hero-subtle); }
 .flagcat--add span { font-size: 12.5px; color: var(--muted); max-width: 220px; }
@@ -1183,3 +1184,29 @@ button.state-pill:focus-visible { outline: 2px solid var(--ink); outline-offset:
 .email-change__links { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .email-change__ok { font-size: 13px; font-weight: 600; color: var(--success); }
 
+
+/* Blocked books: ISBN lookup + preview in the Add dialog */
+.blocked-lookup { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: start; }
+.blocked-lookup > .btn { margin-top: 24px; }
+.blocked-preview { display: flex; gap: 14px; align-items: flex-start; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.blocked-preview__info { display: grid; gap: 3px; min-width: 0; font-size: 13px; }
+.blocked-preview__info strong { font-size: 15px; }
+
+/* Covers: the day's scans in one horizontal row; each card takes a dropped photo */
+.covers { display: flex; gap: 14px; overflow-x: auto; padding: 4px 2px 14px; scroll-snap-type: x proximity; overscroll-behavior-x: contain; }
+.covers.is-refreshing { opacity: .7; }
+.covers__date { width: 160px; }
+.cover-card { position: relative; flex: 0 0 188px; scroll-snap-align: start; display: grid; gap: 10px; align-content: start; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.cover-card.has-photo { border-color: var(--success-line); }
+.cover-card__index { position: absolute; top: 8px; left: 10px; z-index: 2; font-size: 11px; font-weight: 600; color: var(--ink-2); background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 1px 7px; }
+.cover-card__drop { position: relative; display: grid; place-items: center; min-height: 200px; border-radius: 8px; background: var(--surface-2, var(--bg)); padding: 10px 0; }
+.cover-card__busy { position: absolute; inset: 0; display: grid; place-items: center; background: color-mix(in srgb, var(--surface) 70%, transparent); border-radius: 8px; }
+.cover-card__body { display: grid; gap: 5px; min-width: 0; }
+.cover-card__title { font-size: 14px; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.cover-card__isbn { font-size: 12px; color: var(--ink-2); }
+.cover-card__tags { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.cover-card__note { display: flex; gap: 5px; align-items: flex-start; font-size: 12px; line-height: 1.35; color: var(--ink-2); }
+.cover-card__note svg { flex: none; margin-top: 1px; }
+.cover-card__note.is-photo { color: var(--success); }
+.cover-card__note.is-store { color: var(--ink); }
+.cover-card__btn { justify-self: stretch; }

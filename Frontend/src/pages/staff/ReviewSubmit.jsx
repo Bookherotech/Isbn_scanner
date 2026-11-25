@@ -128,6 +128,7 @@ const RESULT = {
   pending: { icon: Clock3, tone: 'pending', title: 'Submitted for approval', text: 'Submitted for admin approval.' },
   waiting: { icon: Hourglass, tone: 'waiting', title: 'Added to the waiting list', text: 'This book already exists on another shelf. Your entry has been added to the waiting list.' },
   rejected: { icon: XCircle, tone: 'rejected', title: 'Already on this shelf', text: 'This book is already registered on this shelf.' },
+  blocked: { icon: XCircle, tone: 'rejected', title: 'Book not accepted', text: 'The admin has blocked this book, so it was rejected. Keep it aside — don’t put it on a shelf.' },
   restockDeleted: { icon: Hourglass, tone: 'waiting', title: 'Sent for restock approval', text: 'This book was deleted on Shopify. Your new copies are on the waiting list for the admin to approve.' },
   restock: { icon: Hourglass, tone: 'waiting', title: 'Sent for restock approval', text: 'This book is sold out on this shelf. Your new copies are on the waiting list for the admin to approve.' },
   shopify: { icon: Hourglass, tone: 'waiting', title: 'Added to the waiting list', text: 'This book is already in stock on Shopify. Your entry waits until that stock sells out, then goes to the admin for approval.' },
@@ -138,7 +139,7 @@ function SubmitResult({ result }) {
   const onShopify = result.result === 'waiting' && result.match?.shopify // units already on Shopify, no other BookHero copy
   const restock = result.result === 'waiting' && !onShopify && result.match?.shelfId === d.shelfId // sold out on this same shelf
   const deleted = result.match?.syncStatus === 'deleted'
-  const cfg = RESULT[onShopify ? 'shopify' : restock ? (deleted ? 'restockDeleted' : 'restock') : result.result]
+  const cfg = RESULT[result.blocked ? 'blocked' : onShopify ? 'shopify' : restock ? (deleted ? 'restockDeleted' : 'restock') : result.result]
   const Icon = cfg.icon
   const mine = { title: d.values.title, author: d.values.author, isbn: d.isbn }
   return (
@@ -160,7 +161,8 @@ function SubmitResult({ result }) {
           </div>
         </div>
 
-        {result.result === 'rejected' && (
+        {result.blocked?.reason && <p className="result__strong">Reason: {result.blocked.reason}</p>}
+        {result.result === 'rejected' && result.match && (
           <>
             <p className="result__strong">
               Already added on Shelf {result.match.shelfId} with quantity {result.match.quantity}.

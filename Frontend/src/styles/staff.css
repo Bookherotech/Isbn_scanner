@@ -434,6 +434,7 @@
 .flow-error p { font-size: 14px; color: var(--ink-2); max-width: 320px; }
 .flow-error__isbn { font-size: 15px !important; color: var(--ink) !important; background: var(--surface); border: 1px solid var(--line); padding: 3px 10px; border-radius: 6px; }
 .flow-error__actions { display: grid; gap: 8px; width: 100%; margin-top: 12px; }
+.flow-error__reason { color: var(--ink) !important; font-weight: 600; }
 
 /* ---------- Shelf + quantity ---------- */
 .flow-book { display: flex; gap: 12px; align-items: center; padding: 10px 12px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); }
