@@ -89,6 +89,8 @@ function mapItem(r) {
     coverUrl: r.cover_url,
     coverPhotoUrl: r.cover_photo_url || null,
     hasPhoto: Boolean(r.has_photo), // a photo taken by staff or set by an admin (not the provider cover)
+    coverDroppedAt: ms(r.cover_dropped_at), // when an admin dropped a photo on it (Covers page)
+    coverHold: Boolean(r.cover_hold), // a new book still on the Covers page (not in Pending / Waiting list yet)
     fetched: r.fetched,
     editedFields: r.edited_fields,
     missingFields: r.missing_fields,
@@ -442,10 +444,18 @@ export async function deleteBlockedBook(id) {
 // --------------------------------------------------------------------------
 // Covers (the books scanned on a day; a dropped photo becomes the cover)
 // --------------------------------------------------------------------------
-/** `date`: 'YYYY-MM-DD', '' = today (store time). -> { date, today, rows } in scan order, without rejected / closed books. */
-export async function getCoverBooks(date = '') {
-  const res = await call(`/api/admin/covers/${query({ date })}`)
-  return { date: res.date, today: res.today, rows: res.results.map(mapItem) }
+/**
+ * `tab`: 'check' = new books waiting here before Pending / Waiting list (any day); 'day' = every book scanned on `date`
+ * ('YYYY-MM-DD', '' = today, store time). -> { tab, date, today, check (how many wait here), rows } in scan order.
+ */
+export async function getCoverBooks({ tab = 'check', date = '' } = {}) {
+  const res = await call(`/api/admin/covers/${query({ tab, date })}`)
+  return { tab: res.tab, date: res.date, today: res.today, check: res.check, rows: res.results.map(mapItem) }
+}
+
+/** Sends books on from the Covers page to Pending / Waiting list (whichever the scan decided). -> { released } */
+export async function releaseCovers(ids) {
+  return change('/api/admin/covers/release/', { method: 'POST', body: { ids } })
 }
 
 /** Sets a photo (JPEG data URL) as the book's cover. It replaces the Shopify image on approval (right away for an approved book). -> the book */

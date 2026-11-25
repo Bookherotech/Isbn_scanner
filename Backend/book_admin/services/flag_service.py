@@ -82,17 +82,29 @@ def overview(categories=None):
     return {'review': review, 'reviewed': reviewed, 'stats': stats, 'categories': categories, 'flags': flags_by_book}
 
 
-def review_ids(categories=None, statuses=REVIEWABLE):
+def review_ids(categories=None, statuses=REVIEWABLE, cover_hold=None):
     """Ids of the books waiting for a flag review. Reads only pending / waiting books nobody has reviewed yet
-    (the admin's to-do list), never the whole catalogue; skips the read when no category holds books."""
+    (the admin's to-do list), never the whole catalogue; skips the read when no category holds books.
+    A flagged new scan comes here first, before the Covers page (cover_hold); `cover_hold` narrows to those / the others."""
     categories = load_categories() if categories is None else categories
     holding = [c for c in categories if c.enabled and c.mode == FlagCategory.Mode.HOLD and c.patterns]
     if not holding:
         return []
-    rows = Book.objects.filter(status__in=statuses, flag_reviewed_at__isnull=True).values_list('id', 'title', 'subjects')
+    rows = Book.objects.filter(status__in=statuses, flag_reviewed_at__isnull=True)
+    if cover_hold is not None:
+        rows = rows.filter(cover_hold=cover_hold)
+    rows = rows.values_list('id', 'title', 'subjects')
     return [book_id for book_id, title, subjects in rows.iterator(chunk_size=2000) if match_flags(title, subjects, holding)]
 
 
 def held_pending_ids(categories=None):
-    """Pending books still on the Flags screen: they join the Pending queue once an admin has reviewed the flag."""
-    return review_ids(categories, statuses=(BookStatus.PENDING,))
+    """Pending books still on the Flags screen: they join the Pending queue once an admin has reviewed the flag.
+    Only books already past the Covers page (the others are not counted as pending yet anyway)."""
+    return review_ids(categories, statuses=(BookStatus.PENDING,), cover_hold=False)
+
+
+def covers_to_check(categories=None):
+    """New scans waiting on the Covers page: held there (cover_hold), still pending / waiting, and with no flag review
+    open (a flagged book is reviewed on the Flags page first, then comes to Covers)."""
+    held = Book.objects.filter(cover_hold=True, status__in=REVIEWABLE)
+    return held.exclude(id__in=review_ids(categories, cover_hold=True))

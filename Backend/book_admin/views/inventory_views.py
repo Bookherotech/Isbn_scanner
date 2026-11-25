@@ -149,7 +149,7 @@ class WaitingListView(APIView):
         tab = request.query_params.get('tab', 'all')
         if tab not in ('ready', 'waiting', 'all'):
             raise ValidationError({'tab': 'Must be ready, waiting or all.'})
-        entries = list(book_queryset().filter(status=BookStatus.WAITING).order_by('submitted_at', 'id'))  # one query, everything joined
+        entries = list(book_queryset().filter(status=BookStatus.WAITING, cover_hold=False).order_by('submitted_at', 'id'))  # one query, everything joined
         context = {'request': request}
         serialized = BookSerializer(entries, many=True, context=context).data
         groups = {}

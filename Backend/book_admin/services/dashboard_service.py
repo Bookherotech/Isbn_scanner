@@ -6,7 +6,7 @@ from django.utils import timezone
 from book_admin.models import ActivityLog
 from book_admin.serializers import ActivitySerializer, BookSerializer
 from book_admin.services.book_queries import book_queryset
-from book_admin.services.flag_service import held_pending_ids, load_categories, review_ids
+from book_admin.services.flag_service import covers_to_check, held_pending_ids, load_categories, review_ids
 from book_admin.utils import count_by_day, display_name, last_days, start_of_day, store_today
 from authentication.constants import Role
 from authentication.models import User
@@ -24,13 +24,13 @@ RECENT_ACTIVITY = 9
 
 
 def status_counts():
-    """{status: count} — one GROUP BY read from the (status, submitted_at) index."""
-    return dict(Book.objects.order_by().values_list('status').annotate(n=Count('id')))
+    """{status: count} — one GROUP BY read from the (status, submitted_at) index. Books still on the Covers page are not counted."""
+    return dict(Book.objects.filter(cover_hold=False).order_by().values_list('status').annotate(n=Count('id')))
 
 
 def ready_count():
     """Books (not entries) with a waiting-list entry ready for approval - what the Waiting page lists."""
-    return Book.objects.filter(status=BookStatus.WAITING, linked_item__status=BookStatus.OUT_OF_STOCK).values('duplicate_key').distinct().count()
+    return Book.objects.filter(status=BookStatus.WAITING, cover_hold=False, linked_item__status=BookStatus.OUT_OF_STOCK).values('duplicate_key').distinct().count()
 
 
 def nav_counts():
@@ -42,6 +42,7 @@ def nav_counts():
         'ready': ready_count(),
         'oos': counts.get(BookStatus.OUT_OF_STOCK, 0),
         'flagged': len(review_ids(categories)),
+        'covers': covers_to_check(categories).count(),  # new books waiting on the Covers page
     }
 
 
@@ -63,11 +64,11 @@ def build_dashboard(request):
     categories = load_categories()
     context = {'request': request, 'flag_categories': categories}
     attention_books = book_queryset()
-    ready = attention_books.filter(status=BookStatus.WAITING, linked_item__status=BookStatus.OUT_OF_STOCK).order_by('submitted_at')
+    ready = attention_books.filter(status=BookStatus.WAITING, cover_hold=False, linked_item__status=BookStatus.OUT_OF_STOCK).order_by('submitted_at')
     failed = attention_books.filter(sync_status='failed', status__in=(BookStatus.LIVE, BookStatus.OUT_OF_STOCK)).order_by('-last_sync_at')
     held = attention_books.filter(id__in=review_ids(categories)).order_by('submitted_at', 'id')[:ATTENTION_FLAGGED]
     held_pending = held_pending_ids(categories)
-    oldest = attention_books.filter(status=BookStatus.PENDING).exclude(id__in=held_pending).order_by('submitted_at', 'id')[:ATTENTION_PENDING]
+    oldest = attention_books.filter(status=BookStatus.PENDING, cover_hold=False).exclude(id__in=held_pending).order_by('submitted_at', 'id')[:ATTENTION_PENDING]
 
     staff_today = [
         {'id': u.id, 'name': display_name(u), 'submitted': u.submitted, 'approved': u.approved}
