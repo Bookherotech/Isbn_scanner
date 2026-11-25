@@ -92,6 +92,21 @@ def _first_answer(jobs, providers):
         wait_for([j for j in jobs.values() if not j.done()], timeout=0.1 if found_at else None, return_when=FIRST_COMPLETED)
 
 
+def _ask_open_library_again(isbn13, edition, timeout, failed):
+    """Nobody had the book (or Open Library was too slow). Open Library adds a book it does not know yet on the first
+    request for its ISBN (from its partner sources; the edition record asked at the start does that), so once that
+    request is back, Open Library is asked once more. -> (record or None, failed providers)."""
+    if edition is not None:
+        wait_for([edition], timeout=timeout)
+    try:
+        record = _fetch(OPEN_LIBRARY, isbn13, timeout)
+    except ProviderError:
+        return None, failed
+    if record:
+        logger.info('Open Library had %s on the second ask', isbn13)
+    return record, [p for p in failed if p != OPEN_LIBRARY]  # it answered this time: not a failure
+
+
 def _empty(value):
     return value in ('', None, [])
 
@@ -228,6 +243,8 @@ def lookup_isbn(isbn13):
     edition = POOL.submit(open_library.physical, isbn13, timeout) if OPEN_LIBRARY in providers else None
     size_job = POOL.submit(_google_size, isbn13, jobs[GOOGLE], timeout) if GOOGLE in providers else None
     record, failed = _first_answer(jobs, providers)
+    if record is None and OPEN_LIBRARY in providers:
+        record, failed = _ask_open_library_again(isbn13, edition, timeout, failed)
 
     if record is None:
         if failed:

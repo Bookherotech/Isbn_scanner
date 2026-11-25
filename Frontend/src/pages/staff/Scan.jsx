@@ -81,7 +81,7 @@ export default function Scan() {
       setDraft({ isbn: code, meta, values: null })
       navigate(`/staff/book/${code}`)
     } catch (error) {
-      navigate(`/staff/book/${code}`, { state: { error: { code: error.code, message: error.message } } })
+      navigate(`/staff/book/${code}`, { state: { error: { code: error.code, message: error.message, blocked: error.blocked } } })
     }
   }
 

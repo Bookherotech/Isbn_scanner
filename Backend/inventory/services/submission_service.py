@@ -14,6 +14,7 @@ from inventory.services.normalize import duplicate_key
 
 METADATA_FIELDS = ('title', 'author', 'publisher', 'year', 'pages')
 SAME_SHELF_REASON = 'Duplicate — same shelf'
+BLOCKED_REASON = 'Blocked book'  # the ISBN is on the admin's Blocked books list
 
 PENDING = 'pending'
 WAITING = 'waiting'
@@ -34,7 +35,7 @@ def _text(value):
 
 def create_submission(*, user, shelf, isbn, title, author, publisher='', year=None, pages=None, format='', dimensions='',  # noqa: A002 - the book's format
                       source=BookSource.MANUAL, subjects=None, fetched=None, cover_url='', cover_photo=None, description='', genre='', subgenres=None, language='', quantity,
-                      shopify_match=None):
+                      shopify_match=None, blocked=None):
     """Save one submission and apply the duplicate rule, all in one transaction.
 
     Arguments are already validated (see staff_api SubmissionCreateSerializer).
@@ -43,6 +44,7 @@ def create_submission(*, user, shelf, isbn, title, author, publisher='', year=No
     `shopify_match`: integrations.shopify.shopify_wait(isbn), asked before (never inside the transaction): when the store
     already has units of this ISBN on Shopify and BookHero has no other copy, the entry goes on the waiting list until
     they sell out (then the sync moves it to Pending), instead of straight to Pending.
+    `blocked`: the admin's BlockedBook for this ISBN, if any: the entry is saved as auto-rejected (its reason as the note).
     Raises DuplicateCheckBusy if another submission of the same book holds the lock for too long.
     """
     values = {'title': title, 'author': author, 'publisher': publisher, 'year': year, 'pages': pages}
@@ -67,7 +69,15 @@ def create_submission(*, user, shelf, isbn, title, author, publisher='', year=No
     with duplicate_key_lock(book.duplicate_key), transaction.atomic():
         dup = find_duplicates(title, author, shelf.id, lock=True)  # also locks the matching rows against admin edits
 
-        if dup.same_shelf:
+        if blocked is not None:
+            book.status = BookStatus.REJECTED
+            book.auto_rejected = True
+            book.rejected_at = now
+            book.reject_reason = BLOCKED_REASON
+            book.reject_note = blocked.reason
+            book.save()
+            outcome = SubmissionResult(REJECTED, book)
+        elif dup.same_shelf:
             match = match_summary(dup.same_shelf)
             book.status = BookStatus.REJECTED
             book.auto_rejected = True

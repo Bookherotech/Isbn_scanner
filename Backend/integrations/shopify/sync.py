@@ -13,8 +13,10 @@
    Waiting-list entries waiting on the store's own stock (the ISBN had units on Shopify when it was scanned, see
    inventory.services.submission_service) move to Pending for approval once every copy is at 0 (release_shopify_waits).
 3. Reminders: books still out of stock after AppSettings.reminder_after_hours get one more notification.
-4. Images: a staff photo or our copy of the cover is uploaded to products BookHero created. The store's own products
-   (linked by ISBN) are left alone, and a saved cover copy is not added to a product that already has an image.
+4. Images: a staff photo or our copy of the cover replaces the product's images (also on the store's own products
+   linked by ISBN). A photo (staff, or dropped on the admin Covers page) always does; without one, a product that already
+   has an image keeps it, and our cover copy only goes on a product with none.
+   A product linked on approval also gets the book's description (when the book has one).
 
 Shopify is never called inside a database transaction, so a slow API never holds row locks.
 """
@@ -34,8 +36,8 @@ from integrations.shopify.category import set_book_category
 from integrations.shopify.client import is_configured
 from integrations.shopify.exceptions import ProductGone, ShopifyError, ShopifyNotConfigured
 from integrations.shopify.products import (
-    add_tags, attach_image, available_stock, book_tags, create_product, ensure_shelf_definition, inventory_item_of, isbn_copies, numeric_id,
-    product_for_book, product_gid, product_media, set_available, set_shelf_location, shop_info,
+    add_tags, attach_image, available_stock, book_tags, create_product, detach_images, ensure_shelf_definition, inventory_item_of, isbn_copies, numeric_id,
+    product_for_book, product_gid, product_media, set_available, set_description, set_shelf_location, shop_info,
 )
 
 logger = logging.getLogger(__name__)
@@ -104,6 +106,7 @@ def publish_book(book_id):
             add_tags(book.product_id, book_tags(book))  # e.g. a waiting-list entry: its genre goes on the shared product too
             set_shelf_location(book.product_id, book.shelf.code, book.isbn)  # a waiting-list entry may be on another shelf
             set_book_category(product_gid(book.product_id), book)
+            set_description(book.product_id, book)
             product_id, action, detail = book.product_id, 'Stock pushed', f'Shelf {book.shelf.code} · {quantity} available'
         else:
             existing = product_for_book(book.isbn)
@@ -113,6 +116,7 @@ def publish_book(book_id):
                 add_tags(gid, book_tags(book))  # the store's own product joins the genre collections too
                 set_shelf_location(gid, book.shelf.code, book.isbn)
                 set_book_category(gid, book)  # fills only what the store's own product does not have
+                set_description(gid, book)  # the book's description replaces the product's (kept when the book has none)
                 action = 'Linked to product'
             else:
                 ensure_shelf_definition()  # so the new product shows "Shelf location" as a named field
@@ -143,7 +147,11 @@ def publish_book(book_id):
 
 
 def push_image(book):
-    """Send the book's photo or cover copy to its Shopify product, once per file. -> True if an image was uploaded.
+    """Send the book's photo or cover copy to its Shopify product, once per file, in place of the product's images
+    (they are taken off the product, not deleted: they stay in Shopify's Files). -> True if an image was uploaded.
+
+    A photo (taken by staff, or dropped on the admin Covers page) always replaces them. Without one, a product that is
+    already in the store with an image keeps it: our copy of the provider cover only goes on a product with no image.
 
     A problem here never fails the book: stock and product stay synced, and the next run tries again.
     """
@@ -154,12 +162,14 @@ def push_image(book):
         media = product_media(book.product_id)
         if media is None:
             return False  # gone from Shopify: the stock check marks the book deleted
-        if not media['ours'] or (media['has_media'] and not book.cover_photo):
-            Book.objects.filter(pk=book.pk).update(shopify_image=image.name)  # nothing to send: do not ask again
+        old = media['images']
+        if old and not book.cover_photo:
+            Book.objects.filter(pk=book.pk).update(shopify_image=image.name)  # the store's image stays: do not ask again
             return False
         with image.open('rb') as file:
             raw = file.read()
         attach_image(book.product_id, raw, image.name.rsplit('/', 1)[-1], book.title)
+        detach_images(book.product_id, [i['id'] for i in old])  # after the new one is on, so the product is never without one
     except (ShopifyError, OSError) as error:
         logger.warning('Could not send the image of book %s to Shopify: %s', book.pk, error)
         if not ActivityLog.objects.filter(book=book, action='Image not sent').exists():

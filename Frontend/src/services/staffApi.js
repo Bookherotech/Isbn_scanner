@@ -29,6 +29,7 @@ function staffError(error) {
   const fieldMessage = data.detail ? null : firstMessage(data)
   const out = new HttpError(error.status, data.detail || fieldMessage || 'Something went wrong. Please try again.', data)
   out.code = data.code
+  out.blocked = data.blocked || null // 'blocked': {isbn, title, author, reason} from the admin's Blocked books list
   return out
 }
 
@@ -97,11 +98,20 @@ function mapItem(r) {
  * GET /api/staff/isbn/<isbn>/ -> { isbn, title, author, publisher, year, pages, subjects, genre, subgenres, language, genreSource, coverUrl, source, fallback, missing, filled }
  * `genre` / `language`: from the store's Shopify product with this ISBN (genreSource 'shopify'), else guessed from the
  * book data and matched to the store's genres ('guess'); '' when unknown. Staff confirm them.
- * Errors carry `code`: 'invalid_isbn' | 'not_found' | 'service_unavailable' | 'network'.
+ * Errors carry `code`: 'invalid_isbn' | 'not_found' | 'service_unavailable' | 'network' | 'blocked' (on the admin's Blocked books
+ * list; `error.blocked` is {isbn, title, author, reason}).
  * (The second argument is accepted for the existing Retry calls; every call is a real lookup.)
+ * A 'service_unavailable' answer (a book source was slow or down) is asked once more by itself before it is shown.
  */
 export async function lookupIsbn(isbn13) {
-  const m = await call(`/api/staff/isbn/${encodeURIComponent(isbn13)}/`)
+  const url = `/api/staff/isbn/${encodeURIComponent(isbn13)}/`
+  let m
+  try {
+    m = await call(url)
+  } catch (error) {
+    if (error?.code !== 'service_unavailable') throw error
+    m = await call(url)
+  }
   return {
     isbn: m.isbn,
     title: m.title,
@@ -170,7 +180,8 @@ export async function loadShelves() {
 }
 
 /**
- * POST /api/staff/submissions/ -> { result: 'pending' | 'waiting' | 'rejected', match, ready, flags, flagHold, item, key }
+ * POST /api/staff/submissions/ -> { result: 'pending' | 'waiting' | 'rejected', match, ready, blocked, flags, flagHold, item, key }
+ * `blocked` ({ reason }): the ISBN is on the admin's Blocked books list, so it was rejected; else null.
  * `draft` is what the Review screen sends: { isbn, title, author, publisher, year, pages, source, subjects, genre, subgenres, language, description, fetched, photo, shelfId, quantity }.
  * `fetched.isbn` is the ISBN first scanned/typed (a corrected ISBN counts as an edit); `photo` is a JPEG data URL.
  */
@@ -198,7 +209,7 @@ export async function submitBook(draft) {
       quantity: Number(draft.quantity),
     },
   })
-  return { result: res.result, match: mapMatch(res.match), ready: res.ready, flags: res.flags, flagHold: res.flag_hold, item: mapItem(res.item), key: res.key }
+  return { result: res.result, match: mapMatch(res.match), ready: res.ready, blocked: res.blocked || null, flags: res.flags, flagHold: res.flag_hold, item: mapItem(res.item), key: res.key }
 }
 
 /** GET /api/staff/home/ -> { today: { scanned, pending, approved, waiting }, recent: [item] } */

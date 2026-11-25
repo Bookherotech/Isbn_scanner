@@ -28,11 +28,15 @@ DEFAULT_VALUE = [{'optionName': 'Title', 'name': 'Default Title'}]
 
 def _description_html(book):
     """The description, then the details the store lists under it (Dimensions, Author, ISBN, Format, Pages; empty ones
-    left out), as safe HTML: the text comes from outside sources and from staff."""
+    left out), as safe HTML: the text comes from outside sources and from staff. The details are one paragraph, a line
+    each (<br>), so Shopify shows no blank gap between them."""
     lines = [line.strip() for line in book.description.splitlines() if line.strip()]
+    paragraphs = [html.escape(line) for line in lines]
     details = [('Dimensions', book.dimensions), ('Author', book.author), ('ISBN', book.isbn), ('Format', book.format), ('Pages', book.pages)]
-    lines += [f'{label}: {value}' for label, value in details if value]
-    return ''.join(f'<p>{html.escape(line)}</p>' for line in lines)
+    details = [html.escape(f'{label}: {value}') for label, value in details if value]
+    if details:
+        paragraphs.append('<br>'.join(details))
+    return ''.join(f'<p>{p}</p>' for p in paragraphs)
 
 
 SEO_SUFFIX = 'BookHero Dubai'
@@ -330,17 +334,52 @@ def add_tags(product_gid_or_id, tags):
 
 MEDIA_QUERY = """
 query ProductMedia($id: ID!) {
-  product(id: $id) { tags media(first: 1) { nodes { id } } }
+  product(id: $id) { tags media(first: 20) { nodes { id ... on MediaImage { image { width } } } } }
 }
 """
 
 
 def product_media(product_id):
-    """{'ours': created by BookHero, 'has_media': has an image already}, or None when the product is gone."""
+    """{'ours': created by BookHero, 'images': [{'id', 'width'}] of its images}, or None when the product is gone."""
     product = graphql(MEDIA_QUERY, {'id': product_gid(product_id)})['product']
     if product is None:
         return None
-    return {'ours': BOOKHERO_TAG in product['tags'], 'has_media': bool(product['media']['nodes'])}
+    images = [{'id': n['id'], 'width': int((n.get('image') or {}).get('width') or 0)} for n in product['media']['nodes'] if 'image' in n]
+    return {'ours': BOOKHERO_TAG in product['tags'], 'images': images}
+
+
+DETACH_MUTATION = """
+mutation DetachImages($files: [FileUpdateInput!]!) {
+  fileUpdate(files: $files) { userErrors { field message code } }
+}
+"""
+
+
+def detach_images(product_id, media_ids):
+    """Take images off the product (they stay in Shopify's Files, so they can be put back by hand)."""
+    if not media_ids:
+        return
+    files = [{'id': media_id, 'referencesToRemove': [product_gid(product_id)]} for media_id in media_ids]
+    raise_user_errors(graphql(DETACH_MUTATION, {'files': files})['fileUpdate'])
+
+
+DESCRIPTION_MUTATION = """
+mutation SetDescription($product: ProductUpdateInput!) {
+  productUpdate(product: $product) { userErrors { field message } }
+}
+"""
+
+
+def set_description(product_gid_or_id, book):
+    """Replace the product's description with the book's (its text, then Dimensions / Author / ISBN / Format / Pages).
+    A book without description text leaves the product's own description as it is. A failure is logged, never raised."""
+    if not book.description.strip():
+        return
+    gid = product_gid_or_id if str(product_gid_or_id).startswith('gid://') else product_gid(product_gid_or_id)
+    try:
+        raise_user_errors(graphql(DESCRIPTION_MUTATION, {'product': {'id': gid, 'descriptionHtml': _description_html(book)}})['productUpdate'])
+    except ShopifyError as error:
+        logger.warning('Could not set the description of %s: %s', gid, error)
 
 
 STAGED_MUTATION = """
