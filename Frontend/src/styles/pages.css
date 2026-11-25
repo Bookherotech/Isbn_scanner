@@ -933,6 +933,7 @@
 .flagcat__keys li { font-family: var(--font-mono); font-size: 11px; padding: 2px 6px; border-radius: 3px; background: var(--sunken); color: var(--ink-2); }
 .flagcat__foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding-top: 8px; border-top: 1px solid var(--line-soft); font-size: 12.5px; color: var(--muted); }
 .flagcat__foot strong { color: #6b3590; }
+.flagcat__actions { display: inline-flex; gap: 2px; flex: none; }
 .flagcat--add { place-items: center; text-align: center; min-height: 180px; border: 1.5px dashed var(--line-strong); border-top-width: 1.5px; background: transparent; color: var(--ink-2); gap: 6px; align-content: center; }
 .flagcat--add:hover { border-color: var(--ink); background: var(--hero-subtle); }
 .flagcat--add span { font-size: 12.5px; color: var(--muted); max-width: 220px; }
@@ -1183,3 +1184,36 @@ button.state-pill:focus-visible { outline: 2px solid var(--ink); outline-offset:
 .email-change__links { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .email-change__ok { font-size: 13px; font-weight: 600; color: var(--success); }
 
+
+/* Blocked books: ISBN lookup + preview in the Add dialog */
+.blocked-lookup { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: start; }
+.blocked-lookup > .btn { margin-top: 24px; }
+.blocked-preview { display: flex; gap: 14px; align-items: flex-start; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.blocked-preview__info { display: grid; gap: 3px; min-width: 0; font-size: 13px; }
+.blocked-preview__info strong { font-size: 15px; }
+
+/* Covers: the day's scans as a table; a photo dropped on a row becomes that book's cover */
+.covers__date { width: 160px; }
+.covers__hint { display: inline-flex; gap: 5px; align-items: center; }
+.cover-state { display: grid; gap: 3px; justify-items: start; }
+.cover-note { display: inline-flex; gap: 4px; align-items: center; font-size: 12px; color: var(--ink-2); white-space: nowrap; }
+.cover-note svg { flex: none; }
+.covers__count { font-weight: 600; }
+.covers__count.is-dropped { color: var(--success); }
+.covers__count.is-missing { color: #8a3b06; }
+/* Phone: small horizontal strip per book */
+.covers-strips { gap: 6px; }
+.cover-strip {
+  display: flex; align-items: center; gap: 10px; padding: 8px 10px;
+  border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface);
+}
+.cover-strip.is-highlight { background: #fffbe6; }
+.cover-strip__n { flex: none; width: 16px; text-align: right; font-size: 12px; color: var(--muted); }
+.cover-strip__body { flex: 1; min-width: 0; display: grid; gap: 3px; }
+.cover-strip__title { font-size: 13.5px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cover-strip__meta { display: flex; flex-wrap: wrap; gap: 2px 8px; align-items: center; font-size: 11.5px; color: var(--ink-2); }
+.cover-strip__meta .td-mono { font-size: 11.5px; }
+.cover-strip__chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.cover-strip .cover-note { font-size: 11px; white-space: normal; }
+.cover-strip__actions { flex: none; }
+.cover-strip__actions .row-actions { display: flex; flex-direction: column; gap: 6px; }

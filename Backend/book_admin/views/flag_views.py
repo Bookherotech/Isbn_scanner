@@ -37,9 +37,20 @@ class FlagCategoryListView(APIView):
 
 
 class FlagCategoryDetailView(APIView):
-    """PATCH /api/admin/flag-categories/<id>/ {name?, description?, keywords?, mode?, enabled?} (enable / disable is just {enabled})"""
+    """PATCH  /api/admin/flag-categories/<id>/ {name?, description?, keywords?, mode?, enabled?} (enable / disable is just {enabled})
+    DELETE /api/admin/flag-categories/<id>/ -> 204. Books it held for review are no longer held (flags are matched when read)."""
 
     permission_classes = [IsAdminRole]
+
+    def delete(self, request, pk):
+        category = FlagCategory.objects.filter(pk=pk).first()
+        if category is None:
+            raise NotFound('This flag category could not be found.')
+        name, keywords = category.name, len(category.keywords)
+        category.delete()
+        log_activity(action='Deleted flag category', kind=ActivityLog.Kind.FLAG, target=name, actor=request.user, result=ActivityLog.Result.WARNING,
+                     detail=f'{keywords} keywords · no longer applied')
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     def patch(self, request, pk):
         category = FlagCategory.objects.filter(pk=pk).first()

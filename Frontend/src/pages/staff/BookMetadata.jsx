@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import { ArrowRight, Camera, Check, CircleAlert, Keyboard, Pencil, PencilLine, RotateCcw, Search, SearchX, ServerCrash, Trash2 } from 'lucide-react'
+import { ArrowRight, Ban, Camera, ScanLine, Check, CircleAlert, Keyboard, Pencil, PencilLine, RotateCcw, Search, SearchX, ServerCrash, Trash2 } from 'lucide-react'
 import { getDescription, getGenres, loadShelves, lookupIsbn, searchBooks } from '../../services/staffApi'
 import { addRecentIsbn, setRecentIsbnTitle } from '../../services/recentIsbns'
 import { shrinkPhoto } from '../../services/photo'
@@ -68,7 +68,7 @@ export default function BookMetadata() {
       setManual(false)
       setState({ status: 'ready' })
     } catch (e) {
-      setState({ status: 'error', error: { code: e.code, message: e.message } })
+      setState({ status: 'error', error: { code: e.code, message: e.message, blocked: e.blocked } })
     }
   }
 
@@ -267,7 +267,31 @@ export default function BookMetadata() {
           </div>
         )}
 
-        {state.status === 'error' && (
+        {state.status === 'error' && state.error.code === 'blocked' && (
+          <div className="flow-error" role="alert">
+            <span className="flow-error__icon">
+              <Ban size={26} />
+            </span>
+            <h2>Book not accepted</h2>
+            <p className="mono flow-error__isbn">{isbn}</p>
+            {state.error.blocked?.title && (
+              <p>
+                <strong>{state.error.blocked.title}</strong>
+                {state.error.blocked.author && ` · ${state.error.blocked.author}`}
+              </p>
+            )}
+            <p>{state.error.message}</p>
+            {state.error.blocked?.reason && <p className="flow-error__reason">Reason: {state.error.blocked.reason}</p>}
+            <p className="muted">Keep this book aside. Don’t put it on a shelf.</p>
+            <div className="flow-error__actions">
+              <Button variant="dark" size="lg" icon={ScanLine} onClick={() => navigate('/staff/scan')}>
+                Scan next book
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {state.status === 'error' && state.error.code !== 'blocked' && (
           <div className="flow-error" role="alert">
             <span className="flow-error__icon">{state.error.code === 'not_found' ? <SearchX size={26} /> : <ServerCrash size={26} />}</span>
             <h2>{state.error.code === 'not_found' ? 'ISBN not found' : 'Metadata service unavailable'}</h2>

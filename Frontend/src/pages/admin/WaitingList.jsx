@@ -297,6 +297,13 @@ function WaitingDrawer({ entry, onClose }) {
               )}
             </p>
           </div>
+        ) : !e.ready && e.linked?.shopify ? (
+          <div className="callout callout--note">
+            <Hourglass size={16} aria-hidden />
+            <p>
+              Already in stock on Shopify ({e.linked.stock} left). When every Shopify copy of this ISBN reaches 0, this entry moves to <strong>Pending</strong> for approval.
+            </p>
+          </div>
         ) : !e.ready ? (
           <div className="callout callout--note">
             <Hourglass size={16} aria-hidden />

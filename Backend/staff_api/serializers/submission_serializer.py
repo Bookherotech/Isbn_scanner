@@ -53,7 +53,10 @@ class SubmissionSerializer(serializers.ModelSerializer):
     def get_linked(self, book):
         linked = book.linked_item
         if linked is None:
-            return None
+            match = book.match or {}
+            if book.status != BookStatus.WAITING or not match.get('shopify'):
+                return None
+            return {'id': None, 'shelf_id': match.get('shelf_id'), 'status': 'live', 'sync_status': 'synced', 'stock': match.get('quantity'), 'quantity': match.get('quantity'), 'shopify': True}
         return {'id': linked.id, 'shelf_id': linked.shelf.code, 'status': linked.status, 'sync_status': linked.sync_status, 'stock': linked.stock, 'quantity': linked.quantity}
 
     def get_submitted_by_name(self, book):

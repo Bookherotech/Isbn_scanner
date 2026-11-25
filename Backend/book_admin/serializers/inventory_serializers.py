@@ -41,7 +41,7 @@ class BookSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'isbn', 'title', 'author', 'publisher', 'year', 'pages', 'format', 'dimensions', 'source', 'subjects', 'genre', 'subgenres', 'language', 'description', 'cover_url', 'cover_photo_url', 'has_photo',
             'fetched', 'edited_fields', 'missing_fields', 'shelf_id', 'previous_shelf_id', 'quantity', 'stock', 'status', 'ready', 'linked', 'match',
-            'submitted_by', 'submitted_by_name', 'submitted_at', 'approved_by', 'approved_by_name', 'approved_at',
+            'cover_hold', 'cover_dropped_at', 'submitted_by', 'submitted_by_name', 'submitted_at', 'approved_by', 'approved_by_name', 'approved_at',
             'rejected_by', 'rejected_by_name', 'rejected_at', 'auto_rejected', 'reject_reason', 'reject_note',
             'waiting_ready_at', 'product_id', 'sync_status', 'last_sync_at', 'sync_error',
             'stock_out_at', 'closed_at', 'closed_reason', 'flags', 'flag_hold', 'flag_reviewed_at', 'flag_reviewed_by_name', 'flag_note',
@@ -67,7 +67,13 @@ class BookSerializer(serializers.ModelSerializer):
     def get_linked(self, book):
         linked = book.linked_item
         if linked is None:
-            return None
+            match = book.match or {}
+            if book.status != 'waiting' or not match.get('shopify'):
+                return None
+            return {  # waits on the store's own Shopify stock (see integrations.shopify.shopify_wait)
+                'id': None, 'shelf_id': match.get('shelf_id'), 'status': 'live', 'sync_status': 'synced', 'stock': match.get('quantity'),
+                'quantity': match.get('quantity'), 'product_id': match.get('product_id') or '', 'stock_out_at': None, 'shopify': True,
+            }
         return {
             'id': linked.id, 'shelf_id': linked.shelf.code, 'status': linked.status, 'sync_status': linked.sync_status, 'stock': linked.stock,
             'quantity': linked.quantity, 'product_id': linked.product_id, 'stock_out_at': linked.stock_out_at,

@@ -71,16 +71,17 @@ export default function Scan() {
     setIsbn(code)
     setPhase('detected')
     navigator.vibrate?.(40)
-    await wait(650)
+    const lookup = lookupIsbn(code) // asked right away; the "detected" tick only shows while it runs
+    lookup.catch(() => {}) // handled below (avoids an "unhandled rejection" before the await)
+    await wait(250)
     setPhase('loading')
     try {
-      const meta = await lookupIsbn(code)
+      const meta = await lookup
       setPhase('ready')
       setDraft({ isbn: code, meta, values: null })
-      await wait(450)
       navigate(`/staff/book/${code}`)
     } catch (error) {
-      navigate(`/staff/book/${code}`, { state: { error: { code: error.code, message: error.message } } })
+      navigate(`/staff/book/${code}`, { state: { error: { code: error.code, message: error.message, blocked: error.blocked } } })
     }
   }
 
@@ -119,16 +120,24 @@ export default function Scan() {
       return
     }
     setHasDetector(true)
+    // A single frame can misread a barcode into another valid ISBN (blur, glare, a curved cover). A code is only taken
+    // once two reads in a row agree; a different read starts over. The second look comes quickly, so it costs ~0.1 s.
+    let candidate = null
     const loop = async () => {
       if (run !== runRef.current || !videoRef.current) return
+      let next = 250
       try {
         const codes = await detector.detect(videoRef.current)
-        const hit = codes.find((c) => isValidIsbn13(c.rawValue)) // 978/979 prefix + check digit
-        if (hit && run === runRef.current) return finish(hit.rawValue)
+        const reads = codes.map((c) => c.rawValue).filter(isValidIsbn13) // 978/979 prefix + check digit
+        if (candidate && reads.includes(candidate)) {
+          if (run === runRef.current) return finish(candidate)
+        }
+        candidate = reads[0] || null
+        if (candidate) next = 100
       } catch {
         /* frame not ready */
       }
-      setTimeout(loop, 250)
+      setTimeout(loop, next)
     }
     setTimeout(loop, 500)
   }

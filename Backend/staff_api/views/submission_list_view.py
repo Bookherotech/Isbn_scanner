@@ -4,7 +4,9 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from book_admin.services.blocked_books import blocked_book
 from integrations.metadata import cached_metadata
+from integrations.shopify import shopify_wait
 from inventory.constants import BookSource, BookStatus
 from inventory.services import DuplicateCheckBusy, create_submission, normalize_author, normalize_title
 from staff_api.exceptions import SubmissionBusy
@@ -24,7 +26,8 @@ class SubmissionListView(APIView):
             (capped at MAX_LIMIT rows)
     POST /api/staff/submissions/ {isbn, title, author, publisher?, year?, pages?, source, subjects?, description?, fetched?, cover_photo?, shelf_id, quantity}
          (fetched may include the first ISBN; cover_photo is a data URL, re-encoded to JPEG)
-         -> 201 {result: pending|waiting|rejected, match, ready, flags, flag_hold, item, key: {title, author}}
+         -> 201 {result: pending|waiting|rejected, match, ready, blocked, flags, flag_hold, item, key: {title, author}}
+            An ISBN on the admin's Blocked books list is saved as auto-rejected; `blocked` is then {reason}, else null.
     """
 
     permission_classes = [IsStaffRole]
@@ -64,13 +67,15 @@ class SubmissionListView(APIView):
         if data['source'] != BookSource.MANUAL:
             cover_url = (cached_metadata(data['isbn']) or {}).get('cover_url', '')  # from the lookup a moment ago
 
+        blocked = blocked_book(data['isbn'])
+        shopify_match = None if blocked else shopify_wait(data['isbn'])  # units already on Shopify: the entry waits for them to sell out
         try:
             outcome = create_submission(
                 user=request.user, shelf=data['shelf_id'], isbn=data['isbn'], title=data['title'], author=data['author'],
                 publisher=data['publisher'], year=data['year'], pages=data['pages'], format=data['format'], dimensions=data['dimensions'], source=data['source'],
                 subjects=data['subjects'], fetched=data['fetched'], cover_url=cover_url, cover_photo=data['cover_photo'], description=data['description'],
                 genre=data['genre'], subgenres=data['subgenres'], language=data['language'],
-                quantity=data['quantity'],
+                quantity=data['quantity'], shopify_match=shopify_match, blocked=blocked,
             )
         except DuplicateCheckBusy:
             raise SubmissionBusy from None
@@ -79,6 +84,7 @@ class SubmissionListView(APIView):
             'result': outcome.result,
             'match': outcome.match,
             'ready': outcome.ready,
+            'blocked': {'reason': blocked.reason} if blocked else None,
             'flags': item['flags'],
             'flag_hold': item['flag_hold'],
             'item': item,

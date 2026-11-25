@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom'
 import { getNavCounts } from '../services/adminApi'
 import { useAutoRefresh, useQuery } from './useStore'
 
-const NONE = { pending: 0, waiting: 0, ready: 0, oos: 0, flagged: 0 }
+const NONE = { pending: 0, waiting: 0, ready: 0, oos: 0, flagged: 0, covers: 0 }
 
 /**
  * Sidebar / tab-bar badge counts from the backend. Refetches after any admin change, on every page change, when the

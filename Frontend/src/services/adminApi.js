@@ -63,7 +63,7 @@ export function hueOf(key = '') {
 
 function mapMatch(m) {
   if (!m) return null
-  return { itemId: m.item_id, title: m.title, author: m.author, isbn: m.isbn, shelfId: m.shelf_id, quantity: m.quantity, status: m.status, syncStatus: m.sync_status }
+  return { itemId: m.item_id, title: m.title, author: m.author, isbn: m.isbn, shelfId: m.shelf_id, quantity: m.quantity, status: m.status, syncStatus: m.sync_status, shopify: Boolean(m.shopify) }
 }
 
 const mapWaitingEntry = (w) => ({ id: w.id, shelfId: w.shelf_id, quantity: w.quantity, submittedBy: w.submitted_by, submittedByName: w.submitted_by_name, submittedAt: ms(w.submitted_at) })
@@ -89,6 +89,8 @@ function mapItem(r) {
     coverUrl: r.cover_url,
     coverPhotoUrl: r.cover_photo_url || null,
     hasPhoto: Boolean(r.has_photo), // a photo taken by staff or set by an admin (not the provider cover)
+    coverDroppedAt: ms(r.cover_dropped_at), // when an admin dropped a photo on it (Covers page)
+    coverHold: Boolean(r.cover_hold), // a new book still on the Covers page (not in Pending / Waiting list yet)
     fetched: r.fetched,
     editedFields: r.edited_fields,
     missingFields: r.missing_fields,
@@ -98,7 +100,7 @@ function mapItem(r) {
     stock: r.stock,
     status: r.status,
     ready: r.ready,
-    linked: r.linked ? { id: r.linked.id, shelfId: r.linked.shelf_id, status: r.linked.status, syncStatus: r.linked.sync_status, stock: r.linked.stock, quantity: r.linked.quantity, productId: r.linked.product_id, stockOutAt: ms(r.linked.stock_out_at) } : null,
+    linked: r.linked ? { id: r.linked.id, shelfId: r.linked.shelf_id, status: r.linked.status, syncStatus: r.linked.sync_status, stock: r.linked.stock, quantity: r.linked.quantity, productId: r.linked.product_id, stockOutAt: ms(r.linked.stock_out_at), shopify: Boolean(r.linked.shopify) } : null,
     match: mapMatch(r.match),
     submittedBy: r.submitted_by,
     submittedByName: r.submitted_by_name,
@@ -382,6 +384,10 @@ export async function saveFlagCategory({ id, name, description = '', keywords, m
   return mapCategory(saved)
 }
 
+export async function deleteFlagCategory(id) {
+  await change(`/api/admin/flag-categories/${id}/`, { method: 'DELETE' })
+}
+
 export async function setFlagCategoryEnabled(id, enabled) {
   return mapCategory(await change(`/api/admin/flag-categories/${id}/`, { method: 'PATCH', body: { enabled } }))
 }
@@ -405,4 +411,54 @@ export async function reviewFlag(id, note = '') {
 export async function getGenres() {
   const res = await call('/api/admin/genres/')
   return { genres: res.genres, languages: res.languages }
+}
+
+// --------------------------------------------------------------------------
+// Blocked books (ISBNs staff can't submit: the scan refuses them)
+// --------------------------------------------------------------------------
+const mapBlocked = (b) => ({
+  id: b.id, isbn: b.isbn, title: b.title, author: b.author, publisher: b.publisher, year: b.year ?? '', coverUrl: b.cover_url,
+  reason: b.reason, addedByName: b.added_by_name, createdAt: ms(b.created_at),
+})
+
+export async function getBlockedBooks() {
+  return (await call('/api/admin/blocked-books/')).map(mapBlocked)
+}
+
+/** The book details for an ISBN, as the staff scan finds them. -> { isbn, title, author, publisher, year, pages, coverUrl, source, blocked }
+ *  Errors carry `code`: 'invalid_isbn' | 'not_found' | 'service_unavailable'. */
+export async function lookupBlockIsbn(isbn) {
+  const m = await call(`/api/admin/blocked-books/lookup/${encodeURIComponent(isbn)}/`)
+  return { isbn: m.isbn, title: m.title || '', author: m.author || '', publisher: m.publisher || '', year: m.year ?? '', pages: m.pages ?? '', coverUrl: m.cover_url || '', source: m.source, blocked: m.blocked }
+}
+
+export async function addBlockedBook({ isbn, title = '', author = '', publisher = '', year = '', coverUrl = '', reason = '' }) {
+  const body = { isbn, title, author, publisher, year: year === '' ? null : Number(year), cover_url: coverUrl, reason }
+  return mapBlocked(await change('/api/admin/blocked-books/', { method: 'POST', body }))
+}
+
+export async function deleteBlockedBook(id) {
+  await change(`/api/admin/blocked-books/${encodeURIComponent(id)}/`, { method: 'DELETE' })
+}
+
+// --------------------------------------------------------------------------
+// Covers (the books scanned on a day; a dropped photo becomes the cover)
+// --------------------------------------------------------------------------
+/**
+ * `tab`: 'check' = new books waiting here before Pending / Waiting list (any day); 'day' = every book scanned on `date`
+ * ('YYYY-MM-DD', '' = today, store time). -> { tab, date, today, check (how many wait here), rows } in scan order.
+ */
+export async function getCoverBooks({ tab = 'check', date = '' } = {}) {
+  const res = await call(`/api/admin/covers/${query({ tab, date })}`)
+  return { tab: res.tab, date: res.date, today: res.today, check: res.check, rows: res.results.map(mapItem) }
+}
+
+/** Sends books on from the Covers page to Pending / Waiting list (whichever the scan decided). -> { released } */
+export async function releaseCovers(ids) {
+  return change('/api/admin/covers/release/', { method: 'POST', body: { ids } })
+}
+
+/** Sets a photo (JPEG data URL) as the book's cover. It replaces the Shopify image on approval (right away for an approved book). -> the book */
+export async function setBookCover(id, photo) {
+  return mapItem(await change(`/api/admin/books/${encodeURIComponent(id)}/cover/`, { method: 'PUT', body: { cover_photo: photo } }))
 }

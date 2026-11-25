@@ -15,7 +15,7 @@ from django.conf import settings
 from django.core.cache import cache
 from django.utils.text import slugify
 
-from integrations.shopify.client import graphql, location_gid, put_file, raise_user_errors
+from integrations.shopify.client import graphql, is_configured, location_gid, put_file, raise_user_errors
 from integrations.shopify.exceptions import ProductGone, ShopifyError
 
 STOCK_BATCH = 50  # products per stock query (keeps the query cost well under Shopify's limit)
@@ -28,11 +28,15 @@ DEFAULT_VALUE = [{'optionName': 'Title', 'name': 'Default Title'}]
 
 def _description_html(book):
     """The description, then the details the store lists under it (Dimensions, Author, ISBN, Format, Pages; empty ones
-    left out), as safe HTML: the text comes from outside sources and from staff."""
+    left out), as safe HTML: the text comes from outside sources and from staff. The details are one paragraph, a line
+    each (<br>), so Shopify shows no blank gap between them."""
     lines = [line.strip() for line in book.description.splitlines() if line.strip()]
+    paragraphs = [html.escape(line) for line in lines]
     details = [('Dimensions', book.dimensions), ('Author', book.author), ('ISBN', book.isbn), ('Format', book.format), ('Pages', book.pages)]
-    lines += [f'{label}: {value}' for label, value in details if value]
-    return ''.join(f'<p>{html.escape(line)}</p>' for line in lines)
+    details = [html.escape(f'{label}: {value}') for label, value in details if value]
+    if details:
+        paragraphs.append('<br>'.join(details))
+    return ''.join(f'<p>{p}</p>' for p in paragraphs)
 
 
 SEO_SUFFIX = 'BookHero Dubai'
@@ -94,15 +98,6 @@ def shop_info():
     return {'shop': data['shop']['name'], 'domain': data['shop']['myshopifyDomain'], 'location': location['name']}
 
 
-FIND_QUERY = """
-query FindBySku($query: String!) {
-  productVariants(first: 1, query: $query) {
-    nodes { product { id } inventoryItem { id } }
-  }
-}
-"""
-
-
 def book_sku(shelf_code, isbn):
     """The SKU BookHero gives a book's product: its shelf, then its ISBN."""
     return f'{shelf_code}-{isbn}'
@@ -113,12 +108,76 @@ def isbn_query(isbn):
     return f'barcode:{isbn} OR sku:{isbn}'
 
 
-def find_by_isbn(isbn):
-    """(product GID, inventory item GID) of the product whose barcode (or SKU) is this ISBN, or None."""
-    nodes = graphql(FIND_QUERY, {'query': isbn_query(isbn)})['productVariants']['nodes']
-    if not nodes:
+COPIES_QUERY = """
+query IsbnCopies($query: String!, $location: ID!) {
+  productVariants(first: 20, query: $query) {
+    nodes {
+      sku
+      product { id title status }
+      inventoryItem { id inventoryLevel(locationId: $location) { quantities(names: ["available"]) { quantity } } }
+    }
+  }
+}
+"""
+
+
+def isbn_copies(isbn, timeout=None):
+    """Every product in the store whose barcode (or SKU) is this ISBN, oldest first: [{'gid', 'id', 'item', 'title',
+    'status' ('ACTIVE' | 'DRAFT' | 'ARCHIVED'), 'available' (units at our location; 0 when not stocked there),
+    'shelf' (from a '<shelf>-<ISBN>' SKU, else '')}]."""
+    nodes = graphql(COPIES_QUERY, {'query': isbn_query(isbn), 'location': location_gid()}, timeout=timeout)['productVariants']['nodes']
+    copies = {}
+    for node in nodes:
+        product = node.get('product') or {}
+        if not product.get('id') or product['id'] in copies:
+            continue
+        level = (node.get('inventoryItem') or {}).get('inventoryLevel')
+        quantities = (level or {}).get('quantities') or []
+        sku = str(node.get('sku') or '')
+        copies[product['id']] = {
+            'gid': product['id'], 'id': numeric_id(product['id']), 'item': (node.get('inventoryItem') or {}).get('id'),
+            'title': product.get('title') or '', 'status': str(product.get('status') or '').upper(),
+            'available': max(int(quantities[0]['quantity']), 0) if quantities else 0,
+            'shelf': sku[:-len(isbn) - 1] if sku.endswith(f'-{isbn}') else '',
+        }
+    return sorted(copies.values(), key=lambda c: int(c['id']) if c['id'].isdigit() else 0)
+
+
+def product_for_book(isbn):
+    """(product GID, inventory item GID) of the store's product a newly approved book should go on, or None (create one).
+
+    Only a product with the status new products get (SHOPIFY_PRODUCT_STATUS) is used: with DRAFT, an existing draft is
+    updated and an ACTIVE product is never touched (a new draft is made instead); with ACTIVE, the active product.
+    Several such copies: the oldest.
+    """
+    wanted = str(settings.SHOPIFY_PRODUCT_STATUS).upper()
+    same = next((c for c in isbn_copies(isbn) if c['status'] == wanted and c['item']), None)
+    return (same['gid'], same['item']) if same else None
+
+
+SCAN_TIMEOUT_SECONDS = 5  # staff are waiting on the submit
+
+
+def shopify_wait(isbn):
+    """The match a new scan waits behind when the store already has units of this ISBN on Shopify, or None (no copy
+    with units, Shopify not set up or not reachable: the scan goes to Pending as before). Stored on the entry as its
+    `match`; 'shopify': True marks it (see integrations.shopify.sync.release_shopify_waits)."""
+    if not is_configured():
         return None
-    return nodes[0]['product']['id'], nodes[0]['inventoryItem']['id']
+    try:
+        copies = isbn_copies(isbn, timeout=SCAN_TIMEOUT_SECONDS)
+    except ShopifyError as error:
+        logger.warning('Could not check the Shopify stock of %s: %s', isbn, error)
+        return None
+    stocked = [c for c in copies if c['available'] > 0]
+    if not stocked:
+        return None
+    first = stocked[0]
+    return {
+        'item_id': None, 'title': first['title'], 'author': '', 'isbn': isbn, 'shelf_id': first['shelf'] or 'Shopify',
+        'quantity': sum(c['available'] for c in stocked), 'status': 'live', 'sync_status': 'synced',
+        'shopify': True, 'product_id': first['id'], 'copies': len(copies),
+    }
 
 
 ITEM_QUERY = """
@@ -275,17 +334,52 @@ def add_tags(product_gid_or_id, tags):
 
 MEDIA_QUERY = """
 query ProductMedia($id: ID!) {
-  product(id: $id) { tags media(first: 1) { nodes { id } } }
+  product(id: $id) { tags media(first: 20) { nodes { id ... on MediaImage { image { width } } } } }
 }
 """
 
 
 def product_media(product_id):
-    """{'ours': created by BookHero, 'has_media': has an image already}, or None when the product is gone."""
+    """{'ours': created by BookHero, 'images': [{'id', 'width'}] of its images}, or None when the product is gone."""
     product = graphql(MEDIA_QUERY, {'id': product_gid(product_id)})['product']
     if product is None:
         return None
-    return {'ours': BOOKHERO_TAG in product['tags'], 'has_media': bool(product['media']['nodes'])}
+    images = [{'id': n['id'], 'width': int((n.get('image') or {}).get('width') or 0)} for n in product['media']['nodes'] if 'image' in n]
+    return {'ours': BOOKHERO_TAG in product['tags'], 'images': images}
+
+
+DETACH_MUTATION = """
+mutation DetachImages($files: [FileUpdateInput!]!) {
+  fileUpdate(files: $files) { userErrors { field message code } }
+}
+"""
+
+
+def detach_images(product_id, media_ids):
+    """Take images off the product (they stay in Shopify's Files, so they can be put back by hand)."""
+    if not media_ids:
+        return
+    files = [{'id': media_id, 'referencesToRemove': [product_gid(product_id)]} for media_id in media_ids]
+    raise_user_errors(graphql(DETACH_MUTATION, {'files': files})['fileUpdate'])
+
+
+DESCRIPTION_MUTATION = """
+mutation SetDescription($product: ProductUpdateInput!) {
+  productUpdate(product: $product) { userErrors { field message } }
+}
+"""
+
+
+def set_description(product_gid_or_id, book):
+    """Replace the product's description with the book's (its text, then Dimensions / Author / ISBN / Format / Pages).
+    A book without description text leaves the product's own description as it is. A failure is logged, never raised."""
+    if not book.description.strip():
+        return
+    gid = product_gid_or_id if str(product_gid_or_id).startswith('gid://') else product_gid(product_gid_or_id)
+    try:
+        raise_user_errors(graphql(DESCRIPTION_MUTATION, {'product': {'id': gid, 'descriptionHtml': _description_html(book)}})['productUpdate'])
+    except ShopifyError as error:
+        logger.warning('Could not set the description of %s: %s', gid, error)
 
 
 STAGED_MUTATION = """

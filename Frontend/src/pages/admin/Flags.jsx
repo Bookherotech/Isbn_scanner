@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Check, Flag, Pencil, Plus, ShieldCheck, Tag, X } from 'lucide-react'
-import { getFlagCategories, getFlaggedItems, rejectAllFlagged, reviewFlag, saveFlagCategory, setFlagCategoryEnabled } from '../../services/adminApi'
+import { Check, Flag, Pencil, Plus, ShieldCheck, Tag, Trash2, X } from 'lucide-react'
+import { deleteFlagCategory, getFlagCategories, getFlaggedItems, rejectAllFlagged, reviewFlag, saveFlagCategory, setFlagCategoryEnabled } from '../../services/adminApi'
 import { useQuery, useTicker } from '../../hooks/useStore'
 import { useToast } from '../../hooks/useToast'
 import { DataTable } from '../../components/ui/Data'
@@ -127,12 +127,12 @@ function FlaggedBooks({ query, tab }) {
                 setBusy(r.id)
                 await reviewFlag(r.id, 'Reviewed — fine to list')
                 setBusy('')
-                toast({ title: 'Flag reviewed', description: `“${r.title}” can continue to approval.` })
+                toast({ title: 'Flag reviewed', description: r.coverHold ? `“${r.title}” goes to Covers next.` : `“${r.title}” can continue to approval.` })
               }}
             >
               Mark reviewed
             </Button>
-            {r.status === 'pending' && (
+            {r.status === 'pending' && !r.coverHold && (
               <Button size="sm" variant="dark" onClick={() => navigate(`/admin/pending/${r.id}`)}>
                 Open review
               </Button>
@@ -174,7 +174,21 @@ function FlaggedBooks({ query, tab }) {
 function Categories({ query }) {
   const { toast } = useToast()
   const [editing, setEditing] = useState(null)
+  const [deleting, setDeleting] = useState(null)
+  const [busy, setBusy] = useState(false)
   const { data, loading, error, reload } = query
+  const remove = async () => {
+    setBusy(true)
+    try {
+      await deleteFlagCategory(deleting.id)
+      toast({ title: `${deleting.name} deleted`, tone: 'info' })
+      setDeleting(null)
+    } catch (err) {
+      toast({ title: 'Couldn’t delete', description: err.message, tone: 'error' })
+    } finally {
+      setBusy(false)
+    }
+  }
   if (loading) return <Skeleton h={320} r={10} />
   if (error) return <ErrorState error={error} onRetry={reload} />
   return (
@@ -217,9 +231,14 @@ function Categories({ query }) {
                 {c.enabled ? `${c.matches} book${c.matches === 1 ? '' : 's'} match` : `Would match ${c.matches}`}
                 {c.awaiting > 0 && <strong> · {c.awaiting} awaiting review</strong>}
               </span>
-              <Button size="sm" variant="ghost" icon={Pencil} onClick={() => setEditing(c)}>
-                Edit
-              </Button>
+              <span className="flagcat__actions">
+                <Button size="sm" variant="ghost" icon={Pencil} onClick={() => setEditing(c)}>
+                  Edit
+                </Button>
+                <Button size="sm" variant="danger-ghost" icon={Trash2} onClick={() => setDeleting(c)} aria-label={`Delete ${c.name}`}>
+                  Delete
+                </Button>
+              </span>
             </footer>
           </article>
         ))}
@@ -231,6 +250,25 @@ function Categories({ query }) {
       </div>
       <Modal open={!!editing} onClose={() => setEditing(null)} title={editing?.id ? `Edit “${editing.name}”` : 'Add flag category'} description="Keywords are matched against the subjects returned by Google Books / Open Library and the title." size="md">
         {editing && <CategoryForm key={editing.id || 'new'} cat={editing} onClose={() => setEditing(null)} onSaved={(name) => toast({ title: editing.id ? 'Category updated' : `${name} added`, description: 'Applied to all current and new books.' })} />}
+      </Modal>
+      <Modal
+        open={!!deleting}
+        onClose={() => !busy && setDeleting(null)}
+        title={deleting ? `Delete “${deleting.name}”?` : ''}
+        description="Books are no longer flagged or held for review by this category. This cannot be undone — to pause it instead, use the switch."
+        size="sm"
+        footer={
+          <>
+            <Button onClick={() => setDeleting(null)} disabled={busy}>
+              Cancel
+            </Button>
+            <Button variant="danger" icon={Trash2} loading={busy} onClick={remove}>
+              Delete category
+            </Button>
+          </>
+        }
+      >
+        {deleting && (deleting.awaiting > 0 ? <p className="muted">{deleting.awaiting} book{deleting.awaiting === 1 ? '' : 's'} waiting for review will go back to the normal queue.</p> : null)}
       </Modal>
     </>
   )

@@ -1,8 +1,8 @@
 import { Suspense, useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
-  Activity, BarChart3, Bell, BookCopy, CheckCircle2, ChevronDown, ChevronRight, Clock3, Hourglass, LayoutDashboard, LogOut, Menu as MenuIcon,
-  Ellipsis, Flag, Search, UserRound, Users, Warehouse, X, XCircle,
+  Activity, Ban, BarChart3, Bell, BookCopy, CheckCircle2, ChevronDown, ChevronRight, Clock3, Hourglass, LayoutDashboard, LogOut, Menu as MenuIcon,
+  Ellipsis, Flag, Images, Search, UserRound, Users, Warehouse, X, XCircle,
 } from 'lucide-react'
 import { Logo } from './Logo'
 import { CommandSearch } from './CommandSearch'
@@ -30,12 +30,14 @@ const NAV = [
       { to: '/admin/rejected', label: 'Rejected', icon: XCircle },
       { to: '/admin/live', label: 'Live inventory', icon: BookCopy },
       { to: '/admin/flags', label: 'Flags', icon: Flag, count: 'flagged' },
+      { to: '/admin/covers', label: 'Covers', icon: Images, count: 'covers' },
     ],
   },
   {
     group: 'Management',
     items: [
       { to: '/admin/shelves', label: 'Shelves', icon: Warehouse },
+      { to: '/admin/blocked-books', label: 'Blocked books', icon: Ban },
       { to: '/admin/staff', label: 'Staff', icon: Users },
     ],
   },
@@ -59,7 +61,9 @@ const TITLES = [
   ['/admin/rejected', 'Rejected'],
   ['/admin/live', 'Live inventory'],
   ['/admin/flags', 'Content flags'],
+  ['/admin/covers', 'Covers'],
   ['/admin/shelves', 'Shelves'],
+  ['/admin/blocked-books', 'Blocked books'],
   ['/admin/staff', 'Staff'],
   ['/admin/notifications', 'Notifications'],
   ['/admin/activity', 'Activity log'],
@@ -69,7 +73,7 @@ const TITLES = [
 ]
 
 // Colour of a nav item's count badge (sidebar + phone menu).
-const countTone = (key) => ({ ready: 'hero', oos: 'warn', unread: 'signal', flagged: 'flag' })[key] ?? 'neutral'
+const countTone = (key) => ({ ready: 'hero', oos: 'warn', unread: 'signal', flagged: 'flag', covers: 'hero' })[key] ?? 'neutral'
 
 function Sidebar({ onNavigate }) {
   const { user } = useAuth()
