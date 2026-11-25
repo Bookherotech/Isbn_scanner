@@ -1,12 +1,12 @@
 import { useRef, useState } from 'react'
-import { Camera, CheckCircle2, ChevronLeft, ChevronRight, Store, Upload } from 'lucide-react'
-import { getCoverBooks, setBookCover } from '../../services/adminApi'
+import { ArrowRight, Camera, CircleDashed, ImageUp, Store, ChevronLeft, ChevronRight, Upload, UserRound } from 'lucide-react'
+import { getCoverBooks, releaseCovers, setBookCover } from '../../services/adminApi'
 import { shrinkPhoto } from '../../services/photo'
 import { useQuery } from '../../hooks/useStore'
 import { useToast } from '../../hooks/useToast'
 import { DataTable } from '../../components/ui/Data'
 import { PageHeader } from '../../components/ui/Misc'
-import { Input } from '../../components/ui/Form'
+import { Input, Segmented } from '../../components/ui/Form'
 import { Button, IconButton } from '../../components/ui/Button'
 import { EmptyState, ErrorState } from '../../components/ui/Feedback'
 import { ShelfTag, StatusChip } from '../../components/ui/Status'
@@ -33,15 +33,17 @@ function rowIndex(target) {
 
 export default function Covers() {
   const { toast } = useToast()
+  const [tab, setTab] = useState('check') // check = new books waiting here before Pending / Waiting list; day = all scans of a day
   const [day, setDay] = useState('') // '' = today in store time; the server answers with the date it used
-  const { data, loading, error, reload, refreshing } = useQuery(() => getCoverBooks(day), [day])
+  const { data, loading, error, reload, refreshing } = useQuery(() => getCoverBooks({ tab, date: day }), [tab, day])
   const [busyId, setBusyId] = useState(null)
+  const [sending, setSending] = useState(null) // 'all' | book id
   const [over, setOver] = useState(-1) // the row a photo is being dragged over
   const depth = useRef(0)
   const shown = data?.date || day
   const today = data?.today
-  const rows = data?.rows || []
-  const withPhoto = rows.filter((b) => b.hasPhoto).length
+  const rows = data?.tab === tab ? data.rows : [] // not the other tab's rows while switching
+  const dropped = rows.filter((b) => b.coverDroppedAt).length
 
   const upload = async (book, file) => {
     setBusyId(book.id)
@@ -89,6 +91,18 @@ export default function Covers() {
     },
   }
 
+  const send = async (ids, key) => {
+    setSending(key)
+    try {
+      const { released } = await releaseCovers(ids)
+      toast({ title: released === 1 ? 'Sent on' : `${released} books sent on`, description: 'They are in Pending or the Waiting list now.' })
+    } catch (err) {
+      toast({ title: 'Couldn’t send them on', description: err.message, tone: 'error' })
+    } finally {
+      setSending(null)
+    }
+  }
+
   const choose = (book) => (e) => {
     const file = e.target.files?.[0]
     e.target.value = '' // the same file can be picked again
@@ -103,23 +117,39 @@ export default function Covers() {
     { key: 'qty', header: 'Qty', align: 'right', card: 'meta', render: (b) => <span className="num td-strong">{b.quantity}</span> },
     { key: 'by', header: 'Scanned by', card: 'meta', render: (b) => <Person id={b.submittedBy} name={b.submittedByName} /> },
     { key: 'at', header: 'Scanned', card: 'meta', render: (b) => <span className="td-muted" title={formatDateTime(b.submittedAt)}>{timeOf(b.submittedAt)}</span> },
-    { key: 'status', header: 'Status', card: 'badge', render: (b) => <StatusChip status={b.status} ready={b.ready} syncStatus={b.syncStatus} size="sm" /> },
+    { key: 'status', header: 'Status', card: 'badge', render: (b) => <StatusChip status={b.status} ready={b.ready} syncStatus={b.syncStatus} size="sm" label={b.coverHold ? `Goes to ${b.status === 'waiting' ? 'Waiting list' : 'Pending'}` : undefined} /> },
     {
       key: 'cover',
       header: 'Cover',
       card: 'meta',
-      render: (b) =>
-        b.hasPhoto ? (
-          <span className="cover-note is-photo">
-            <CheckCircle2 size={13} aria-hidden /> Photo set · replaces the Shopify image
+      render: (b) => (
+        <span className="cover-state">
+          {b.coverDroppedAt ? (
+            <span className="chip chip--sm chip--approved" title={`Dropped ${formatDateTime(b.coverDroppedAt)}`}>
+              <ImageUp size={12} aria-hidden strokeWidth={2.3} /> Photo dropped
+            </span>
+          ) : b.hasPhoto ? (
+            <span className="chip chip--sm chip--waiting">
+              <UserRound size={12} aria-hidden strokeWidth={2.3} /> Staff photo
+            </span>
+          ) : (
+            <span className="chip chip--sm chip--oos">
+              <CircleDashed size={12} aria-hidden strokeWidth={2.3} /> Not dropped
+            </span>
+          )}
+          <span className="cover-note">
+            {b.hasPhoto ? (
+              'Replaces the Shopify image'
+            ) : onShopify(b) ? (
+              <>
+                <Store size={12} aria-hidden /> Store image kept
+              </>
+            ) : (
+              'Fetched cover used'
+            )}
           </span>
-        ) : onShopify(b) ? (
-          <span className="cover-note is-store">
-            <Store size={13} aria-hidden /> In the Shopify store · its image is kept
-          </span>
-        ) : (
-          <span className="cover-note">Fetched cover</span>
-        ),
+        </span>
+      ),
     },
     {
       key: 'action',
@@ -127,10 +157,17 @@ export default function Covers() {
       align: 'right',
       card: 'action',
       render: (b) => (
-        <Button as="label" size="sm" icon={Camera} loading={busyId === b.id} disabled={!!busyId}>
-          {b.hasPhoto ? 'Change photo' : 'Choose photo'}
-          <input type="file" accept="image/*" onChange={choose(b)} hidden disabled={!!busyId} />
-        </Button>
+        <span className="row-actions">
+          <Button as="label" size="sm" icon={Camera} loading={busyId === b.id} disabled={!!busyId}>
+            {b.hasPhoto ? 'Change photo' : 'Choose photo'}
+            <input type="file" accept="image/*" onChange={choose(b)} hidden disabled={!!busyId} />
+          </Button>
+          {b.coverHold && (
+            <Button size="sm" variant="dark" iconRight={ArrowRight} loading={sending === b.id} disabled={!!sending || busyId === b.id} onClick={() => send([b.id], b.id)}>
+              Send
+            </Button>
+          )}
+        </span>
       ),
     },
   ]
@@ -140,15 +177,37 @@ export default function Covers() {
       <PageHeader
         title="Covers"
         eyebrow="Inventory"
-        description="The books scanned on a day, in scan order. Drag a photo onto a book’s row (or choose one) to make it the cover: it replaces the Shopify image when the book is approved. A book already in the Shopify store keeps the store’s image unless you give it a photo."
+        description="New scans come here first. Drag a photo onto a book’s row (or choose one) to make it the cover, then send the books on to Pending or the Waiting list. A photo replaces the Shopify image; without one, a book already in the Shopify store keeps the store’s image and a new product gets the fetched cover."
+        actions={
+          tab === 'check' &&
+          rows.length > 0 && (
+            <Button variant="primary" iconRight={ArrowRight} loading={sending === 'all'} disabled={!!sending || !!busyId} onClick={() => send(rows.map((b) => b.id), 'all')}>
+              Send all on ({rows.length})
+            </Button>
+          )
+        }
       />
       <div className="toolbar">
-        <IconButton icon={ChevronLeft} label="Previous day" onClick={() => shown && setDay(shiftDay(shown, -1))} />
-        <Input type="date" className="covers__date" value={shown} max={today} onChange={(e) => setDay(e.target.value)} aria-label="Scan date" />
-        <IconButton icon={ChevronRight} label="Next day" disabled={!shown || !today || shown >= today} onClick={() => setDay(shiftDay(shown, 1))} />
+        <Segmented
+          label="Show"
+          value={tab}
+          onChange={setTab}
+          options={[
+            { value: 'check', label: `To check${data?.check ? ` (${data.check})` : ''}` },
+            { value: 'day', label: 'By day' },
+          ]}
+        />
+        {tab === 'day' && (
+          <>
+            <IconButton icon={ChevronLeft} label="Previous day" onClick={() => shown && setDay(shiftDay(shown, -1))} />
+            <Input type="date" className="covers__date" value={shown} max={today} onChange={(e) => setDay(e.target.value)} aria-label="Scan date" />
+            <IconButton icon={ChevronRight} label="Next day" disabled={!shown || !today || shown >= today} onClick={() => setDay(shiftDay(shown, 1))} />
+          </>
+        )}
         {data && (
           <span className="toolbar__note">
-            {rows.length} {rows.length === 1 ? 'book' : 'books'} · {withPhoto} with a photo
+            {rows.length} {rows.length === 1 ? 'book' : 'books'} · <b className="covers__count is-dropped">{dropped} dropped</b> ·{' '}
+            <b className="covers__count is-missing">{rows.length - dropped} not dropped</b>
           </span>
         )}
         <span className="toolbar__spacer" />
@@ -164,10 +223,16 @@ export default function Covers() {
           <DataTable
             columns={columns}
             rows={rows.map((b, i) => ({ ...b, n: i + 1, __highlight: i === over }))}
-            loading={loading}
+            loading={loading || (!!data && data.tab !== tab)}
             refreshing={refreshing}
             caption="Books scanned on this day"
-            empty={<EmptyState title="No books scanned">Nothing was scanned on this day (rejected books are not listed).</EmptyState>}
+            empty={
+              tab === 'check' ? (
+                <EmptyState title="All caught up">No new scans are waiting for a cover check.</EmptyState>
+              ) : (
+                <EmptyState title="No books scanned">Nothing was scanned on this day (rejected books are not listed).</EmptyState>
+              )
+            }
           />
         </div>
       )}

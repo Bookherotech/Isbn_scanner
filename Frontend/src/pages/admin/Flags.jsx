@@ -127,12 +127,12 @@ function FlaggedBooks({ query, tab }) {
                 setBusy(r.id)
                 await reviewFlag(r.id, 'Reviewed — fine to list')
                 setBusy('')
-                toast({ title: 'Flag reviewed', description: `“${r.title}” can continue to approval.` })
+                toast({ title: 'Flag reviewed', description: r.coverHold ? `“${r.title}” goes to Covers next.` : `“${r.title}” can continue to approval.` })
               }}
             >
               Mark reviewed
             </Button>
-            {r.status === 'pending' && (
+            {r.status === 'pending' && !r.coverHold && (
               <Button size="sm" variant="dark" onClick={() => navigate(`/admin/pending/${r.id}`)}>
                 Open review
               </Button>

@@ -177,6 +177,8 @@ def approve_book(book_id, admin, push=True):
         book = _locked(book_id)
         if book.status != BookStatus.PENDING:
             raise InvalidState('Only pending books can be approved.')
+        if book.cover_hold:
+            raise InvalidState('This book is still on the Covers page. Send it on from there first.')
         if needs_review(book.status, book.flag_reviewed_at, match_flags(book.title, book.subjects, load_categories())):
             _mark_flag_reviewed(book, admin, 'Reviewed on approval')  # approving a held book counts as reviewing it
         book.status = BookStatus.LIVE
@@ -226,6 +228,8 @@ def approve_waiting_entry(entry_id, admin):
         entry = _locked(entry_id)
         if entry.status != BookStatus.WAITING or entry.linked_item_id is None:
             raise InvalidState('This waiting-list entry is no longer open.')
+        if entry.cover_hold:
+            raise InvalidState('This book is still on the Covers page. Send it on from there first.')
         primary = _locked(entry.linked_item_id)
         if primary.status != BookStatus.OUT_OF_STOCK:
             left = primary.stock if primary.stock is not None else primary.quantity

@@ -60,6 +60,9 @@ class Book(models.Model):
     auto_rejected = models.BooleanField(default=False)  # rejected by the system (duplicate on the same shelf), not by an admin
     reject_reason = models.CharField(max_length=120, blank=True)
     reject_note = models.TextField(blank=True)
+    # A new submission waits on the admin Covers page (a photo can be dropped on it) before it shows in Pending / Waiting list.
+    cover_hold = models.BooleanField(default=False, db_index=True)
+    cover_dropped_at = models.DateTimeField(null=True, blank=True)  # when an admin last dropped a photo on it (Covers page)
 
     # ---- Shopify and stock (set by the Admin / Shopify module) ----
     product_id = models.CharField(max_length=40, blank=True)  # Shopify product; shared by entries of the same book

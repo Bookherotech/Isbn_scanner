@@ -57,7 +57,9 @@ def search_filter(text):
 
 
 def filter_books(queryset, params):
-    """?status=a,b &q= &shelf=A-03 &staff=<id> &source= &author= &approved_only= &edited= &hide_held= &reason=<rejection reason> &sort="""
+    """?status=a,b &q= &shelf=A-03 &staff=<id> &source= &author= &approved_only= &edited= &hide_held= &reason=<rejection reason> &sort=
+    Books still on the Covers page (cover_hold) are left out: they join the lists once the admin sends them on."""
+    queryset = queryset.filter(cover_hold=False)
     statuses = parse_statuses(params.get('status'))
     if statuses:
         queryset = queryset.filter(status__in=statuses)

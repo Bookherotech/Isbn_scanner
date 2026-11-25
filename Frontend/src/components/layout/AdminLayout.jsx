@@ -30,7 +30,7 @@ const NAV = [
       { to: '/admin/rejected', label: 'Rejected', icon: XCircle },
       { to: '/admin/live', label: 'Live inventory', icon: BookCopy },
       { to: '/admin/flags', label: 'Flags', icon: Flag, count: 'flagged' },
-      { to: '/admin/covers', label: 'Covers', icon: Images },
+      { to: '/admin/covers', label: 'Covers', icon: Images, count: 'covers' },
     ],
   },
   {
@@ -73,7 +73,7 @@ const TITLES = [
 ]
 
 // Colour of a nav item's count badge (sidebar + phone menu).
-const countTone = (key) => ({ ready: 'hero', oos: 'warn', unread: 'signal', flagged: 'flag' })[key] ?? 'neutral'
+const countTone = (key) => ({ ready: 'hero', oos: 'warn', unread: 'signal', flagged: 'flag', covers: 'hero' })[key] ?? 'neutral'
 
 function Sidebar({ onNavigate }) {
   const { user } = useAuth()
