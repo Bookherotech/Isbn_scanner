@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import { ArrowRight, Camera, CircleDashed, ImageUp, Store, ChevronLeft, ChevronRight, Upload, UserRound } from 'lucide-react'
 import { getCoverBooks, releaseCovers, setBookCover } from '../../services/adminApi'
 import { shrinkPhoto } from '../../services/photo'
-import { useQuery } from '../../hooks/useStore'
+import { useMediaQuery, useQuery } from '../../hooks/useStore'
 import { useToast } from '../../hooks/useToast'
 import { DataTable } from '../../components/ui/Data'
 import { PageHeader } from '../../components/ui/Misc'
@@ -10,9 +10,9 @@ import { Input, Segmented } from '../../components/ui/Form'
 import { Button, IconButton } from '../../components/ui/Button'
 import { EmptyState, ErrorState } from '../../components/ui/Feedback'
 import { ShelfTag, StatusChip } from '../../components/ui/Status'
-import { BookCell } from '../../components/books/BookCover'
+import { BookCell, BookCover } from '../../components/books/BookCover'
 import { Person } from '../../components/inventory/Filters'
-import { formatDateTime } from '../../utils/format'
+import { cn, formatDateTime } from '../../utils/format'
 
 /** Already in the Shopify store: on Shopify itself, or waiting behind units that are. */
 const onShopify = (b) => Boolean(b.productId || b.match?.shopify || b.linked?.productId)
@@ -44,6 +44,7 @@ export default function Covers() {
   const today = data?.today
   const rows = data?.tab === tab ? data.rows : [] // not the other tab's rows while switching
   const dropped = rows.filter((b) => b.coverDroppedAt).length
+  const phone = useMediaQuery('(max-width: 860px)') // same breakpoint as DataTable's cards
 
   const upload = async (book, file) => {
     setBusyId(book.id)
@@ -109,6 +110,57 @@ export default function Covers() {
     if (file) upload(book, file)
   }
 
+  const coverChip = (b) =>
+    b.coverDroppedAt ? (
+      <span className="chip chip--sm chip--approved" title={`Dropped ${formatDateTime(b.coverDroppedAt)}`}>
+        <ImageUp size={12} aria-hidden strokeWidth={2.3} /> Photo dropped
+      </span>
+    ) : b.hasPhoto ? (
+      <span className="chip chip--sm chip--waiting">
+        <UserRound size={12} aria-hidden strokeWidth={2.3} /> Staff photo
+      </span>
+    ) : (
+      <span className="chip chip--sm chip--oos">
+        <CircleDashed size={12} aria-hidden strokeWidth={2.3} /> Not dropped
+      </span>
+    )
+
+  const coverNote = (b) => (
+    <span className="cover-note">
+      {b.hasPhoto ? (
+        'Replaces the Shopify image'
+      ) : onShopify(b) ? (
+        <>
+          <Store size={12} aria-hidden /> Store image kept
+        </>
+      ) : (
+        'Fetched cover used'
+      )}
+    </span>
+  )
+
+  const statusChip = (b) => (
+    <StatusChip status={b.status} ready={b.ready} syncStatus={b.syncStatus} size="sm" label={b.coverHold ? `Goes to ${b.status === 'waiting' ? 'Waiting list' : 'Pending'}` : undefined} />
+  )
+
+  /** small = icon-only buttons (phone strips). */
+  const actions = (b, small) => (
+    <span className="row-actions">
+      <Button as="label" size="sm" icon={Camera} loading={busyId === b.id} disabled={!!busyId} className={small ? 'btn--icon' : undefined} title={b.hasPhoto ? 'Change photo' : 'Choose photo'}>
+        {!small && (b.hasPhoto ? 'Change photo' : 'Choose photo')}
+        <input type="file" accept="image/*" onChange={choose(b)} hidden disabled={!!busyId} aria-label={b.hasPhoto ? 'Change photo' : 'Choose photo'} />
+      </Button>
+      {b.coverHold &&
+        (small ? (
+          <Button size="sm" variant="dark" icon={ArrowRight} loading={sending === b.id} disabled={!!sending || busyId === b.id} onClick={() => send([b.id], b.id)} aria-label="Send on" title="Send on" />
+        ) : (
+          <Button size="sm" variant="dark" iconRight={ArrowRight} loading={sending === b.id} disabled={!!sending || busyId === b.id} onClick={() => send([b.id], b.id)}>
+            Send
+          </Button>
+        ))}
+    </span>
+  )
+
   const columns = [
     { key: 'n', header: '#', align: 'right', card: 'meta', render: (b) => <span className="num td-muted">{b.n}</span> },
     { key: 'book', header: 'Book', card: 'title', render: (b) => <BookCell item={b} sub={b.author} /> },
@@ -117,60 +169,47 @@ export default function Covers() {
     { key: 'qty', header: 'Qty', align: 'right', card: 'meta', render: (b) => <span className="num td-strong">{b.quantity}</span> },
     { key: 'by', header: 'Scanned by', card: 'meta', render: (b) => <Person id={b.submittedBy} name={b.submittedByName} /> },
     { key: 'at', header: 'Scanned', card: 'meta', render: (b) => <span className="td-muted" title={formatDateTime(b.submittedAt)}>{timeOf(b.submittedAt)}</span> },
-    { key: 'status', header: 'Status', card: 'badge', render: (b) => <StatusChip status={b.status} ready={b.ready} syncStatus={b.syncStatus} size="sm" label={b.coverHold ? `Goes to ${b.status === 'waiting' ? 'Waiting list' : 'Pending'}` : undefined} /> },
+    { key: 'status', header: 'Status', card: 'badge', render: statusChip },
     {
       key: 'cover',
       header: 'Cover',
       card: 'meta',
       render: (b) => (
         <span className="cover-state">
-          {b.coverDroppedAt ? (
-            <span className="chip chip--sm chip--approved" title={`Dropped ${formatDateTime(b.coverDroppedAt)}`}>
-              <ImageUp size={12} aria-hidden strokeWidth={2.3} /> Photo dropped
-            </span>
-          ) : b.hasPhoto ? (
-            <span className="chip chip--sm chip--waiting">
-              <UserRound size={12} aria-hidden strokeWidth={2.3} /> Staff photo
-            </span>
-          ) : (
-            <span className="chip chip--sm chip--oos">
-              <CircleDashed size={12} aria-hidden strokeWidth={2.3} /> Not dropped
-            </span>
-          )}
-          <span className="cover-note">
-            {b.hasPhoto ? (
-              'Replaces the Shopify image'
-            ) : onShopify(b) ? (
-              <>
-                <Store size={12} aria-hidden /> Store image kept
-              </>
-            ) : (
-              'Fetched cover used'
-            )}
-          </span>
+          {coverChip(b)}
+          {coverNote(b)}
         </span>
       ),
     },
-    {
-      key: 'action',
-      header: '',
-      align: 'right',
-      card: 'action',
-      render: (b) => (
-        <span className="row-actions">
-          <Button as="label" size="sm" icon={Camera} loading={busyId === b.id} disabled={!!busyId}>
-            {b.hasPhoto ? 'Change photo' : 'Choose photo'}
-            <input type="file" accept="image/*" onChange={choose(b)} hidden disabled={!!busyId} />
-          </Button>
-          {b.coverHold && (
-            <Button size="sm" variant="dark" iconRight={ArrowRight} loading={sending === b.id} disabled={!!sending || busyId === b.id} onClick={() => send([b.id], b.id)}>
-              Send
-            </Button>
-          )}
-        </span>
-      ),
-    },
+    { key: 'action', header: '', align: 'right', card: 'action', render: (b) => actions(b) },
   ]
+
+  /** Phone: one small horizontal strip per book instead of the big stacked card. */
+  const strips = (
+    <ul className={cn('cardlist covers-strips', refreshing && 'is-refreshing')}>
+      {rows.map((b, i) => (
+        <li key={b.id} className={cn('cover-strip', i === over && 'is-highlight')}>
+          <span className="cover-strip__n num">{i + 1}</span>
+          <BookCover title={b.title} author={b.author} isbn={b.isbn} photo={b.coverPhotoUrl} size="xs" />
+          <div className="cover-strip__body">
+            <div className="cover-strip__title">{b.title}</div>
+            <div className="cover-strip__meta">
+              <span className="td-mono">{b.isbn}</span>
+              <ShelfTag id={b.shelfId} size="sm" />
+              <span>×{b.quantity}</span>
+              <span title={formatDateTime(b.submittedAt)}>{timeOf(b.submittedAt)}</span>
+            </div>
+            <div className="cover-strip__chips">
+              {statusChip(b)}
+              {coverChip(b)}
+            </div>
+            {coverNote(b)}
+          </div>
+          <div className="cover-strip__actions">{actions(b, true)}</div>
+        </li>
+      ))}
+    </ul>
+  )
 
   return (
     <div>
@@ -220,20 +259,24 @@ export default function Covers() {
         <ErrorState error={error} onRetry={reload} />
       ) : (
         <div className="covers-drop" {...drag}>
-          <DataTable
-            columns={columns}
-            rows={rows.map((b, i) => ({ ...b, n: i + 1, __highlight: i === over }))}
-            loading={loading || (!!data && data.tab !== tab)}
-            refreshing={refreshing}
-            caption="Books scanned on this day"
-            empty={
-              tab === 'check' ? (
-                <EmptyState title="All caught up">No new scans are waiting for a cover check.</EmptyState>
-              ) : (
-                <EmptyState title="No books scanned">Nothing was scanned on this day (rejected books are not listed).</EmptyState>
-              )
-            }
-          />
+          {phone && rows.length > 0 && !loading ? (
+            strips
+          ) : (
+            <DataTable
+              columns={columns}
+              rows={rows.map((b, i) => ({ ...b, n: i + 1, __highlight: i === over }))}
+              loading={loading || (!!data && data.tab !== tab)}
+              refreshing={refreshing}
+              caption="Books scanned on this day"
+              empty={
+                tab === 'check' ? (
+                  <EmptyState title="All caught up">No new scans are waiting for a cover check.</EmptyState>
+                ) : (
+                  <EmptyState title="No books scanned">Nothing was scanned on this day (rejected books are not listed).</EmptyState>
+                )
+              }
+            />
+          )}
         </div>
       )}
     </div>
