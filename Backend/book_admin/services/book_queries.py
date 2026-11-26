@@ -2,7 +2,9 @@
 
 import re
 
+from django.db import connection
 from django.db.models import Count, Exists, OuterRef, Prefetch, Q, Sum
+from django.db.models.expressions import RawSQL
 from django.db.models.functions import Coalesce
 from rest_framework.exceptions import ValidationError
 
@@ -10,6 +12,7 @@ from book_admin.services.flag_service import held_pending_ids
 from book_admin.services.rejection_reasons import REJECTION_REASONS
 from inventory.constants import BookSource, BookStatus
 from inventory.models import Book, Shelf
+from inventory.services.fulltext import boolean_query, fulltext_ids_sql
 
 BOOK_RELATED = ('shelf', 'previous_shelf', 'linked_item__shelf', 'submitted_by', 'approved_by', 'rejected_by', 'flag_reviewed_by')
 STOCK_STATUSES = (BookStatus.LIVE, BookStatus.OUT_OF_STOCK)
@@ -44,16 +47,45 @@ def parse_statuses(value):
     return statuses
 
 
-def search_filter(text):
-    """Title, author, shelf code, or (3+ digits) ISBN contains the text."""
-    text = (text or '').strip()
-    if not text:
-        return Q()
+def _contains_filter(text, digits):
+    """Title, author, shelf code, or (3+ digits) ISBN contains the text: reads every row (LIKE '%text%')."""
     cond = Q(title__icontains=text) | Q(author__icontains=text) | Q(shelf__code__icontains=text)
-    digits = re.sub(r'\D', '', text)
     if len(digits) >= 3:
         cond |= Q(isbn__icontains=digits)
     return cond
+
+
+def search_filter(text):
+    """Books matching the search box.
+
+    Digits only (an ISBN or part of one): the ISBN contains them. Text: every word of the title / author (3+ letters)
+    starts a word there ("atomic hab" finds "Atomic Habits"), through MySQL's FULLTEXT index (inventory.services.fulltext)
+    instead of reading every row; a shelf code containing the text matches too. When the index finds no book (a word
+    in the middle of another, a word under 3 letters only, books saved in a transaction that is still open, not MySQL),
+    the old "contains" search is used.
+    """
+    text = (text or '').strip()
+    if not text:
+        return Q()
+    digits = re.sub(r'\D', '', text)
+    isbn_only = not re.search(r'[^\d\s-]', text)  # only digits (and spaces / dashes)
+    if isbn_only and len(digits) == 13:
+        return Q(isbn=digits)  # a full ISBN-13: the isbn index
+    words = boolean_query(text)
+    if words and connection.vendor == 'mysql':
+        table = Book._meta.db_table
+        sql, params = fulltext_ids_sql(), [words]
+        shelf_ids = list(Shelf.objects.filter(code__icontains=text).values_list('id', flat=True)[:50])  # the shelf table is small
+        if shelf_ids:
+            sql += f' UNION SELECT id FROM {table} WHERE shelf_id IN ({", ".join(["%s"] * len(shelf_ids))})'
+            params += shelf_ids
+        if isbn_only and len(digits) >= 3:  # part of an ISBN, or a title like "1984"
+            sql += f' UNION SELECT id FROM {table} WHERE isbn LIKE %s'
+            params.append(f'%{digits}%')
+        matched = Q(pk__in=RawSQL(sql, params))
+        if Book.objects.filter(matched).exists():
+            return matched
+    return _contains_filter(text, digits)
 
 
 def filter_books(queryset, params):
