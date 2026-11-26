@@ -203,11 +203,19 @@ DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default=f'BookHero <{_email_us
 # login / OTP throttles, Shopify webhook de-duplication and the Shopify token. Each site (live / test) has its own
 # folder. Tests keep an in-memory cache so runs never see each other's throttle counts.
 TESTING = len(sys.argv) > 1 and sys.argv[1] == 'test'
+CACHE_DIR = config('CACHE_DIR', default=str(BASE_DIR / '.cache'))
 CACHES = {
     'default': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache'} if TESTING else {
         'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
-        'LOCATION': config('CACHE_DIR', default=str(BASE_DIR / '.cache')),
+        'LOCATION': CACHE_DIR,
         'OPTIONS': {'MAX_ENTRIES': 5000},
+    },
+    # The saved ISBN lookups (integrations.metadata.lookup), kept up to 30 days: their own folder, so the many books
+    # never push the throttle counters or the Shopify token out of `default`.
+    'metadata': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache', 'LOCATION': 'metadata'} if TESTING else {
+        'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
+        'LOCATION': config('METADATA_CACHE_DIR', default=f'{CACHE_DIR}-metadata'),
+        'OPTIONS': {'MAX_ENTRIES': 100000},
     },
 }
 

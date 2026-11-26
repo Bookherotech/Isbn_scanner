@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import { ArrowRight, Ban, Camera, ScanLine, Check, CircleAlert, Keyboard, Pencil, PencilLine, RotateCcw, Search, SearchX, ServerCrash, Trash2 } from 'lucide-react'
+import { ArrowRight, Ban, Camera, ScanLine, Check, CircleAlert, Keyboard, Pencil, PencilLine, RefreshCw, RotateCcw, Search, SearchX, ServerCrash, Trash2 } from 'lucide-react'
 import { getDescription, getGenres, loadShelves, lookupIsbn, searchBooks } from '../../services/staffApi'
 import { addRecentIsbn, setRecentIsbnTitle } from '../../services/recentIsbns'
 import { shrinkPhoto } from '../../services/photo'
@@ -24,6 +24,7 @@ const FIELDS = ['title', 'author', 'publisher', 'year', 'pages', 'format', 'dime
 const EMPTY = { title: '', author: '', publisher: '', year: '', pages: '', format: '', dimensions: '', description: '', genre: '', subgenres: [], language: '' }
 const pickValues = (m) => ({ ...Object.fromEntries(FIELDS.map((k) => [k, m?.[k] ?? ''])), subgenres: m?.subgenres || [] })
 const isEmpty = (v) => String(v ?? '').trim() === ''
+const same = (a, b) => JSON.stringify(a ?? '') === JSON.stringify(b ?? '')
 const MIN_SEARCH = 3 // letters of the title before Google matches are looked up
 
 export default function BookMetadata() {
@@ -106,6 +107,31 @@ export default function BookMetadata() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once per book, when its details are on screen
   }, [state.status, manual, isbn, descriptionChecked])
+
+  // "Refresh details": the book sources again instead of the saved lookup. Fields staff changed are kept (a genre with
+  // its categories); the others take the new values. The description is looked for again when its box is empty.
+  const [refreshing, setRefreshing] = useState(false)
+  const [refreshError, setRefreshError] = useState('')
+  const refreshDetails = async () => {
+    setRefreshError('')
+    setRefreshing(true)
+    try {
+      const m = await lookupIsbn(isbn, { refresh: true })
+      const old = pickValues(meta)
+      const fresh = pickValues(m)
+      setValues((v) => {
+        const next = Object.fromEntries(Object.keys(fresh).map((k) => [k, same(v[k], old[k]) ? fresh[k] : v[k]]))
+        if (!same(v.genre, old.genre) || !same(v.subgenres, old.subgenres)) Object.assign(next, { genre: v.genre, subgenres: v.subgenres })
+        return next
+      })
+      setMeta(m)
+      setDescriptionChecked(null)
+    } catch (e) {
+      setRefreshError(e.code === 'network' ? 'No connection. Try again.' : 'Couldn’t refresh the details. Try again in a moment.')
+    } finally {
+      setRefreshing(false)
+    }
+  }
 
   const goManual = () => {
     setManual(true)
@@ -350,6 +376,18 @@ export default function BookMetadata() {
                   </span>
                 )}
                 <p className="meta-hero__found">{manual ? 'Entered manually' : `Metadata found via ${meta.source === 'google' ? 'Google Books' : 'Open Library'}`}</p>
+                {!manual && (
+                  <div className="meta-hero__refresh">
+                    <Button variant="ghost" size="sm" icon={RefreshCw} loading={refreshing} onClick={refreshDetails}>
+                      Refresh details
+                    </Button>
+                    {refreshError && (
+                      <span className="field__error" role="alert">
+                        {refreshError}
+                      </span>
+                    )}
+                  </div>
+                )}
                 <div className="meta-hero__code">
                   <Barcode value={isbn} height={26} />
                 </div>

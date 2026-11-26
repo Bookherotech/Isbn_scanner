@@ -11,7 +11,8 @@ from staff_api.permissions import IsStaffRole
 
 
 class IsbnLookupView(APIView):
-    """GET /api/staff/isbn/<isbn>/ -> book details for a scanned or typed ISBN (ISBN-10 is converted).
+    """GET /api/staff/isbn/<isbn>/[?refresh=1] -> book details for a scanned or typed ISBN (ISBN-10 is converted).
+    `refresh=1` ("Refresh details"): skip the saved lookup and ask the book sources again.
 
     200 {isbn, title, author, publisher, year, pages, subjects, cover_url, source, fallback, missing, filled, genre, subgenres, language, genre_source}
     genre / subgenres / language: from the store's own Shopify product when it has this ISBN (genre_source 'shopify'), else guessed
@@ -33,7 +34,8 @@ class IsbnLookupView(APIView):
             raise BookBlocked(blocked_summary(blocked))
         store_check = start_store_check(isbn13)  # Shopify is asked while the book data is looked up
         try:
-            return Response(store_guess(lookup_isbn(isbn13), isbn=isbn13, store_check=store_check))
+            record = lookup_isbn(isbn13, refresh=request.query_params.get('refresh') == '1')
+            return Response(store_guess(record, isbn=isbn13, store_check=store_check))
         except MetadataNotFound:
             raise IsbnNotFound from None
         except MetadataUnavailable:

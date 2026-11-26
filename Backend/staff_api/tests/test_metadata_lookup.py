@@ -1,7 +1,7 @@
 from unittest import mock
 from urllib.error import URLError
 
-from django.core.cache import cache
+from django.core.cache import cache, caches
 from django.core.exceptions import ImproperlyConfigured
 from django.test import SimpleTestCase, override_settings
 
@@ -33,6 +33,7 @@ class MetadataLookupTests(SimpleTestCase):
 
     def setUp(self):
         cache.clear()
+        caches['metadata'].clear()
 
     def test_google_record(self):
         with mock.patch(GOOGLE, return_value=GOOGLE_HIT) as google, mock.patch(OPEN_LIBRARY, return_value={}) as open_library:
@@ -74,6 +75,7 @@ class MetadataLookupTests(SimpleTestCase):
         ]
         for google, open_library in cases:
             cache.clear()
+            caches['metadata'].clear()
             google_kw = {'side_effect': google} if isinstance(google, Exception) else {'return_value': google}
             ol_kw = {'side_effect': open_library} if isinstance(open_library, Exception) else {'return_value': open_library}
             with mock.patch(GOOGLE, **google_kw), mock.patch(OPEN_LIBRARY, **ol_kw):
@@ -105,6 +107,7 @@ class OpenLibraryFirstTests(SimpleTestCase):
 
     def setUp(self):
         cache.clear()
+        caches['metadata'].clear()
 
     def test_open_library_answers_first_and_google_only_adds_its_categories(self):
         complete = {f'ISBN:{ISBN}': {**OPEN_LIBRARY_HIT[f'ISBN:{ISBN}'], 'publishers': [{'name': 'Ace'}], 'publish_date': '1990', 'number_of_pages': 412}}  # a missing field would ask Google to fill it
@@ -135,6 +138,7 @@ class OpenLibraryFirstTests(SimpleTestCase):
             with self.assertRaises(MetadataNotFound):
                 lookup_isbn(ISBN)
         cache.clear()
+        caches['metadata'].clear()
         with mock.patch(OPEN_LIBRARY, side_effect=ProviderError('down')), mock.patch(GOOGLE, return_value=GOOGLE_MISS):
             with self.assertRaises(MetadataUnavailable):
                 lookup_isbn(ISBN)

@@ -20,12 +20,12 @@ class IsbnLookupApiTests(StaffApiTestCase):
             response = self.client.get(url('9780141182636'))
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['title'], 'The Great Gatsby')
-        lookup.assert_called_once_with('9780141182636')
+        lookup.assert_called_once_with('9780141182636', refresh=False)
 
     def test_isbn10_is_converted_before_lookup(self):
         with mock.patch(LOOKUP, return_value=RECORD) as lookup:
             self.client.get(url('0141182636'))
-        lookup.assert_called_once_with('9780141182636')
+        lookup.assert_called_once_with('9780141182636', refresh=False)
 
     def test_invalid_isbn(self):
         with mock.patch(LOOKUP) as lookup:
