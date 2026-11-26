@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, ArrowRight, Camera, Check, CircleAlert, Flag, Hourglass, PencilLine, Save, ShieldCheck, Store, Trash2, X } from 'lucide-react'
-import { approveItem, getFilterOptions, getGenres, getItem, listItems, rejectItem, updateItem } from '../../services/adminApi'
+import { ArrowLeft, ArrowRight, Camera, Check, CircleAlert, Flag, Hourglass, PencilLine, RefreshCw, Save, ShieldCheck, Store, Trash2, X } from 'lucide-react'
+import { approveItem, getFilterOptions, getGenres, getItem, listItems, refreshIsbnDetails, rejectItem, updateItem } from '../../services/adminApi'
 import { useQuery, useTicker } from '../../hooks/useStore'
 import { useToast } from '../../hooks/useToast'
 import { BookCover } from '../../components/books/BookCover'
@@ -23,6 +23,7 @@ import { cn, formatDateTime, timeAgo } from '../../utils/format'
 const FIELDS = ['isbn', 'title', 'author', 'publisher', 'year', 'pages', 'format', 'dimensions', 'description', 'genre', 'subgenres', 'language', 'shelfId', 'quantity']
 const EDITABLE = ['pending', 'waiting'] // a waiting-list entry is edited here too; it is approved from the Waiting list
 const REASONS = ['Incorrect metadata', 'Damaged book', 'Invalid shelf', 'Other']
+const REFRESHABLE = ['title', 'author', 'publisher', 'year', 'pages', 'format', 'dimensions', 'description', 'language']
 const LABEL = { isbn: 'ISBN', title: 'Title', author: 'Author', publisher: 'Publisher', year: 'Year', pages: 'Pages', format: 'Format', dimensions: 'Dimensions', description: 'Description', photo: 'Photo', subgenres: 'Categories' }
 
 export default function ReviewBook() {
@@ -64,6 +65,42 @@ function ReviewBody({ item }) {
   useEffect(() => {
     listItems({ statuses: ['pending'], hideHeld: true, sort: 'oldest', pageSize: 50 }).then((r) => setNextId(r.rows.find((x) => x.id !== item.id)?.id ?? null))
   }, [item.id, done])
+
+  // "Refresh details": the book sources again (not the saved lookup). Fills only empty fields, and a category the
+  // fetched data adds to the same genre; the admin then checks the highlighted fields and saves.
+  const [refreshing, setRefreshing] = useState(false)
+  const refreshDetails = async () => {
+    setRefreshing(true)
+    try {
+      const fresh = await refreshIsbnDetails(String(values.isbn).trim() || item.isbn)
+      const empty = (v) => String(v ?? '').trim() === ''
+      const next = { ...values }
+      const changed = REFRESHABLE.filter((k) => empty(values[k]) && !empty(fresh[k]))
+      changed.forEach((k) => (next[k] = fresh[k]))
+      if (empty(values.genre) && fresh.genre) {
+        Object.assign(next, { genre: fresh.genre, subgenres: fresh.subgenres })
+        changed.push('genre')
+      } else if (fresh.genre && fresh.genre.toLowerCase() === String(values.genre).toLowerCase()) {
+        const have = values.subgenres || []
+        const added = fresh.subgenres.filter((s) => !have.some((h) => h.toLowerCase() === s.toLowerCase()))
+        if (added.length) {
+          next.subgenres = [...have, ...added]
+          changed.push('subgenres')
+        }
+      }
+      setConflict(null)
+      setValues(next)
+      toast(
+        changed.length
+          ? { title: 'Details refreshed', description: `Filled ${changed.map((k) => (LABEL[k] || k).toLowerCase()).join(', ')}. Check them, then save.` }
+          : { title: 'Nothing new found', description: 'The book sources have nothing for the empty fields. Fields already filled were kept.', tone: 'info' },
+      )
+    } catch (e) {
+      toast({ title: 'Couldn’t refresh the details', description: e.message, tone: 'error' })
+    } finally {
+      setRefreshing(false)
+    }
+  }
 
   const patch = () =>
     Object.fromEntries(
@@ -287,7 +324,12 @@ function ReviewBody({ item }) {
             <>
               <header className="review__panel-head">
                 <h2>Verify &amp; edit</h2>
-                {dirty && <span className="unsaved">Unsaved changes</span>}
+                <span className="review__panel-tools">
+                  {dirty && <span className="unsaved">Unsaved changes</span>}
+                  <Button variant="ghost" size="sm" icon={RefreshCw} loading={refreshing} disabled={stages.active} onClick={refreshDetails}>
+                    Refresh details
+                  </Button>
+                </span>
               </header>
               <div className="callout callout--note">
                 <PencilLine size={16} aria-hidden />

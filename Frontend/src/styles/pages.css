@@ -453,6 +453,7 @@
 .review__panel { position: sticky; top: calc(var(--topbar-h) + 16px); background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 18px; display: grid; gap: 14px; box-shadow: var(--shadow-1); }
 .review__panel-head { display: flex; justify-content: space-between; align-items: center; }
 .review__panel-head h2 { font-size: 17px; }
+.review__panel-tools { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
 .unsaved { font-size: 11.5px; font-weight: 700; color: var(--hero-ink); background: var(--hero-subtle); border: 1px solid var(--hero-line); padding: 2px 8px; border-radius: 99px; animation: pop-in var(--t-2) var(--ease-out); }
 .review__form { display: grid; gap: 12px; }
 .review__row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }

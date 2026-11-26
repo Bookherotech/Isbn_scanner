@@ -1,6 +1,6 @@
-from django.core.cache import cache
 from django.urls import reverse
 
+from integrations.metadata import lookup
 from inventory.constants import BookStatus
 from inventory.models import Book
 from staff_api.tests.helpers import StaffApiTestCase, make_book
@@ -111,7 +111,7 @@ class SubmissionCreateApiTests(StaffApiTestCase):
         self.assertEqual((book.isbn, book.shelf_id), ('9780141182636', self.a01.id))
 
     def test_cover_comes_from_the_cached_lookup(self):
-        cache.set('metadata:isbn:9780141182636', {'cover_url': 'https://covers.example/x.jpg'})
+        lookup._save('9780141182636', {'cover_url': 'https://covers.example/x.jpg'}, complete=True)
         self.submit()
         self.assertEqual(Book.objects.get().cover_url, 'https://covers.example/x.jpg')
 

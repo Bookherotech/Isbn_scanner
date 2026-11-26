@@ -40,9 +40,18 @@ def _from_google(title, author):
     return next((r['description'] for r in results if r.get('description') and same_title(r['title'], title)), '')
 
 
+def _key(isbn13):
+    return f'metadata:description:{isbn13}'
+
+
+def forget_description(isbn13):
+    """Drop the saved description, so the next find_description asks the providers again ("Refresh details")."""
+    cache.delete(_key(isbn13))
+
+
 def find_description(isbn13, title='', author=''):
     """{'description', 'source'} ('' for both when there is none). Never raises: the description is optional."""
-    key = f'metadata:description:{isbn13}'
+    key = _key(isbn13)
     cached = cache.get(key)
     if cached is not None:
         return cached

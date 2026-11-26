@@ -100,11 +100,11 @@ function mapItem(r) {
  * book data and matched to the store's genres ('guess'); '' when unknown. Staff confirm them.
  * Errors carry `code`: 'invalid_isbn' | 'not_found' | 'service_unavailable' | 'network' | 'blocked' (on the admin's Blocked books
  * list; `error.blocked` is {isbn, title, author, reason}).
- * (The second argument is accepted for the existing Retry calls; every call is a real lookup.)
+ * `refresh`: skip the server's saved lookup and ask the book sources again ("Refresh details").
  * A 'service_unavailable' answer (a book source was slow or down) is asked once more by itself before it is shown.
  */
-export async function lookupIsbn(isbn13) {
-  const url = `/api/staff/isbn/${encodeURIComponent(isbn13)}/`
+export async function lookupIsbn(isbn13, { refresh = false } = {}) {
+  const url = `/api/staff/isbn/${encodeURIComponent(isbn13)}/${refresh ? '?refresh=1' : ''}`
   let m
   try {
     m = await call(url)

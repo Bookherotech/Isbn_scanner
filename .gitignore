@@ -29,6 +29,7 @@ build/
 .mypy_cache/
 .ruff_cache/
 Backend/.cache/
+Backend/.cache-metadata/
 .coverage
 htmlcov/
 .tox/

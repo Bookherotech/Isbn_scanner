@@ -1,4 +1,4 @@
-from django.core.cache import cache
+from django.core.cache import cache, caches
 from rest_framework.test import APITestCase
 
 from authentication.constants import Role
@@ -34,6 +34,7 @@ class AdminApiTestCase(APITestCase):
 
     def setUp(self):
         cache.clear()
+        caches['metadata'].clear()
         self.staff = User.objects.create_user('sarah@bookhero.com', PASSWORD, full_name='Sarah Wilson')
         self.other_staff = User.objects.create_user('michael@bookhero.com', PASSWORD, full_name='Michael Brown')
         self.admin = User.objects.create_user('rachel@bookhero.com', PASSWORD, full_name='Rachel Morgan', role=Role.ADMIN)

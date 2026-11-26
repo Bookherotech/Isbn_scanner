@@ -417,6 +417,7 @@
 .meta-isbn .input { flex: 1; min-width: 0; }
 .meta-hero__badges .edited-tag, .subcard__edited { margin-left: 0; }
 .meta-hero__found { font-size: 13px; color: var(--ink-2); font-weight: 600; }
+.meta-hero__refresh { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-left: -8px; }
 .meta-hero__code { width: 100%; max-width: 190px; padding: 6px 8px 2px; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; }
 .meta-hero__code .barcode { width: 100%; }
 .meta-form { display: grid; gap: 14px 12px; } /* column gap = row gap of the rows inside, so their columns line up */

@@ -3,7 +3,7 @@
 import hashlib
 from unittest import mock
 
-from django.core.cache import cache
+from django.core.cache import cache, caches
 from django.db import connection
 from django.test import SimpleTestCase, override_settings
 from django.urls import reverse
@@ -81,6 +81,7 @@ class LongTitleTests(StaffApiTestCase):
 class SearchCacheKeyTests(SimpleTestCase):
     def setUp(self):
         cache.clear()
+        caches['metadata'].clear()
 
     def test_the_cache_key_has_no_spaces(self):
         with mock.patch('integrations.metadata.google_books.get_json', return_value={'items': []}):
