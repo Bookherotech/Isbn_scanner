@@ -1,6 +1,6 @@
 from unittest import mock
 
-from django.core.cache import cache
+from django.core.cache import cache, caches
 from django.test import SimpleTestCase, override_settings
 from django.urls import reverse
 
@@ -30,6 +30,7 @@ RESULTS = {'totalItems': 6, 'items': [
 class BookSearchServiceTests(SimpleTestCase):
     def setUp(self):
         cache.clear()
+        caches['metadata'].clear()
 
     def test_candidates_are_parsed_filtered_and_deduplicated(self):
         with mock.patch(GET_JSON, return_value=RESULTS) as get_json:

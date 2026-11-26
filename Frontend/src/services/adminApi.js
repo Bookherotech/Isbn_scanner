@@ -432,6 +432,17 @@ export async function lookupBlockIsbn(isbn) {
   return { isbn: m.isbn, title: m.title || '', author: m.author || '', publisher: m.publisher || '', year: m.year ?? '', pages: m.pages ?? '', coverUrl: m.cover_url || '', source: m.source, blocked: m.blocked }
 }
 
+/** "Refresh details" on the review page: the book details fetched again from the book sources (the server's saved
+ *  lookup is replaced). -> { title, author, publisher, year, pages, format, dimensions, description, genre, subgenres, language }
+ *  Errors carry `code`: 'invalid_isbn' | 'not_found' | 'service_unavailable'. */
+export async function refreshIsbnDetails(isbn) {
+  const m = await call(`/api/admin/isbn/${encodeURIComponent(isbn)}/refresh/`)
+  return {
+    title: m.title || '', author: m.author || '', publisher: m.publisher || '', year: m.year ?? '', pages: m.pages ?? '', format: m.format || '',
+    dimensions: m.dimensions || '', description: m.description || '', genre: m.genre || '', subgenres: m.subgenres || [], language: m.language || '',
+  }
+}
+
 export async function addBlockedBook({ isbn, title = '', author = '', publisher = '', year = '', coverUrl = '', reason = '' }) {
   const body = { isbn, title, author, publisher, year: year === '' ? null : Number(year), cover_url: coverUrl, reason }
   return mapBlocked(await change('/api/admin/blocked-books/', { method: 'POST', body }))

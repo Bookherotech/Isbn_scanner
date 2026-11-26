@@ -39,24 +39,26 @@ def fetch(isbn13, *, api_key='', timeout=5):
     return {'isbn': isbn13, **details, 'source': SOURCE, 'volume_id': str(items[0].get('id') or '')}
 
 
-def dimensions(isbn13, *, volume_id='', api_key='', timeout=5):
-    """The book's size in mm ('129 x 198 x 21'), from Google's full volume record (the search results do not carry it).
-    `volume_id` (from fetch) saves the search. '' when Google has no full size for it or cannot be asked."""
-    params = {'q': f'isbn:{isbn13}', 'maxResults': 1, 'printType': 'books'}
-    if api_key:
-        params['key'] = api_key
+NO_EXTRAS = {'dimensions': '', 'subjects': []}
+
+
+def full_record(volume_id, *, api_key='', timeout=5):
+    """{'dimensions', 'subjects'} from Google's full volume record (`volume_id` from fetch): the size in mm
+    ('129 x 198 x 21') and the full categories ("Fiction / Thrillers / Suspense", ...), which the ISBN search results
+    do not carry (they have the short form, often just "Fiction"). NO_EXTRAS when Google cannot be asked."""
+    if not volume_id:
+        return dict(NO_EXTRAS)
     try:
-        if not volume_id:
-            items = get_json(URL, params, timeout).get('items') or []
-            volume_id = str(items[0].get('id') or '') if items else ''
-        if not volume_id:
-            return ''
         volume = get_json(f'{URL}/{volume_id}', {'key': api_key} if api_key else {}, timeout)
     except ProviderError:
-        return ''
-    size = (volume.get('volumeInfo') or {}).get('dimensions') or {}
+        return dict(NO_EXTRAS)
+    info = volume.get('volumeInfo') or {}
+    size = info.get('dimensions') or {}
     parts = [str(size.get(k) or '').strip() for k in ('width', 'height', 'thickness')]
-    return dimensions_mm(' x '.join(parts)) if all(parts) else ''  # e.g. '12.90 cm x 19.80 cm x 2.10 cm'
+    return {
+        'dimensions': dimensions_mm(' x '.join(parts)) if all(parts) else '',  # e.g. '12.90 cm x 19.80 cm x 2.10 cm'
+        'subjects': clean_subjects(info.get('categories') or []),
+    }
 
 
 def search(text, *, api_key='', timeout=5, limit=5):
