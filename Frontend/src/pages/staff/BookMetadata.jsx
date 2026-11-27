@@ -18,7 +18,8 @@ import { Field, Input, Select, Textarea } from '../../components/ui/Form'
 import { GenrePicker } from '../../components/books/GenrePicker'
 import { PhotoDrop } from '../../components/books/PhotoDrop'
 import { Skeleton } from '../../components/ui/Feedback'
-import { cn, PRICE_PATTERN } from '../../utils/format'
+import { cn, priceError } from '../../utils/format'
+import { PriceBox } from '../../components/books/PriceBox'
 
 const FIELDS = ['title', 'author', 'publisher', 'year', 'pages', 'format', 'dimensions', 'price', 'description', 'genre', 'language'] // price: typed by staff, never fetched
 const EMPTY = { title: '', author: '', publisher: '', year: '', pages: '', format: '', dimensions: '', price: '', description: '', genre: '', subgenres: [], language: '' }
@@ -136,7 +137,7 @@ export default function BookMetadata() {
   const goManual = () => {
     setManual(true)
     setMeta(null)
-    setValues(EMPTY)
+    setValues((v) => ({ ...EMPTY, price: v.price })) // a typed price is kept
     setState({ status: 'ready' })
   }
 
@@ -146,7 +147,7 @@ export default function BookMetadata() {
     author: !values.author.trim() && 'Author is required',
     year: values.year && !/^\d{4}$/.test(String(values.year)) && 'Use a 4-digit year',
     pages: values.pages && !/^\d+$/.test(String(values.pages)) && 'Numbers only',
-    price: String(values.price ?? '').trim() && !PRICE_PATTERN.test(String(values.price).trim()) && 'Enter a price like 45 or 45.50',
+    price: priceError(values.price),
   }
   const invalid = Object.values(errors).some(Boolean)
   const missing = meta?.missing || []
@@ -257,6 +258,8 @@ export default function BookMetadata() {
     }
     if (invalid) {
       setEditing(true) // e.g. no author found: open the fields so it can be filled in
+      const first = ['title', 'author', 'price'].find((k) => errors[k])
+      if (first) setTimeout(() => document.getElementById(`m-${first}`)?.focus(), 0) // after the fields unlock
       return
     }
     const finalIsbn = isbnCheck.isbn13 // manual entry may keep a corrected ISBN without a lookup
@@ -431,6 +434,8 @@ export default function BookMetadata() {
               }}
               noValidate
             >
+              {/* First and always editable: the books' sources have no price, staff type it. It becomes the Shopify price. */}
+              <PriceBox id="m-price" className="meta-form__wide" value={values.price} onChange={set('price')} error={showErrors && errors.price} hint="The price the book sells for on the store." />
               <Field label="Title" htmlFor="m-title" error={showErrors && errors.title} badge={edited('title') && <EditedTag />}>
                 <Input
                   id="m-title"
@@ -516,10 +521,6 @@ export default function BookMetadata() {
                   <Input id="m-dimensions" value={values.dimensions ?? ''} onChange={set('dimensions')} readOnly={locked} className={cn(lockedClass)} placeholder={locked ? '' : '126 x 176 x 21'} />
                 </Field>
               </div>
-              {/* Always editable: the books' sources have no price, staff type the selling price. Sent to Shopify on approval. */}
-              <Field label="Price (AED)" htmlFor="m-price" optional error={showErrors && errors.price} hint="Selling price on the store">
-                <Input id="m-price" inputMode="decimal" value={values.price ?? ''} onChange={set('price')} placeholder="e.g. 45" />
-              </Field>
               {/* Always editable: taken from the store's Shopify product, or guessed from the book data; staff confirm it. */}
               <GenrePicker
                 lists={genreLists}

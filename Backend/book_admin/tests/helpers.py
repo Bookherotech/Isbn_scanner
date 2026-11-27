@@ -19,6 +19,7 @@ def make_book(user, shelf, title='The Great Gatsby', author='F. Scott Fitzgerald
     """
     fields.setdefault('isbn', '9780141182636')
     fields.setdefault('quantity', 3)
+    fields.setdefault('price', '45.00')  # AED: needed to approve
     book = Book.objects.create(
         title=title, author=author, status=status, shelf=shelf, submitted_by=user,
         duplicate_key=duplicate_key(title, author), **fields,

@@ -191,7 +191,7 @@ class BookUpdateSerializer(serializers.Serializer):
     pages = serializers.CharField(allow_blank=True, allow_null=True)
     format = serializers.CharField(max_length=40, allow_blank=True)
     dimensions = serializers.CharField(max_length=60, allow_blank=True)
-    price = serializers.CharField(max_length=12, allow_blank=True, allow_null=True)  # AED; '' = no price
+    price = serializers.CharField(max_length=12, error_messages={'blank': 'Enter the price in AED.', 'required': 'Enter the price in AED.', 'null': 'Enter the price in AED.'})  # AED; cannot be cleared
     description = serializers.CharField(max_length=5000, allow_blank=True)
     genre = serializers.CharField(max_length=40, allow_blank=True)
     language = serializers.CharField(max_length=20, allow_blank=True)

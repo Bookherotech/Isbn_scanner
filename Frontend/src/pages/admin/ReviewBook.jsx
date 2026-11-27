@@ -18,7 +18,8 @@ import { ErrorState, Skeleton, StageList, useStages } from '../../components/ui/
 import { Modal } from '../../components/ui/Overlay'
 import { ShelfTag, StatusChip } from '../../components/ui/Status'
 import { Person } from '../../components/inventory/Filters'
-import { cn, formatDateTime, formatPrice, PRICE_PATTERN, timeAgo } from '../../utils/format'
+import { cn, formatDateTime, formatPrice, priceError as checkPrice, timeAgo } from '../../utils/format'
+import { PriceBox } from '../../components/books/PriceBox'
 
 const FIELDS = ['isbn', 'title', 'author', 'publisher', 'year', 'pages', 'format', 'dimensions', 'price', 'description', 'genre', 'subgenres', 'language', 'shelfId', 'quantity']
 const EDITABLE = ['pending', 'waiting'] // a waiting-list entry is edited here too; it is approved from the Waiting list
@@ -56,7 +57,7 @@ function ReviewBody({ item }) {
 
   const dirtyKeys = [...FIELDS.filter((k) => String(values[k]) !== String(initial[k])), ...(photo !== null ? ['coverPhoto'] : [])]
   const dirty = dirtyKeys.length > 0
-  const priceError = String(values.price ?? '').trim() && !PRICE_PATTERN.test(String(values.price).trim()) ? 'Enter a price like 45 or 45.50' : ''
+  const priceError = checkPrice(values.price) // required: it is the Shopify price
   const invalid = !String(values.title).trim() || !String(values.author).trim() || !values.shelfId || !Number(values.quantity) || Boolean(priceError)
   const set = (k) => (v) => {
     setConflict(null)
@@ -249,9 +250,9 @@ function ReviewBody({ item }) {
                 <dt>Dimensions</dt>
                 <dd className="num">{values.dimensions ? `${values.dimensions} mm` : <span className="muted">—</span>}</dd>
               </div>
-              <div>
+              <div className={cn('fact--price', !formatPrice(values.price) && 'is-missing')}>
                 <dt>Price</dt>
-                <dd className="num">{formatPrice(values.price) || <span className="muted">—</span>}</dd>
+                <dd className="num">{formatPrice(values.price) || 'Not set'}</dd>
               </div>
             </dl>
             <div className="review__barcode">
@@ -359,6 +360,7 @@ function ReviewBody({ item }) {
                 </div>
               )}
               <div className="review__form">
+                <PriceBox id="r-price" value={values.price} onChange={set('price')} error={priceError} dirty={dirtyKeys.includes('price')} hint="Sent to Shopify as the product price on approval." />
                 <Field label="ISBN" htmlFor="r-isbn" hint="ISBN-10 or ISBN-13">
                   <Input id="r-isbn" mono inputMode="numeric" maxLength={17} value={values.isbn} onChange={set('isbn')} className={cn(dirtyKeys.includes('isbn') && 'is-dirty')} />
                 </Field>
@@ -397,9 +399,6 @@ function ReviewBody({ item }) {
                 </div>
                 <Field label="Description" htmlFor="r-description" optional>
                   <Textarea id="r-description" rows={5} maxLength={5000} value={values.description} onChange={set('description')} className={cn(dirtyKeys.includes('description') && 'is-dirty')} />
-                </Field>
-                <Field label="Price (AED)" htmlFor="r-price" optional error={priceError} hint="Sent to Shopify as the product price on approval">
-                  <Input id="r-price" inputMode="decimal" value={values.price} onChange={set('price')} placeholder="e.g. 45" className={cn(dirtyKeys.includes('price') && 'is-dirty')} />
                 </Field>
                 <div className="review__row2 review__row2--inv">
                   <Field label="Shelf" htmlFor="r-shelf" hint="From the Shelf master">

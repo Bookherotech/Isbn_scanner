@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 
 TEXT_FIELDS = ('title', 'author', 'publisher', 'year', 'pages', 'quantity')
 IDENTITY_FIELDS = ('title', 'author', 'shelf_id')
+NO_PRICE = 'Add the price (AED) before approving: it is the Shopify price.'  # books scanned before the price box have none
 
 
 def _text(value):
@@ -177,6 +178,8 @@ def approve_book(book_id, admin, push=True):
         book = _locked(book_id)
         if book.status != BookStatus.PENDING:
             raise InvalidState('Only pending books can be approved.')
+        if book.price is None:
+            raise InvalidState(NO_PRICE)
         if book.cover_hold:
             raise InvalidState('This book is still on the Covers page. Send it on from there first.')
         if needs_review(book.status, book.flag_reviewed_at, match_flags(book.title, book.subjects, load_categories())):
@@ -228,6 +231,8 @@ def approve_waiting_entry(entry_id, admin):
         entry = _locked(entry_id)
         if entry.status != BookStatus.WAITING or entry.linked_item_id is None:
             raise InvalidState('This waiting-list entry is no longer open.')
+        if entry.price is None:
+            raise InvalidState(NO_PRICE)
         if entry.cover_hold:
             raise InvalidState('This book is still on the Covers page. Send it on from there first.')
         primary = _locked(entry.linked_item_id)
