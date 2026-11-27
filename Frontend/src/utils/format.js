@@ -53,6 +53,11 @@ export function greeting(t = clockNow()) {
 
 export const fmtNum = (n) => (n == null ? '—' : Number(n).toLocaleString('en-US'))
 
+/** A book's AED price: '45' / 45 -> 'AED 45.00'; '' / null -> ''. */
+export const formatPrice = (v) => (v === '' || v == null || Number.isNaN(Number(v)) ? '' : `AED ${Number(v).toFixed(2)}`)
+/** The price box rule (same as the server): up to 6 digits, up to 2 decimals. */
+export const PRICE_PATTERN = /^\d{1,6}(\.\d{1,2})?$/
+
 export function initials(name = '') {
   return name
     .split(' ')

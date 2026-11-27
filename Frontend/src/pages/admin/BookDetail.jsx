@@ -11,7 +11,7 @@ import { ErrorState, Skeleton } from '../../components/ui/Feedback'
 import { ShelfTag, StatusChip, SyncChip } from '../../components/ui/Status'
 import { ActivityRow } from '../../components/dashboard/ActivityRow'
 import { Person } from '../../components/inventory/Filters'
-import { formatDateTime, timeAgo } from '../../utils/format'
+import { formatDateTime, formatPrice, timeAgo } from '../../utils/format'
 
 const EDIT_LABEL = { title: 'title', author: 'author', publisher: 'publisher', year: 'year', pages: 'pages', format: 'format', dimensions: 'dimensions', isbn: 'ISBN' }
 
@@ -69,7 +69,7 @@ export default function BookDetail() {
           </div>
           <h1 className="review__title">{it.title}</h1>
           <p className="review__author">by {it.author}</p>
-          <p className="muted">{[it.publisher, it.year, it.pages && `${it.pages} pages`, it.format, it.dimensions && `${it.dimensions} mm`].filter(Boolean).join(' · ')}</p>
+          <p className="muted">{[it.publisher, it.year, it.pages && `${it.pages} pages`, it.format, it.dimensions && `${it.dimensions} mm`, formatPrice(it.price)].filter(Boolean).join(' · ')}</p>
           {it.genre || it.language ? <GenreTags item={it} className="bookd__genre" /> : <p className="muted">Genre not set</p>}
           <div className="review__barcode">
             <Barcode value={it.isbn} height={30} />

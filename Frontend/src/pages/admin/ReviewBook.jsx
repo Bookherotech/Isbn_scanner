@@ -18,13 +18,13 @@ import { ErrorState, Skeleton, StageList, useStages } from '../../components/ui/
 import { Modal } from '../../components/ui/Overlay'
 import { ShelfTag, StatusChip } from '../../components/ui/Status'
 import { Person } from '../../components/inventory/Filters'
-import { cn, formatDateTime, timeAgo } from '../../utils/format'
+import { cn, formatDateTime, formatPrice, PRICE_PATTERN, timeAgo } from '../../utils/format'
 
-const FIELDS = ['isbn', 'title', 'author', 'publisher', 'year', 'pages', 'format', 'dimensions', 'description', 'genre', 'subgenres', 'language', 'shelfId', 'quantity']
+const FIELDS = ['isbn', 'title', 'author', 'publisher', 'year', 'pages', 'format', 'dimensions', 'price', 'description', 'genre', 'subgenres', 'language', 'shelfId', 'quantity']
 const EDITABLE = ['pending', 'waiting'] // a waiting-list entry is edited here too; it is approved from the Waiting list
 const REASONS = ['Incorrect metadata', 'Damaged book', 'Invalid shelf', 'Other']
 const REFRESHABLE = ['title', 'author', 'publisher', 'year', 'pages', 'format', 'dimensions', 'description', 'language']
-const LABEL = { isbn: 'ISBN', title: 'Title', author: 'Author', publisher: 'Publisher', year: 'Year', pages: 'Pages', format: 'Format', dimensions: 'Dimensions', description: 'Description', photo: 'Photo', subgenres: 'Categories' }
+const LABEL = { isbn: 'ISBN', title: 'Title', author: 'Author', publisher: 'Publisher', year: 'Year', pages: 'Pages', format: 'Format', dimensions: 'Dimensions', price: 'Price', description: 'Description', photo: 'Photo', subgenres: 'Categories' }
 
 export default function ReviewBook() {
   const { id } = useParams()
@@ -56,7 +56,8 @@ function ReviewBody({ item }) {
 
   const dirtyKeys = [...FIELDS.filter((k) => String(values[k]) !== String(initial[k])), ...(photo !== null ? ['coverPhoto'] : [])]
   const dirty = dirtyKeys.length > 0
-  const invalid = !String(values.title).trim() || !String(values.author).trim() || !values.shelfId || !Number(values.quantity)
+  const priceError = String(values.price ?? '').trim() && !PRICE_PATTERN.test(String(values.price).trim()) ? 'Enter a price like 45 or 45.50' : ''
+  const invalid = !String(values.title).trim() || !String(values.author).trim() || !values.shelfId || !Number(values.quantity) || Boolean(priceError)
   const set = (k) => (v) => {
     setConflict(null)
     setValues((s) => ({ ...s, [k]: v?.target ? v.target.value : v }))
@@ -248,6 +249,10 @@ function ReviewBody({ item }) {
                 <dt>Dimensions</dt>
                 <dd className="num">{values.dimensions ? `${values.dimensions} mm` : <span className="muted">—</span>}</dd>
               </div>
+              <div>
+                <dt>Price</dt>
+                <dd className="num">{formatPrice(values.price) || <span className="muted">—</span>}</dd>
+              </div>
             </dl>
             <div className="review__barcode">
               <Barcode value={item.isbn} height={34} />
@@ -392,6 +397,9 @@ function ReviewBody({ item }) {
                 </div>
                 <Field label="Description" htmlFor="r-description" optional>
                   <Textarea id="r-description" rows={5} maxLength={5000} value={values.description} onChange={set('description')} className={cn(dirtyKeys.includes('description') && 'is-dirty')} />
+                </Field>
+                <Field label="Price (AED)" htmlFor="r-price" optional error={priceError} hint="Sent to Shopify as the product price on approval">
+                  <Input id="r-price" inputMode="decimal" value={values.price} onChange={set('price')} placeholder="e.g. 45" className={cn(dirtyKeys.includes('price') && 'is-dirty')} />
                 </Field>
                 <div className="review__row2 review__row2--inv">
                   <Field label="Shelf" htmlFor="r-shelf" hint="From the Shelf master">

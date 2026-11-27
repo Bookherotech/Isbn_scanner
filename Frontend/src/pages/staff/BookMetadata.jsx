@@ -18,10 +18,10 @@ import { Field, Input, Select, Textarea } from '../../components/ui/Form'
 import { GenrePicker } from '../../components/books/GenrePicker'
 import { PhotoDrop } from '../../components/books/PhotoDrop'
 import { Skeleton } from '../../components/ui/Feedback'
-import { cn } from '../../utils/format'
+import { cn, PRICE_PATTERN } from '../../utils/format'
 
-const FIELDS = ['title', 'author', 'publisher', 'year', 'pages', 'format', 'dimensions', 'description', 'genre', 'language']
-const EMPTY = { title: '', author: '', publisher: '', year: '', pages: '', format: '', dimensions: '', description: '', genre: '', subgenres: [], language: '' }
+const FIELDS = ['title', 'author', 'publisher', 'year', 'pages', 'format', 'dimensions', 'price', 'description', 'genre', 'language'] // price: typed by staff, never fetched
+const EMPTY = { title: '', author: '', publisher: '', year: '', pages: '', format: '', dimensions: '', price: '', description: '', genre: '', subgenres: [], language: '' }
 const pickValues = (m) => ({ ...Object.fromEntries(FIELDS.map((k) => [k, m?.[k] ?? ''])), subgenres: m?.subgenres || [] })
 const isEmpty = (v) => String(v ?? '').trim() === ''
 const same = (a, b) => JSON.stringify(a ?? '') === JSON.stringify(b ?? '')
@@ -146,6 +146,7 @@ export default function BookMetadata() {
     author: !values.author.trim() && 'Author is required',
     year: values.year && !/^\d{4}$/.test(String(values.year)) && 'Use a 4-digit year',
     pages: values.pages && !/^\d+$/.test(String(values.pages)) && 'Numbers only',
+    price: String(values.price ?? '').trim() && !PRICE_PATTERN.test(String(values.price).trim()) && 'Enter a price like 45 or 45.50',
   }
   const invalid = Object.values(errors).some(Boolean)
   const missing = meta?.missing || []
@@ -181,7 +182,7 @@ export default function BookMetadata() {
     try {
       const m = await lookupIsbn(newIsbn)
       setRecentIsbnTitle(user, newIsbn, m.title)
-      setDraft(draftFor(newIsbn, { meta: m, manual: false, values: pickValues(m) }))
+      setDraft(draftFor(newIsbn, { meta: m, manual: false, values: { ...pickValues(m), price: values.price } })) // a typed price is kept
       navigate(`/staff/book/${newIsbn}`, { replace: true })
     } catch (error) {
       setLookingUp(false)
@@ -515,6 +516,10 @@ export default function BookMetadata() {
                   <Input id="m-dimensions" value={values.dimensions ?? ''} onChange={set('dimensions')} readOnly={locked} className={cn(lockedClass)} placeholder={locked ? '' : '126 x 176 x 21'} />
                 </Field>
               </div>
+              {/* Always editable: the books' sources have no price, staff type the selling price. Sent to Shopify on approval. */}
+              <Field label="Price (AED)" htmlFor="m-price" optional error={showErrors && errors.price} hint="Selling price on the store">
+                <Input id="m-price" inputMode="decimal" value={values.price ?? ''} onChange={set('price')} placeholder="e.g. 45" />
+              </Field>
               {/* Always editable: taken from the store's Shopify product, or guessed from the book data; staff confirm it. */}
               <GenrePicker
                 lists={genreLists}
