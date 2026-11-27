@@ -17,7 +17,7 @@ class SubmissionCreateApiTests(StaffApiTestCase):
         body = {
             'isbn': '9780141182636', 'title': 'The Great Gatsby', 'author': 'F. Scott Fitzgerald', 'publisher': 'Penguin',
             'year': '2000', 'pages': '180', 'source': 'google', 'subjects': ['Fiction'], 'fetched': FETCHED,
-            'shelf_id': 'A-01', 'quantity': 3,
+            'shelf_id': 'A-01', 'quantity': 3, 'price': '45',
         }
         body.update(overrides)
         return self.client.post(self.url, body, format='json')

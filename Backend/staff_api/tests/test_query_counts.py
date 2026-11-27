@@ -54,7 +54,7 @@ class QueryCountTests(StaffApiTestCase):
 
     def test_create_does_not_grow_with_existing_duplicates(self):
         url = reverse('staff_api:submissions')
-        body = {'isbn': '9780141182636', 'title': 'Same Book', 'author': 'Same Author', 'source': 'manual', 'shelf_id': 'A-01', 'quantity': 1}
+        body = {'isbn': '9780141182636', 'title': 'Same Book', 'author': 'Same Author', 'source': 'manual', 'shelf_id': 'A-01', 'quantity': 1, 'price': '45'}
         make_book(self.other_staff, self.a02, title='Same Book', author='Same Author', status=BookStatus.LIVE, stock=1)
         one = self.queries_for('post', url, body)
         for _ in range(MANY):

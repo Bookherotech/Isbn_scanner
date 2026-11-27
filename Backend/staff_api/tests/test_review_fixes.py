@@ -14,7 +14,7 @@ from inventory.models import Book
 from inventory.services import duplicate_key
 from staff_api.tests.helpers import StaffApiTestCase, make_book
 
-BODY = {'isbn': '9780141182636', 'title': 'Same Book', 'author': 'Same Author', 'source': 'manual', 'shelf_id': 'A-01', 'quantity': 1}
+BODY = {'isbn': '9780141182636', 'title': 'Same Book', 'author': 'Same Author', 'source': 'manual', 'shelf_id': 'A-01', 'quantity': 1, 'price': '45'}
 
 
 def lock_name(title, author):

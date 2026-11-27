@@ -55,8 +55,14 @@ export const fmtNum = (n) => (n == null ? '—' : Number(n).toLocaleString('en-U
 
 /** A book's AED price: '45' / 45 -> 'AED 45.00'; '' / null -> ''. */
 export const formatPrice = (v) => (v === '' || v == null || Number.isNaN(Number(v)) ? '' : `AED ${Number(v).toFixed(2)}`)
-/** The price box rule (same as the server): up to 6 digits, up to 2 decimals. */
-export const PRICE_PATTERN = /^\d{1,6}(\.\d{1,2})?$/
+/** The price box rule (same as the server): required, up to 6 digits and 2 decimals, more than 0. -> the message, or ''. */
+export function priceError(value) {
+  const text = String(value ?? '').trim()
+  if (!text) return 'Enter the price in AED'
+  if (!/^\d{1,6}(\.\d{1,2})?$/.test(text)) return 'Enter a price like 45 or 45.50'
+  if (Number(text) <= 0) return 'The price must be more than 0'
+  return ''
+}
 
 export function initials(name = '') {
   return name
