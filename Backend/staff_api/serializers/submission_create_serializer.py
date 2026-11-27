@@ -5,7 +5,7 @@ from rest_framework import serializers
 from integrations.shopify.genres import canonical_genre, canonical_language, canonical_subgenres
 from inventory.constants import BookSource, ShelfStatus
 from inventory.models import Shelf
-from inventory.services import InvalidCoverPhoto, clean_cover_photo, to_isbn13
+from inventory.services import InvalidCoverPhoto, InvalidPrice, clean_cover_photo, clean_price, to_isbn13
 
 METADATA_FIELDS = ('title', 'author', 'publisher', 'year', 'pages')
 MAX_QUANTITY = 500
@@ -32,6 +32,7 @@ class SubmissionCreateSerializer(serializers.Serializer):
     pages = serializers.CharField(required=False, allow_blank=True, allow_null=True, default=None)
     format = serializers.CharField(max_length=40, required=False, allow_blank=True, default='')
     dimensions = serializers.CharField(max_length=60, required=False, allow_blank=True, default='')
+    price = serializers.CharField(max_length=12, required=False, allow_blank=True, allow_null=True, default=None)  # AED; '' = not set
     source = serializers.ChoiceField(choices=BookSource.choices, default=BookSource.MANUAL)
     subjects = serializers.ListField(child=serializers.CharField(max_length=100), required=False, default=list, max_length=50)
     description = serializers.CharField(max_length=5000, required=False, allow_blank=True, default='')
@@ -74,6 +75,12 @@ class SubmissionCreateSerializer(serializers.Serializer):
 
     def validate_pages(self, value):
         return _optional_number(value, r'\d{1,6}', 'Numbers only.')
+
+    def validate_price(self, value):
+        try:
+            return clean_price(value)
+        except InvalidPrice as error:
+            raise serializers.ValidationError(str(error)) from None
 
     def validate_shelf_id(self, value):
         shelf = Shelf.objects.filter(code=value.strip().upper(), status=ShelfStatus.ACTIVE).first()

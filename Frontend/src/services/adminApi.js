@@ -80,6 +80,7 @@ function mapItem(r) {
     pages: r.pages ?? '',
     format: r.format || '',
     dimensions: r.dimensions || '',
+    price: r.price ?? '', // AED ('45.00'), '' = not set
     source: r.source,
     subjects: r.subjects,
     genre: r.genre || '',

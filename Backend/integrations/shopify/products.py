@@ -209,8 +209,9 @@ mutation CreateBook($input: ProductSetInput!) {
 def create_product(book, quantity):
     """A new product for the book, with `quantity` available at our location -> (product GID, inventory item GID).
 
-    It is created with SHOPIFY_PRODUCT_STATUS (DRAFT by default): BookHero has no prices, so an admin sets the
-    price in Shopify and publishes it there. Its page title is seo_title and its URL handle book_handle; when another
+    It is created with SHOPIFY_PRODUCT_STATUS (DRAFT by default), so an admin checks it and publishes it in Shopify.
+    Its price is the book's AED price when staff / an admin typed one (else Shopify's 0, set there by hand).
+    Its page title is seo_title and its URL handle book_handle; when another
     product already has that handle, the ISBN is added to it ('the-return-victoria-hislop-9781...'), and when that
     is taken too, Shopify picks one.
     """
@@ -231,6 +232,8 @@ def create_product(book, quantity):
         }],
         'metafields': [{**SHELF_FIELD, 'value': book.shelf.code}],
     }
+    if book.price is not None:
+        product['variants'][0]['price'] = str(book.price)
     if book.cover_url.startswith('https://') and not (book.cover_photo or book.cached_cover):  # a file of ours is uploaded after this, see attach_image
         product['files'] = [{'originalSource': book.cover_url, 'alt': book.title[:255], 'contentType': 'IMAGE'}]
     handle = book_handle(book)
@@ -297,9 +300,10 @@ mutation SetSku($product: ID!, $variants: [ProductVariantsBulkInput!]!) {
 """
 
 
-def set_shelf_location(product_gid_or_id, shelf_code, isbn):
+def set_shelf_location(product_gid_or_id, shelf_code, isbn, price=None):
     """Write the book's current shelf on its product: the "Shelf location" field, and the SKU "<shelf>-<ISBN>" (with the
-    ISBN as barcode). A failure is logged, never raised: stock matters more."""
+    ISBN as barcode). `price` (AED, the book's price when it has one) replaces the variant's price in the same call;
+    None leaves the product's price as it is. A failure is logged, never raised: stock matters more."""
     gid = product_gid_or_id if str(product_gid_or_id).startswith('gid://') else product_gid(product_gid_or_id)
     ensure_shelf_definition()
     try:
@@ -311,9 +315,11 @@ def set_shelf_location(product_gid_or_id, shelf_code, isbn):
         variants = ((graphql(VARIANT_QUERY, {'id': gid})['product'] or {}).get('variants') or {}).get('nodes') or []
         if variants:
             variant = {'id': variants[0]['id'], 'barcode': isbn, 'inventoryItem': {'sku': book_sku(shelf_code, isbn)}}
+            if price is not None:
+                variant['price'] = str(price)
             raise_user_errors(graphql(SKU_MUTATION, {'product': gid, 'variants': [variant]})['productVariantsBulkUpdate'])
     except ShopifyError as error:
-        logger.warning('Could not set the SKU of %s: %s', gid, error)
+        logger.warning('Could not set the SKU / price of %s: %s', gid, error)
 
 
 TAGS_MUTATION = """

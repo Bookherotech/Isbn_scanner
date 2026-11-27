@@ -58,6 +58,7 @@ function mapItem(r) {
     pages: r.pages ?? '',
     format: r.format || '',
     dimensions: r.dimensions || '',
+    price: r.price ?? '', // AED, '' = not set
     source: r.source,
     subjects: r.subjects,
     genre: r.genre || '',
@@ -182,7 +183,7 @@ export async function loadShelves() {
 /**
  * POST /api/staff/submissions/ -> { result: 'pending' | 'waiting' | 'rejected', match, ready, blocked, flags, flagHold, item, key }
  * `blocked` ({ reason }): the ISBN is on the admin's Blocked books list, so it was rejected; else null.
- * `draft` is what the Review screen sends: { isbn, title, author, publisher, year, pages, source, subjects, genre, subgenres, language, description, fetched, photo, shelfId, quantity }.
+ * `draft` is what the Review screen sends: { isbn, title, author, publisher, year, pages, price, source, subjects, genre, subgenres, language, description, fetched, photo, shelfId, quantity }.
  * `fetched.isbn` is the ISBN first scanned/typed (a corrected ISBN counts as an edit); `photo` is a JPEG data URL.
  */
 export async function submitBook(draft) {
@@ -197,6 +198,7 @@ export async function submitBook(draft) {
       pages: draft.pages ?? '',
       format: draft.format?.trim() || '',
       dimensions: draft.dimensions?.trim() || '',
+      price: String(draft.price ?? '').trim(), // AED; '' = not set
       source: draft.source || 'manual',
       subjects: draft.subjects || [],
       description: draft.description?.trim() || '',
