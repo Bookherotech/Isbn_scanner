@@ -32,7 +32,7 @@ class SubmissionCreateSerializer(serializers.Serializer):
     pages = serializers.CharField(required=False, allow_blank=True, allow_null=True, default=None)
     format = serializers.CharField(max_length=40, required=False, allow_blank=True, default='')
     dimensions = serializers.CharField(max_length=60, required=False, allow_blank=True, default='')
-    price = serializers.CharField(max_length=12, required=False, allow_blank=True, allow_null=True, default=None)  # AED; '' = not set
+    price = serializers.CharField(max_length=12, error_messages={'blank': 'Enter the price in AED.', 'required': 'Enter the price in AED.', 'null': 'Enter the price in AED.'})  # AED, required
     source = serializers.ChoiceField(choices=BookSource.choices, default=BookSource.MANUAL)
     subjects = serializers.ListField(child=serializers.CharField(max_length=100), required=False, default=list, max_length=50)
     description = serializers.CharField(max_length=5000, required=False, allow_blank=True, default='')

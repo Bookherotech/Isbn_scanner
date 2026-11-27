@@ -5,7 +5,7 @@ from book_admin.models import FlagCategory
 from inventory.constants import BookStatus
 from staff_api.tests.helpers import StaffApiTestCase, make_book
 
-BODY = {'isbn': '9780141182636', 'title': 'Erotica Stories', 'author': 'Anon', 'source': 'manual', 'shelf_id': 'A-01', 'quantity': 1}
+BODY = {'isbn': '9780141182636', 'title': 'Erotica Stories', 'author': 'Anon', 'source': 'manual', 'shelf_id': 'A-01', 'quantity': 1, 'price': '45'}
 
 
 class StaffFlagTests(StaffApiTestCase):

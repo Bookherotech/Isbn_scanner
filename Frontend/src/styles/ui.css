@@ -1122,3 +1122,19 @@ dl .fact--wide { grid-column: 1 / -1; }
 .cmd__text span { font-size: 12.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cmd__enter { color: var(--muted); }
 
+/* Selling price (AED): required, so it stands out from the other book fields (components/books/PriceBox) */
+.pricebox { display: grid; gap: 8px; padding: 12px 14px 12px; border-radius: 10px; background: var(--hero-subtle); border: 1.5px solid var(--hero-line); }
+.pricebox__label { display: flex; align-items: center; gap: 7px; font-size: 14px; font-weight: 700; color: var(--hero-ink); }
+.pricebox__req { margin-left: auto; padding: 2px 7px; border-radius: 999px; font-size: 11px; font-weight: 700; letter-spacing: 0.02em; text-transform: uppercase; color: #fff; background: var(--ink); }
+.pricebox__field { display: flex; align-items: stretch; height: 52px; border-radius: 8px; background: var(--surface); border: 1.5px solid var(--line-strong); overflow: hidden; transition: border-color var(--t-1), box-shadow var(--t-1); }
+.pricebox__field:focus-within { border-color: var(--ink); box-shadow: 0 0 0 3px rgba(255, 210, 31, 0.45); }
+.pricebox__field.is-dirty { border-color: var(--hero-press); }
+.pricebox__cur { display: grid; place-items: center; padding: 0 12px; font-size: 15px; font-weight: 800; color: var(--hero-ink); background: var(--hero); border-right: 1.5px solid var(--hero-line); }
+.pricebox__input { flex: 1; min-width: 0; padding: 0 12px; border: 0; outline: none; background: transparent; font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--ink); }
+.pricebox__input::placeholder { color: var(--faint); font-weight: 600; }
+.pricebox__hint { margin: 0; font-size: 12.5px; color: var(--hero-ink); }
+.pricebox__error { margin: 0; font-size: 12.5px; font-weight: 600; color: var(--danger); }
+.pricebox.has-error { background: var(--danger-bg); border-color: var(--danger-line); }
+.pricebox.has-error .pricebox__field { border-color: var(--danger); }
+.review__facts .fact--price dd { font-size: 15px; font-weight: 800; color: var(--ink); }
+.review__facts .fact--price.is-missing dd { color: var(--danger); font-weight: 700; }

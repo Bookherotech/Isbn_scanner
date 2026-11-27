@@ -43,7 +43,7 @@ class CoverPhotoTests(StaffApiTestCase):
     def submit(self, **overrides):
         body = {
             'isbn': '9780141182636', 'title': 'The Great Gatsby', 'author': 'F. Scott Fitzgerald', 'publisher': 'Penguin',
-            'year': '2000', 'pages': '180', 'source': 'openlibrary', 'fetched': FETCHED, 'shelf_id': 'A-01', 'quantity': 1,
+            'year': '2000', 'pages': '180', 'source': 'openlibrary', 'fetched': FETCHED, 'shelf_id': 'A-01', 'quantity': 1, 'price': '45',
         }
         body.update(overrides)
         return self.client.post(self.url, body, format='json')
@@ -105,7 +105,7 @@ class EditedIsbnTests(StaffApiTestCase):
     def submit(self, isbn, fetched_isbn):
         return self.client.post(self.url, {
             'isbn': isbn, 'title': 'The Great Gatsby', 'author': 'F. Scott Fitzgerald', 'publisher': 'Penguin', 'year': '2000',
-            'pages': '180', 'source': 'openlibrary', 'fetched': {**FETCHED, 'isbn': fetched_isbn}, 'shelf_id': 'A-01', 'quantity': 1,
+            'pages': '180', 'source': 'openlibrary', 'fetched': {**FETCHED, 'isbn': fetched_isbn}, 'shelf_id': 'A-01', 'quantity': 1, 'price': '45',
         }, format='json')
 
     def test_a_corrected_isbn_counts_as_an_edit(self):
