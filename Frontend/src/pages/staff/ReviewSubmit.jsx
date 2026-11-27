@@ -11,6 +11,7 @@ import { Button } from '../../components/ui/Button'
 import { StageList, useStages } from '../../components/ui/Feedback'
 import { FlagChips, ShelfTag } from '../../components/ui/Status'
 import { useToast } from '../../hooks/useToast'
+import { formatPrice } from '../../utils/format'
 
 export default function ReviewSubmit() {
   const navigate = useNavigate()
@@ -86,6 +87,12 @@ export default function ReviewSubmit() {
               <dt>Quantity</dt>
               <dd className="review-card__qty num">{d.quantity}</dd>
             </div>
+            {formatPrice(d.values.price) && (
+              <div>
+                <dt>Price</dt>
+                <dd className="num">{formatPrice(d.values.price)}</dd>
+              </div>
+            )}
             {(d.values.genre || d.values.language) && (
               <div>
                 <dt>Genre</dt>

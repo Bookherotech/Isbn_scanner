@@ -11,7 +11,7 @@ from integrations.shopify.genres import canonical_genre, canonical_language, can
 from inventory.constants import ShelfStatus
 from inventory.models import Book, Shelf
 from inventory.services import (
-    InvalidCoverPhoto, clean_cover_photo, duplicate_key, find_duplicates, match_summary, normalize_author, normalize_title, to_isbn13,
+    InvalidCoverPhoto, InvalidPrice, clean_cover_photo, clean_price, duplicate_key, find_duplicates, match_summary, normalize_author, normalize_title, to_isbn13,
 )
 
 MAX_QUANTITY = 500
@@ -39,7 +39,7 @@ class BookSerializer(serializers.ModelSerializer):
     class Meta:
         model = Book
         fields = [
-            'id', 'isbn', 'title', 'author', 'publisher', 'year', 'pages', 'format', 'dimensions', 'source', 'subjects', 'genre', 'subgenres', 'language', 'description', 'cover_url', 'cover_photo_url', 'has_photo',
+            'id', 'isbn', 'title', 'author', 'publisher', 'year', 'pages', 'format', 'dimensions', 'price', 'source', 'subjects', 'genre', 'subgenres', 'language', 'description', 'cover_url', 'cover_photo_url', 'has_photo',
             'fetched', 'edited_fields', 'missing_fields', 'shelf_id', 'previous_shelf_id', 'quantity', 'stock', 'status', 'ready', 'linked', 'match',
             'cover_hold', 'cover_dropped_at', 'submitted_by', 'submitted_by_name', 'submitted_at', 'approved_by', 'approved_by_name', 'approved_at',
             'rejected_by', 'rejected_by_name', 'rejected_at', 'auto_rejected', 'reject_reason', 'reject_note',
@@ -191,6 +191,7 @@ class BookUpdateSerializer(serializers.Serializer):
     pages = serializers.CharField(allow_blank=True, allow_null=True)
     format = serializers.CharField(max_length=40, allow_blank=True)
     dimensions = serializers.CharField(max_length=60, allow_blank=True)
+    price = serializers.CharField(max_length=12, allow_blank=True, allow_null=True)  # AED; '' = no price
     description = serializers.CharField(max_length=5000, allow_blank=True)
     genre = serializers.CharField(max_length=40, allow_blank=True)
     language = serializers.CharField(max_length=20, allow_blank=True)
@@ -244,6 +245,12 @@ class BookUpdateSerializer(serializers.Serializer):
 
     def validate_pages(self, value):
         return _optional_number(value, r'\d{1,6}', 'Numbers only.')
+
+    def validate_price(self, value):
+        try:
+            return clean_price(value)
+        except InvalidPrice as error:
+            raise serializers.ValidationError(str(error)) from None
 
     def validate(self, attrs):
         book = self.context.get('book')

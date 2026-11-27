@@ -8,7 +8,7 @@ import { DuplicateExplainer, ShelfMove, SourceBadge } from '../../components/boo
 import { ErrorState, Skeleton } from '../../components/ui/Feedback'
 import { FlagChips, ShelfTag, StatusChip } from '../../components/ui/Status'
 import { Barcode } from '../../components/ui/Misc'
-import { cn, formatDateTime } from '../../utils/format'
+import { cn, formatDateTime, formatPrice } from '../../utils/format'
 
 function timeline(it) {
   const steps = [{ label: 'Submitted', at: it.submittedAt, state: 'done' }]
@@ -143,6 +143,7 @@ export default function SubmissionDetail() {
                     ['Pages', it.pages],
                     ['Format', it.format],
                     ['Dimensions', it.dimensions && `${it.dimensions} mm`],
+                    ['Price', formatPrice(it.price)],
                     ['Language', it.language || 'English'],
                     ['Genre', it.genre],
                     ['ISBN', <span className="mono">{it.isbn}</span>],

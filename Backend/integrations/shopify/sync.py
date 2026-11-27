@@ -17,6 +17,8 @@
    linked by ISBN). A photo (staff, or dropped on the admin Covers page) always does; without one, a product that already
    has an image keeps it, and our cover copy only goes on a product with none.
    A product linked on approval also gets the book's description (when the book has one).
+5. Price: the book's AED price (typed by staff / an admin) is the variant price of a new product, and replaces the
+   price of a product it is linked or pushed to; a book without a price leaves the product's price alone.
 
 Shopify is never called inside a database transaction, so a slow API never holds row locks.
 """
@@ -104,7 +106,7 @@ def publish_book(book_id):
         if book.product_id and book.sync_status != DELETED:  # a deleted product cannot be reused: make or find a new one
             set_available(inventory_item_of(book.product_id), quantity)
             add_tags(book.product_id, book_tags(book))  # e.g. a waiting-list entry: its genre goes on the shared product too
-            set_shelf_location(book.product_id, book.shelf.code, book.isbn)  # a waiting-list entry may be on another shelf
+            set_shelf_location(book.product_id, book.shelf.code, book.isbn, price=book.price)  # a waiting-list entry may be on another shelf; its price, when set, replaces the product's
             set_book_category(product_gid(book.product_id), book)
             set_description(book.product_id, book)
             product_id, action, detail = book.product_id, 'Stock pushed', f'Shelf {book.shelf.code} · {quantity} available'
@@ -114,7 +116,7 @@ def publish_book(book_id):
                 gid, item = existing
                 set_available(item, quantity)
                 add_tags(gid, book_tags(book))  # the store's own product joins the genre collections too
-                set_shelf_location(gid, book.shelf.code, book.isbn)
+                set_shelf_location(gid, book.shelf.code, book.isbn, price=book.price)  # the book's price, when set, replaces the product's
                 set_book_category(gid, book)  # fills only what the store's own product does not have
                 set_description(gid, book)  # the book's description replaces the product's (kept when the book has none)
                 action = 'Linked to product'
