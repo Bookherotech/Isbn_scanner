@@ -48,7 +48,7 @@ export default function LiveInventory() {
 
   const columns = [
     { key: 'book', header: 'Book', card: 'title', render: (r) => <BookCell item={r} sub={r.author} /> },
-    { key: 'author', header: 'Author', card: 'hide', render: (r) => <span className="td-clip">{r.author}</span> },
+    { key: 'author', header: 'Author', card: 'hide', hide: 1600, render: (r) => <span className="td-clip">{r.author}</span> },
     { key: 'isbn', header: 'ISBN', card: 'meta', render: (r) => <span className="td-mono">{r.isbn}</span> },
     { key: 'shelf', header: 'Active shelf', card: 'meta', render: (r) => <ShelfTag id={r.shelfId} size="sm" /> },
     { key: 'qty', header: 'Qty', align: 'right', card: 'meta', render: (r) => <span className={`num td-strong${r.stock === 0 ? ' is-zero' : ''}`}>{r.stock}</span> },

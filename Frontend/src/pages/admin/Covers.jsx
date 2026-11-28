@@ -44,7 +44,8 @@ export default function Covers() {
   const today = data?.today
   const rows = data?.tab === tab ? data.rows : [] // not the other tab's rows while switching
   const dropped = rows.filter((b) => b.coverDroppedAt).length
-  const phone = useMediaQuery('(max-width: 860px)') // same breakpoint as DataTable's cards
+  const phone = useMediaQuery('(max-width: 860px)') // same breakpoint as DataTable's cards: icon-only buttons
+  const narrow = useMediaQuery('(max-width: 1799px)') // the 10-column table needs a wide screen: below that, the compact rows
 
   const upload = async (book, file) => {
     setBusyId(book.id)
@@ -198,6 +199,7 @@ export default function Covers() {
               <ShelfTag id={b.shelfId} size="sm" />
               <span>×{b.quantity}</span>
               <span title={formatDateTime(b.submittedAt)}>{timeOf(b.submittedAt)}</span>
+              {b.submittedByName && <span className="cover-strip__by">by {b.submittedByName}</span>}
             </div>
             <div className="cover-strip__chips">
               {statusChip(b)}
@@ -205,7 +207,7 @@ export default function Covers() {
             </div>
             {coverNote(b)}
           </div>
-          <div className="cover-strip__actions">{actions(b, true)}</div>
+          <div className="cover-strip__actions">{actions(b, phone)}</div>
         </li>
       ))}
     </ul>
@@ -259,7 +261,7 @@ export default function Covers() {
         <ErrorState error={error} onRetry={reload} />
       ) : (
         <div className="covers-drop" {...drag}>
-          {phone && rows.length > 0 && !loading ? (
+          {narrow && rows.length > 0 && !loading ? (
             strips
           ) : (
             <DataTable

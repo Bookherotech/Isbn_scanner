@@ -181,8 +181,8 @@ export default function Reports() {
             {!data ? (
               <Skeleton h={200} r={6} />
             ) : (
-              <div className="table-wrap table-wrap--plain">
-                <table className="table table--dense">
+              <div className="table-wrap table-wrap--plain table-wrap--stack">
+                <table className="table table--dense table--stack">
                   <thead>
                     <tr>
                       <th>Staff</th>
@@ -203,19 +203,19 @@ export default function Reports() {
                             {s.status === 'inactive' && <span className="muted"> (inactive)</span>}
                           </span>
                         </td>
-                        <td className="num" style={{ textAlign: 'right' }}>
+                        <td className="num" style={{ textAlign: 'right' }} data-label="Submitted">
                           <strong>{s.submitted}</strong>
                         </td>
-                        <td className="num" style={{ textAlign: 'right' }}>
+                        <td className="num" style={{ textAlign: 'right' }} data-label="Approved">
                           {s.approved}
                         </td>
-                        <td className="num" style={{ textAlign: 'right' }}>
+                        <td className="num" style={{ textAlign: 'right' }} data-label="Rejected">
                           {s.rejected}
                         </td>
-                        <td className="num" style={{ textAlign: 'right' }}>
+                        <td className="num" style={{ textAlign: 'right' }} data-label="Waiting">
                           {s.waiting}
                         </td>
-                        <td className="num" style={{ textAlign: 'right' }}>
+                        <td className="num" style={{ textAlign: 'right' }} data-label="Approval rate">
                           {s.rate == null ? '—' : `${s.rate}%`}
                         </td>
                       </tr>

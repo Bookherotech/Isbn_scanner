@@ -83,8 +83,8 @@ export default function WaitingList() {
         ),
     },
     { key: 'qty', header: 'Qty', align: 'right', card: 'meta', render: (r) => <span className="num td-strong">{r.quantity}</span> },
-    { key: 'by', header: 'Submitted by', card: 'meta', render: (r) => <Person id={r.submittedBy} name={r.submittedByName} /> },
-    { key: 'at', header: 'Submitted', card: 'meta', render: (r) => <span className="td-muted" title={formatDateTime(r.submittedAt)}>{timeAgo(r.submittedAt)}</span> },
+    { key: 'by', header: 'Submitted by', card: 'meta', hide: 1600, render: (r) => <Person id={r.submittedBy} name={r.submittedByName} /> },
+    { key: 'at', header: 'Submitted', card: 'meta', hide: 1600, render: (r) => <span className="td-muted" title={formatDateTime(r.submittedAt)}>{timeAgo(r.submittedAt)}</span> },
     { key: 'status', header: 'Status', card: 'badge', render: (r) => <StatusChip status="waiting" ready={r.ready} size="sm" /> },
     {
       key: 'action',

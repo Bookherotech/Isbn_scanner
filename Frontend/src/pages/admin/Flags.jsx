@@ -91,10 +91,11 @@ function FlaggedBooks({ query, tab }) {
       key: 'matched',
       header: 'Matched on',
       card: 'meta',
+      hide: 1200,
       render: (r) => <span className="td-muted td-clip">{[...new Set(r.flags.map((f) => f.matched))].join(', ')}</span>,
     },
     { key: 'shelf', header: 'Shelf', card: 'meta', render: (r) => <ShelfTag id={r.shelfId} size="sm" /> },
-    { key: 'by', header: 'Submitted by', card: 'meta', render: (r) => <Person id={r.submittedBy} name={r.submittedByName} /> },
+    { key: 'by', header: 'Submitted by', card: 'meta', hide: 1600, render: (r) => <Person id={r.submittedBy} name={r.submittedByName} /> },
     {
       key: 'review',
       header: tab === 'review' ? 'Submitted' : 'Reviewed',

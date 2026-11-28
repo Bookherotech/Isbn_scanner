@@ -36,7 +36,7 @@ export function StaffFilter({ value, onChange, label = 'All staff' }) {
 
 export function Person({ id, name, size = 22 }) {
   return (
-    <span className="person">
+    <span className="person" title={name}>
       <Avatar name={name} hue={hueOf(name)} size={size} />
       <span>{name}</span>
     </span>

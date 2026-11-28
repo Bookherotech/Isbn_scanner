@@ -6,7 +6,11 @@ import { ErrorState, TableSkeleton } from './Feedback'
 /**
  * Responsive data table. Desktop: dense table. ≤ 860px: stacked cards using
  * the same column config (card: 'title' | 'badge' | 'meta' | 'hide').
+ * `hide: 1600 | 1200` leaves a column out of the table below that screen width (laptops), so the book's title keeps
+ * room; the phone cards still show it.
  */
+const colClass = (c) => cn(c.className, c.card === 'title' && 'col-title', c.hide && `col-hide-${c.hide}`)
+
 export function DataTable({ columns, rows, rowKey = 'id', loading, error, onRetry, empty, onRowClick, refreshing, dense, caption }) {
   const mobile = useMediaQuery('(max-width: 860px)')
   if (loading) return <TableSkeleton cols={Math.min(columns.length, 7)} />
@@ -58,7 +62,7 @@ export function DataTable({ columns, rows, rowKey = 'id', loading, error, onRetr
         <thead>
           <tr>
             {columns.map((c) => (
-              <th key={c.key} style={{ width: c.width, textAlign: c.align }} scope="col">
+              <th key={c.key} style={{ width: c.width, textAlign: c.align }} className={colClass(c) || undefined} scope="col">
                 {c.header}
               </th>
             ))}
@@ -74,7 +78,7 @@ export function DataTable({ columns, rows, rowKey = 'id', loading, error, onRetr
               tabIndex={onRowClick ? 0 : undefined}
             >
               {columns.map((c) => (
-                <td key={c.key} style={{ textAlign: c.align }} className={c.className} onClick={c.card === 'action' ? (e) => e.stopPropagation() : undefined}>
+                <td key={c.key} style={{ textAlign: c.align }} className={colClass(c) || undefined} onClick={c.card === 'action' ? (e) => e.stopPropagation() : undefined}>
                   {c.render(row)}
                 </td>
               ))}
